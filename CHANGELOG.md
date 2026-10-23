@@ -18,6 +18,9 @@ Changes are grouped under [Unreleased] until a tested release is published.
 - Clarified frontend/backend responsibility and two-project Vercel deployment.
 
 ### Fixed
+- Removed an unused dashboard icon import that could fail strict TypeScript validation.
+- Aligned the repository README logo with the updated app branding.
+- Added navigation from account settings to the login preview.
 - Unknown routes now show a dedicated 404 page instead of silently returning to dashboard.
 - Mobile navigation has a dismissible backdrop and clearer controls.
 

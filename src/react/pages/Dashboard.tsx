@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowUpRight, Check, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards } from "lucide-react";
+import { ArrowUpRight, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { newId } from "../data/storage";
 
