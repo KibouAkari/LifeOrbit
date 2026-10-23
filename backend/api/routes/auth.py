@@ -1,8 +1,7 @@
 # Authentication Routes (Google OAuth).
 #
-# This module handles Google Single Sign-On (SSO). It verifies the Google ID token
-# sent by the React frontend, creates a user in MongoDB if they don't exist,
-# and issues our own internal JWT to protect our API endpoints.
+# This module handles Google Single Sign-On (SSO). It verifies the Google ID token,
+# creates a user in MongoDB if they don't exist, and issues our own internal JWT.
 
 import os
 import jwt
@@ -13,7 +12,7 @@ from pydantic import BaseModel
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
-# from api.database import users_collection
+from api.database import users_collection
 
 router = APIRouter()
 security = HTTPBearer()
@@ -23,46 +22,40 @@ class GoogleAuthRequest(BaseModel):
     token: str
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    # Dependency to protect your other routes (Calendar, Dashboard).
-    # Verifies YOUR internal JWT, not the Google one!
+    # Dependency to protect your other routes. Verifies YOUR internal JWT.
     token = credentials.credentials
     secret_key = os.getenv("JWT_SECRET_KEY")
     
     try:
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-        return payload.get("sub") # Returns the user email
+        return payload.get("sub")
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 @router.post("/google")
 def google_auth(request: GoogleAuthRequest):
-    # 1. Verifies the Google token.
-    # 2. Creates a user in DB if they are new.
-    # 3. Returns our own JWT for future API calls.
     google_client_id = os.getenv("GOOGLE_CLIENT_ID")
     
     try:
-        # 1. Verify the token with Google's official library
+        # 1. Verify the token with Google
         idinfo = id_token.verify_oauth2_token(
             request.token, 
             google_requests.Request(), 
             google_client_id
         )
         
-        # 2. Extract user info from Google's response
         user_email = idinfo['email']
         user_name = idinfo.get('name', 'Unknown User')
-        google_id = idinfo['sub'] # Google's unique ID for this user
+        google_id = idinfo['sub']
         
     except ValueError:
-        # If the token is fake or expired, Google's library throws a ValueError
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
-    # 3. Database Logic: Check if user exists 
+    # 2. Database Logic: Check if user exists in MongoDB
     user = users_collection.find_one({"email": user_email})
-     
+    
     if not user:
-        # User is logging in for the first time -> Register them!
+        # User is new -> Register them in MongoDB
         new_user = {
             "email": user_email,
             "name": user_name,
@@ -71,7 +64,7 @@ def google_auth(request: GoogleAuthRequest):
         }
         users_collection.insert_one(new_user)
 
-    # 4. Generate our own JWT (just like before)
+    # 3. Generate our own JWT
     secret_key = os.getenv("JWT_SECRET_KEY")
     expiration = datetime.utcnow() + timedelta(hours=24)
     payload = {"sub": user_email, "exp": expiration}

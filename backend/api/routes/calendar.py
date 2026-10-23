@@ -1,10 +1,6 @@
 # Calendar CRUD Operations.
-# 
-# This module manages all Create, Read, Update, and Delete (CRUD) operations
-# for user calendar events. It ensures that users can only interact with their 
-# own events based on their authenticated token. The data is managed within 
-# the MongoDB 'events' collection.
-# ===========================================================================
+#
+# Manages all Create, Read, and Delete operations for user calendar events in MongoDB.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from bson import ObjectId
@@ -16,14 +12,12 @@ router = APIRouter()
 
 @router.get("/events")
 def get_all_events(current_user: str = Depends(get_current_user)):
-    """
-    Fetches all calendar events for the authenticated user.
-    """
+    # Fetch all events from MongoDB for this specific user
     events_cursor = events_collection.find({"user_email": current_user})
     events = []
     
     for event in events_cursor:
-        # Convert MongoDB ObjectId to string for JSON serialization
+        # Convert MongoDB ObjectId to string for JSON output
         event["id"] = str(event["_id"])
         del event["_id"]
         events.append(event)
@@ -32,29 +26,28 @@ def get_all_events(current_user: str = Depends(get_current_user)):
 
 @router.post("/events", status_code=status.HTTP_201_CREATED)
 def create_event(event_data: CalendarEventRequest, current_user: str = Depends(get_current_user)):
-    """
-    Creates a new calendar event.
-    """
-    new_event = event_data.model_dump() # Convert Pydantic model to dictionary
-    new_event["user_email"] = current_user # Link event to the user
+    # Convert Pydantic model to dictionary and add the user's email
+    new_event = event_data.model_dump()
+    new_event["user_email"] = current_user
     
+    # Save to MongoDB
     result = events_collection.insert_one(new_event)
     
     return {"message": "Event created", "event_id": str(result.inserted_id)}
 
 @router.delete("/events/{event_id}")
 def delete_event(event_id: str, current_user: str = Depends(get_current_user)):
-    """
-    Deletes a specific calendar event.
-    """
+    # Validate if the provided ID is a valid MongoDB ObjectId
     if not ObjectId.is_valid(event_id):
         raise HTTPException(status_code=400, detail="Invalid event ID format")
         
+    # Delete from MongoDB ONLY if the ID matches AND it belongs to the user
     result = events_collection.delete_one({
         "_id": ObjectId(event_id),
-        "user_email": current_user # Security check: Ensure user owns this event
+        "user_email": current_user 
     })
     
+    # If nothing was deleted (either wrong ID or wrong user)
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Event not found or unauthorized")
         

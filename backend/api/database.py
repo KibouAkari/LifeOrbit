@@ -22,8 +22,11 @@ try:
     # The client manages the connection pool to MongoDB Atlas
     client = MongoClient(MONGO_URI)
     
-    # Select the specific database for the hackathon (it will be created automatically if it doesn't exist)
-    db = client.hackathon_db
+    # Select the specific database based on environment variables
+    DB_NAME = os.getenv("MONGODB_DATABASE", "hackathon_db")
+    db = client[DB_NAME]
+    
+    # Define collections (like tables in a relational database)
     
     # Define collections (like tables in a relational database)
     # We export these so our routes can easily import and query them
