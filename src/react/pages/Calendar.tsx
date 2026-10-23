@@ -21,12 +21,12 @@ export default function Calendar() {
     if(file.size>1024*1024){alert("Choose an ICS file smaller than 1 MB.");return;}
     const raw=await file.text();
     const blocks=raw.replace(/\r\n[ \t]/g,"").split("BEGIN:VEVENT").slice(1);
-    const events=blocks.map(block=>{
+    const events=blocks.map((block):{id:string;title:string;date:string}|null=>{
       const summary=block.match(/^SUMMARY:(.+)$/m)?.[1]?.replace(/\\,/g,",").trim();
       const start=block.match(/^DTSTART[^:]*:(\d{8})/m)?.[1];
       return summary&&start?{id:newId(),title:summary.slice(0,120),date:`${start.slice(0,4)}-${start.slice(4,6)}-${start.slice(6,8)}`}:null;
     }).filter((x):x is {id:string;title:string;date:string}=>x!==null).slice(0,500);
-    patch("events",[...state.events,...events]); e.target.value="";
+    patch("events",current=>[...current,...events]); e.target.value="";
     alert(`Imported ${events.length} events. This is a one-time ICS import, not live sync.`);
   }
   return <div className="work-page"><Heading title="Calendar" description="Your week, at a glance."/><div className="calendar-toolbar"><div className="actions"><button className="icon-button" aria-label="Previous week" onClick={()=>setOffset(offset-1)}><ChevronLeft size={18}/></button><button className="icon-button" aria-label="Next week" onClick={()=>setOffset(offset+1)}><ChevronRight size={18}/></button><button className="text-button" onClick={()=>setOffset(0)}>Today</button></div><strong>{dates[0].toLocaleDateString("en",{month:"long",day:"numeric"})} – {dates[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}</strong><div className="actions"><label className="button" title="Import an exported iCalendar (.ics) file"><Upload size={16}/> Import .ics<input type="file" accept=".ics,text/calendar" onChange={importIcs} hidden/></label><button className="button primary" onClick={()=>setCreating(!creating)}><Plus size={17}/> Event</button></div></div>
