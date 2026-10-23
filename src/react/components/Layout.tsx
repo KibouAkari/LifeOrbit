@@ -21,7 +21,7 @@ export function Layout({ section, children }: { section: Section; children: Reac
       </nav></div>
       <div className="sidebar-bottom"><div className="small-note"><strong>Make room for life.</strong>One peaceful space for the little things that matter.</div>
         <a className="nav-link" href="#/settings" aria-current={section === "settings" ? "page" : undefined} onClick={() => setOpen(false)}><Settings size={18}/>Settings</a>
-        <a className="sidebar-account" href="#/settings"><span className="avatar">{(state.account || "D").charAt(0).toUpperCase()}</span><span><strong>{state.account || "Demo account"}</strong><small>Local demo</small></span></a>
+        <a className="sidebar-account" href="#/settings" onClick={() => setOpen(false)}><span className="avatar">{(state.account || "D").charAt(0).toUpperCase()}</span><span><strong>{state.account || "Demo account"}</strong><small>Local demo</small></span></a>
       </div>
     </aside>
     <main className="main"><header className="topbar"><div className="actions"><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={open} onClick={() => setOpen(!open)}><Menu size={18}/></button><span className="breadcrumbs">Workspace / {section.charAt(0).toUpperCase() + section.slice(1)}</span></div>

@@ -26,9 +26,9 @@ Open the URL shown by Vite (normally http://localhost:5173).
 
 ## Planned backend
 
-Recommended: Python 3.12+, FastAPI, Pydantic, SQLAlchemy/Alembic and
-PostgreSQL. **Not yet implemented or connected**. Do not pretend local
-display names are authenticated identities.
+Recommended: Python 3.12+, FastAPI, Pydantic and MongoDB. **Not yet
+implemented or connected**. Do not pretend local display names are
+authenticated identities.
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ flowchart LR
   State --> Demo[Local demo storage]
   UI -. future .-> API[Typed API client]
   API -. HTTP /api .-> Python[FastAPI]
-  Python --> DB[(PostgreSQL)]
+  Python --> DB[(MongoDB)]
 ```
 
 `src/react/data/api.ts` centralises future HTTP calls and has the
