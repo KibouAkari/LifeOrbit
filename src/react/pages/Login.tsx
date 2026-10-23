@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
-// This screen intentionally doesn't pretend to authenticate anyone yet.
+// This is a friendly demo entrance, not authentication.
 export default function Login() {
   const { patch } = useApp();
   const [name, setName] = useState("");
-  function enter(e: FormEvent) {
-    e.preventDefault();
+  function enter(e?: FormEvent) {
+    e?.preventDefault();
     patch("account", name.trim() || "Guest");
-    location.hash = "#/dashboard";
+    window.dispatchEvent(new Event("lifeorbit:enter"));
   }
-  return <main className="login-screen"><div className="login-layout"><section className="login-intro"><a className="brand" href="#/dashboard"><img src="/assets/icon.svg" alt="" />LifeOrbit</a><div><span className="login-kicker">A little more room to live.</span><h1>Everything you need.<br/>Nothing you don’t.</h1><p>Plan the day, remember the important things, and keep life moving.</p></div><small>Made for everyday life.</small></section><section className="login-form-side"><div className="login-panel"><h2>Welcome to LifeOrbit</h2><p>Start with the demo while we build secure accounts.</p><form className="form" onSubmit={enter}><label className="form-label">Your name<input className="input" value={name} maxLength={50} onChange={e=>setName(e.target.value)} placeholder="What should we call you?"/></label><button className="button primary login-submit">Continue <ArrowRight size={18}/></button></form><a className="demo-link" href="#/dashboard">Explore without signing in <ArrowRight size={15}/></a><div className="login-disclaimer"><ShieldCheck size={16}/><span>Demo only. No account is created and nothing is synced.</span></div></div></section></div></main>;
+  return <main className="login-screen"><div className="login-layout"><section className="login-intro"><div className="brand"><img src="/assets/icon.svg" alt=""/>LifeOrbital</div><div><h1>Life, a little more organised.</h1><p>Your plans, notes and everyday wins in one lovely place.</p></div><small>One place. A clearer day.</small></section><section className="login-form-side"><div className="login-panel"><h2>Welcome in.</h2><p>Make yourself at home.</p><form className="form" onSubmit={enter}><label className="form-label">Your name<input className="input" value={name} maxLength={50} onChange={e=>setName(e.target.value)} placeholder="What should we call you?"/></label><button className="button primary login-submit">Enter LifeOrbit <ArrowRight size={18}/></button></form><button type="button" className="demo-link demo-button" onClick={() => enter()}>Continue as guest <ArrowRight size={16}/></button><p className="login-disclaimer">This is a local demo. Real accounts will arrive with the Python backend.</p></div></section></div></main>;
 }

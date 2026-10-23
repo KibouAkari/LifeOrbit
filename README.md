@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.svg" width="420" alt="LifeOrbit logo" />
+  <img src="assets/icon.svg" width="420" alt="LifeOrbit logo" />
   <h3>Your day, in a better orbit.</h3>
   <p>One calm place to plan your days, capture ideas, stay on top of subscriptions, and turn small wins into lasting habits.</p>
   <p><a href="#the-idea">Explore</a> · <a href="#planned-experience">Features</a> · <a href="docs/ROADMAP.md">Roadmap</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
@@ -47,6 +47,10 @@ flowchart TB
 **Calm and practical.** A soft, approachable visual identity with plenty of breathing room, clear typography and gentle colour accents. Progress should feel encouraging, never guilt-inducing.
 
 **Useful first.** Important information should be visible at a glance, with as few clicks as possible. Accessible contrast, keyboard support and thoughtful mobile layouts matter.
+
+## Experience update
+
+Fresh visits start at the demo login. Entry triggers a brief LifeOrbital icon-and-wordmark animation. Tasks, a weekly calendar with one-time .ics import, notebook chapters, recurring expenses and a sample challenges ranking are available as browser-local experiences. The logo uses the supplied text-free planet SVG. Real login, collaborative rankings and live Google/Outlook/Apple synchronization need the Python backend.
 
 ## Getting started
 
