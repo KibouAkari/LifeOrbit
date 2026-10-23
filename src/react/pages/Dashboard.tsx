@@ -1,9 +1,26 @@
-// Owner: dashboard. Compose shared components and app state; never create another navbar.
-import { useApp } from "../context/AppContext"; import { Heading, Card, Empty } from "../components/UI";
-export default function Dashboard() { const { state } = useApp(); const open = state.tasks.filter(t => !t.done); const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; const upcomingEvents = state.events.filter(e => e.date >= today).sort((a,b)=>a.date.localeCompare(b.date)); return <><Heading eyebrow="Your space" title={`Welcome back${state.account ? ", " + state.account : ""}.`} description="One calm place for everything on your mind."/><div className="grid">
-  <Card title="Open tasks" span={3}><div className="metric">{open.length}</div><p className="muted tiny">Things left to do</p></Card><Card title="Notes" span={3}><div className="metric">{state.notes.length}</div><p className="muted tiny">Thoughts captured</p></Card><Card title="Events" span={3}><div className="metric">{state.events.length}</div><p className="muted tiny">On your calendar</p></Card><Card title="Subscriptions" span={3}><div className="metric">{state.subscriptions.length}</div><p className="muted tiny">Tracked services</p></Card>
-  <Card title="Upcoming tasks" span={7}>{open.length ? open.slice(0,5).map(t=><div className="list-row" key={t.id}><span className="tag">To do</span><span className="row-main"><strong>{t.title}</strong></span></div>) : <Empty>All clear. Enjoy the moment.</Empty>}<a className="link tiny" href="#/tasks">Open planner →</a></Card>
-  <Card title="Daily momentum" span={5}>{state.challenges.map(c=><div key={c.id} style={{marginBottom:18}}><strong>{c.title}</strong><div className="muted tiny">{c.value} of {c.target} {c.unit}</div><div className="challenge-meter"><span style={{width:`${Math.min(100,c.value/c.target*100)}%`}}/></div></div>)}<a className="link tiny" href="#/challenges">View challenges →</a></Card>
-  <Card title="Recent notes" span={6}>{state.notes.length ? state.notes.slice(-3).reverse().map(n=><div className="list-row" key={n.id}><div className="row-main"><strong>{n.title}</strong><small>{n.body.slice(0,90)}</small></div></div>) : <Empty>No notes yet.</Empty>}</Card>
-  <Card title="Upcoming events" span={6}>{upcomingEvents.length ? upcomingEvents.slice(0,4).map(e=><div className="list-row" key={e.id}><div className="row-main"><strong>{e.title}</strong><small>{e.date}</small></div></div>) : <Empty>No upcoming events. Add one in Calendar.</Empty>}</Card>
-</div></> }
+import { useMemo, useState, type FormEvent } from "react";
+import { ArrowUpRight, Check, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards } from "lucide-react";
+import { useApp } from "../context/AppContext";
+import { newId } from "../data/storage";
+
+function greeting(hour: number) { return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"; }
+function formattedDay() { return new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date()); }
+export default function Dashboard() {
+  const { state, patch } = useApp();
+  const [task, setTask] = useState("");
+  const pending = state.tasks.filter(t => !t.done);
+  const completed = state.tasks.filter(t => t.done);
+  const events = useMemo(() => [...state.events].sort((a,b) => a.date.localeCompare(b.date)).filter(e=>e.date >= new Date().toLocaleDateString("sv-SE")).slice(0,4), [state.events]);
+  const progress = state.tasks.length ? Math.round(100*completed.length/state.tasks.length) : 0;
+  function addTask(e: FormEvent) { e.preventDefault(); if (!task.trim()) return; patch("tasks", [...state.tasks, { id: newId(), title: task.trim(), done: false }]); setTask(""); }
+  return <div className="dashboard">
+    <header className="welcome"><div><p className="today-line">{formattedDay()}</p><h1>{greeting(new Date().getHours())}{state.account ? `, ${state.account}` : ""}<span className="welcome-period">.</span></h1><p>Here’s what your day looks like.</p></div><a className="button primary new-task-link" href="#/tasks"><Plus size={17}/> New task</a></header>
+    <div className="dashboard-grid">
+      <section className="surface-card focus-card"><div className="surface-header"><span>Today’s focus</span><a href="#/tasks" aria-label="View tasks"><ArrowUpRight size={19}/></a></div><div className="focus-bottom"><div><div className="focus-number">{pending.length}</div><h2>{pending.length === 1 ? "task on your list" : "tasks on your list"}</h2><p>{pending.length ? "One thing at a time. You’ve got this." : "Your list is clear. Enjoy your time."}</p></div><div className="progress-ring" style={{"--progress": `${progress}%`} as React.CSSProperties}><div>{progress}<small>%</small></div></div></div></section>
+      <section className="surface-card quick-card"><div className="surface-header"><span>Quick add</span><Check size={17}/></div><h2>Capture it now.</h2><p>Get it out of your head and into your day.</p><form className="quick-form" onSubmit={addTask}><input aria-label="New task" placeholder="Something to get done…" maxLength={120} value={task} onChange={e=>setTask(e.target.value)}/><button aria-label="Add task" type="submit"><Plus size={19}/></button></form></section>
+      <section className="surface-card tasks-card"><div className="surface-header"><h2>Up next</h2><a href="#/tasks">All tasks <ChevronRight size={15}/></a></div><div className="dashboard-list">{pending.length ? pending.slice(0,5).map(t=><label className="dashboard-task" key={t.id}><input type="checkbox" checked={false} onChange={()=>patch("tasks",state.tasks.map(x=>x.id===t.id?{...x,done:true}:x))}/><span>{t.title}</span></label>) : <div className="quiet-empty">Nothing pending. You're all caught up.</div>}</div></section>
+      <section className="surface-card schedule-card"><div className="surface-header"><h2>Coming up</h2><a href="#/calendar">Calendar <ChevronRight size={15}/></a></div><div className="dashboard-list">{events.length ? events.map(e=><div className="event-line" key={e.id}><div className="event-date">{new Date(e.date+"T12:00:00").toLocaleDateString("en",{month:"short",day:"numeric"})}</div><span>{e.title}</span></div>) : <div className="quiet-empty">Your calendar has breathing room. <a href="#/calendar">Add an event</a></div>}</div></section>
+      <section className="surface-card glance-card"><div className="surface-header"><h2>At a glance</h2><span className="muted tiny">Your space</span></div><div className="glance-grid"><a href="#/notes"><NotebookPen size={20}/><strong>{state.notes.length}</strong><span>Notes</span></a><a href="#/calendar"><CalendarDays size={20}/><strong>{state.events.length}</strong><span>Events</span></a><a href="#/subscriptions"><WalletCards size={20}/><strong>{state.subscriptions.length}</strong><span>Subscriptions</span></a><a href="#/challenges"><Target size={20}/><strong>{state.challenges.filter(c=>c.value>=c.target).length}</strong><span>Goals met</span></a></div></section>
+    </div>
+  </div>;
+}
