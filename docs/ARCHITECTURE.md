@@ -1,43 +1,57 @@
-# Architecture notes
+# LifeOrbit architecture
 
-No implementation stack has been verified or chosen yet. This document describes required boundaries, not an existing architecture.
+## Agreed stack
+
+| Layer | Technology | Status |
+| --- | --- | --- |
+| Frontend | React, TypeScript, Vite | Implemented prototype |
+| Styling | Shared CSS design tokens | Implemented |
+| Frontend hosting | Vercel | Prepared, not deployed |
+| Backend | Python, FastAPI (recommended framework) | Planned |
+| Database | MongoDB | Planned |
+| Authentication | Server-owned sessions | Not implemented |
 
 ```mermaid
 flowchart LR
-  UI[Responsive client] --> API[Application boundary]
-  API --> AUTH[Identity & sessions]
-  API --> DATA[(User-scoped storage)]
-  API --> REM[Reminder scheduler]
-  DATA --> MOD[Tasks · Notes · Events · Subscriptions · Challenges]
+  UI[React on Vercel] --> CLIENT[Typed API boundary]
+  CLIENT -. future HTTPS .-> PY[Python API]
+  PY -. future .-> DB[(MongoDB)]
+  UI --> DEMO[Local demo storage]
 ```
 
-## Core entities (proposed)
+### Responsibilities
 
-| Entity | Key fields / relationships |
-| --- | --- |
-| User | ID, profile settings, preferred timezone |
-| Task | Owner ID, title, status, optional due date |
-| Note | Owner ID, title/body, timestamps |
-| Event | Owner ID, start/end time, timezone |
-| Subscription | Owner ID, name, price/currency, next renewal, status |
-| Challenge | Definition, cadence, criteria |
-| Challenge progress | Owner ID, challenge ID, period, completion |
-| Reminder | Owner ID, target, scheduled time, delivery state |
+React renders views, validates forms for usability and calls typed services.
+**The Python backend** will own authentication, authorization, persistence,
+validation, reminder scheduling and all sensitive operations. MongoDB access
+happens only from Python. No MongoDB secrets or Python backend credentials
+should ever be exposed as `VITE_*` environment variables.
 
-## Engineering guardrails
+The current demo uses localStorage. See `src/react/data/api.ts` for the
+future HTTP boundary; UI pages must not call MongoDB or fetch directly.
 
-**Privacy:** Enforce record ownership on the server and avoid exposing user data in logs, analytics or notifications. A client-side filter is not access control.
+### API proposal (not implemented)
 
-**Time:** Store instants consistently and retain IANA timezone context for user-facing recurrence. Define daylight-saving and missed-reminder behaviour explicitly.
+Version future endpoints under `/api/v1`, including session/account,
+tasks, notes, events, subscriptions, challenges and health checks.
+Define a shared OpenAPI contract with typed request/response shapes when
+the backend implementation starts. Use string identifiers mapped from
+MongoDB ObjectIds server-side.
 
-**Reliability:** Reminder processing should be idempotent to avoid duplicates. Consider retries and observable delivery states.
+### Security requirements
 
-**Subscriptions:** Treat all financial values as currency-aware; do not assume every renewal is monthly. Manual entry is the MVP default.
+Prefer HTTP-only Secure cookies if frontend and API are deployed on
+compatible origins. Explicitly decide SameSite, CSRF and CORS behaviour
+before cross-origin deployment. Never rely on localStorage display names
+as authentication. Every user-owned document must be authorized in Python,
+including filtered MongoDB queries. Define rate limits, session expiry,
+logging redaction and data deletion.
 
-**Gamification:** Challenge periods and completion rules must be deterministic, with friendly missed-day handling.
+### Deployment
 
-**Security:** Use established authentication libraries, secret management, input validation, rate limiting and dependency updates. Review the threat model before live deployment.
+Vercel builds the **frontend only**. A continuously running Python API and
+reminder worker require separately chosen backend hosting. MongoDB Atlas
+or another MongoDB deployment can be selected later. There is no assumed
+Vercel-hosted Python service.
 
-## Architecture decision records
-
-For meaningful stack decisions, add a short document under `docs/decisions/` with context, alternatives and why the team chose one. Do not confuse a proposal with an implemented service.
+See [deployment guide](DEPLOYMENT.md) and [team frontend guide](FRONTEND_GUIDE.md).

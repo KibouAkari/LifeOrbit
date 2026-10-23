@@ -1,0 +1,23 @@
+name: Frontend checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Verify built branding
+        run: |
+          test -s dist/index.html
+          test -s dist/assets/icon.svg
+          test -s dist/assets/logo.svg

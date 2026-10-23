@@ -1,31 +1,35 @@
 # Changelog
 
-All notable changes to LifeOrbit are documented here.
-
-This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and plans to use [Semantic Versioning](https://semver.org/) after its first release.
+All notable LifeOrbit changes appear here. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
 ### Added
-- Shared responsive frontend prototype with a left navigation sidebar and common outline icon set.
-- Seven distinct navigable feature modules: dashboard, notes, planner, calendar, subscriptions, challenges and settings, plus a demo login screen.
-- Light, dark and system appearance modes with saved preference.
-- Browser-local demo storage and basic task, note, event, subscription and challenge interactions.
-- Frontend contributor guide documenting shared design tokens, file ownership and how to run locally.
-- Initial documentation, contribution and security guidance.
-- Hackathon roadmap, product brief, navigation plan and release procedure.
-- GitHub issue and pull request templates, repository hygiene and documentation checks.
-- Initial LifeOrbit SVG identity (design candidate).
+- React 19, TypeScript and Vite frontend prototype with distinct React feature pages.
+- Shared navigation, themes, UI components and browser-local interactive demo state.
+- Vercel frontend configuration and documented build requirements.
+- Static brand assets under `public/assets` for correct Vite production serving.
+- Typed frontend API boundary for a future Python service.
+- CI build and TypeScript validation on pull requests.
+- Deployment and architecture guidance for a separate Python backend and MongoDB.
+- Existing repo standards, team guide and feature roadmap.
 
 ### Changed
-- Replaced the placeholder index page with a usable demo shell.
-- Clarified MVP priorities and separated optional stretch features from required scope.
+- Switched from native JavaScript entry point to React.
+- Updated README and frontend documentation to use `npm ci` and Vite instead of Python's static HTTP server.
+- Clarified that MongoDB is accessed exclusively by the future Python backend.
+
+### Fixed
+- Corrected missing Vite public asset placement that prevented logo and favicon from being served reliably.
+- Fixed TypeScript Vite environment declaration for `import.meta.env`.
+- Removed unused native JavaScript demo pages to prevent developers editing the wrong implementation.
+- Fixed README formatting that contained literal backslash-n sequences.
 
 ### Security
-- Documented that demo login is not authentication and browser-local data is not suitable for sensitive information.
+- Confirmed demo display names do not authenticate users.
+- Documented backend-only secrets, server authorization, cookie/CORS/CSRF decisions and the limits of localStorage.
 
 ## Release policy
 
-No version has been released yet. Features in the roadmap are not shipped.
-When releasing, move Unreleased entries into a dated version heading and
-start a fresh Unreleased section. See [release guide](docs/RELEASING.md).
+No version has shipped yet. Keep changes under Unreleased until a verified
+release is published and dated, then start a new Unreleased section.

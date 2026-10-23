@@ -50,19 +50,46 @@ flowchart TB
 
 ## Getting started
 
-LifeOrbit is currently being scoped for a hackathon. A dependency-free browser demo is now included. It uses native JavaScript modules and browser-local storage. It is not a production app or secure authentication system.
+LifeOrbit now uses **React, TypeScript and Vite**. This is a frontend demo;
+data currently lives in your browser's localStorage, not in a database.
 
-Run it locally with Python 3 from the repository root:\n\n```bash\npython3 -m http.server 8000\n```\n\nOpen **http://localhost:8000** in a modern browser. Avoid opening `index.html` through `file://`, because ES modules may be blocked. The code is organised into separate page modules in `src/pages/`, all sharing the sidebar and theme system in `src/main.js`.\n\nFor a consistent team workflow, start with the **[Frontend team guide](docs/FRONTEND_GUIDE.md)**. Also see the [roadmap](docs/ROADMAP.md), [product brief](docs/PRODUCT.md), [architecture notes](docs/ARCHITECTURE.md) and [contributing guide](CONTRIBUTING.md).
+Requirements: Node.js 20.19+ or 22.12+, npm.
 
-## Project notes
+```bash
+git clone https://github.com/KibouAkari/LifeOrbit.git
+cd LifeOrbit
+npm install
+npm run dev
+```
 
-- **Frontend guide:** [Run the demo and build consistent pages](docs/FRONTEND_GUIDE.md)\n- **Roadmap:** [Milestones and priorities](docs/ROADMAP.md)
-- **Product:** [Goals, use cases and MVP scope](docs/PRODUCT.md)
-- **Architecture:** [Decisions to make before implementation](docs/ARCHITECTURE.md)
-- **Design:** [UI and brand direction](docs/DESIGN.md)
-- **Changelog:** [Changes, grouped by release](CHANGELOG.md)
-- **Contributing:** [How to participate](CONTRIBUTING.md)
-- **Security:** [How to report vulnerabilities](SECURITY.md)
+Open the address printed by Vite (usually http://localhost:5173).
+
+```bash
+npm run typecheck
+npm run build
+npm run preview
+```
+
+The first command checks TypeScript and the second produces a Vercel-ready
+`dist/` build. There is **no working Python backend or real login yet**.
+Do not enter sensitive information into the demo.
+
+## Deployment
+
+The React site is prepared for **Vercel**, framework Vite, output `dist/`.
+No deployed URL is configured. A future separate **Python/FastAPI backend**
+will connect to **MongoDB**; do not add your database connection string
+to Vite environment variables. See [deployment guide](docs/DEPLOYMENT.md)
+and [architecture](docs/ARCHITECTURE.md).
+
+## Team development
+
+- [Frontend guide](docs/FRONTEND_GUIDE.md)
+- [Product and roadmap](docs/PRODUCT.md) · [Roadmap](docs/ROADMAP.md)
+- [Architecture and backend boundary](docs/ARCHITECTURE.md)
+- [Changelog](CHANGELOG.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Security](SECURITY.md)
 
 ## A note on changelogs
 
