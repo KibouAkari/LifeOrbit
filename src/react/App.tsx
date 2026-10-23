@@ -1,6 +1,8 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { Layout } from "./components/Layout";
 import { useApp } from "./context/AppContext";
+import { clearSession, hasSession } from "./data/api";
+import { restoreSession } from "./services/session";
 import type { Section } from "./types";
 import Dashboard from "./pages/Dashboard";
 import Notes from "./pages/Notes";
@@ -18,33 +20,46 @@ const pages: Record<Section, ComponentType> = {
   subscriptions: Subscriptions, challenges: Challenges, settings: Settings, login: Login,
 };
 type Route = Section | "not-found";
-function routeFromHash(): Route {
+const routeFromHash = (): Route => {
   const route = location.hash.replace(/^#\/?/, "").split("/")[0] || "login";
   return Object.prototype.hasOwnProperty.call(pages, route) ? route as Section : "not-found";
-}
+};
+const guestMode = () => sessionStorage.getItem("lifeorbit_guest") === "true";
+
 export default function App() {
   const [route, setRoute] = useState<Route>(routeFromHash);
   const [intro, setIntro] = useState(false);
-  const { state } = useApp();
+  const [ready, setReady] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const { state, patch } = useApp();
   const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
 
   useEffect(() => {
-    const navigate = () => {
-      const next = routeFromHash();
-      // A dashboard link is not a login. Only the login action starts the intro.
-      setRoute(next);
-    };
-    const onEnter = () => {
-      setIntro(true);
-      location.hash = "#/dashboard";
+    let alive = true;
+    restoreSession().then(user => {
+      if (!alive) return;
+      setSignedIn(Boolean(user));
+      if (user) patch("account", user.name);
+      setReady(true);
+    });
+    const navigate = () => setRoute(routeFromHash());
+    const enter = () => { setSignedIn(hasSession()); setIntro(true); location.hash = "#/dashboard"; };
+    const logout = () => {
+      clearSession(); sessionStorage.removeItem("lifeorbit_guest");
+      setSignedIn(false); setIntro(false); patch("account", "");
+      location.hash = "#/login"; setRoute("login");
     };
     window.addEventListener("hashchange", navigate);
-    window.addEventListener("lifeorbit:enter", onEnter);
+    window.addEventListener("lifeorbit:auth", enter);
+    window.addEventListener("lifeorbit:logout", logout);
     return () => {
+      alive = false;
       window.removeEventListener("hashchange", navigate);
-      window.removeEventListener("lifeorbit:enter", onEnter);
+      window.removeEventListener("lifeorbit:auth", enter);
+      window.removeEventListener("lifeorbit:logout", logout);
     };
-  }, []);
+  }, [patch]);
+
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
     const update = () => setSystemDark(media.matches);
@@ -56,7 +71,10 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#18191c" : "#f8f8fa");
   }, [dark]);
+  if (!ready) return <div className="boot-screen" role="status">Opening LifeOrbital…</div>;
   if (intro) return <WelcomeIntro onComplete={() => setIntro(false)} />;
+  if (!signedIn && !guestMode()) return <Layout section="login" dark={dark}><Login/></Layout>;
+  if (route === "login") return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "not-found") return <NotFound />;
   const Page = pages[route];
   return <Layout section={route} dark={dark}><div className="page-enter" key={route}><Page /></div></Layout>;
