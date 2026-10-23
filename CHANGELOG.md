@@ -5,27 +5,30 @@ All changes remain under Unreleased until a verified release.
 ## [Unreleased]
 
 ### Added
-- Login-first demo journey with a short LifeOrbital logo reveal and reduced-motion handling.
-- Task list inspired by simple daily planning with filters, quick entry and completion.
-- Seven-day calendar with event creation and one-time ICS imports from exported calendars.
-- Notebook layout with chapters, editable pages and browser-local persistence.
-- Subscription overview with totals separated by currency and simpler entry.
-- Interactive daily challenges with a clearly labelled sample leaderboard.
-- Dashboard updates for user greeting, task, event, note and challenge summaries, plus a demo leaderboard preview.
+- Server-side verified Google ID-token login with short-lived signed JWT access tokens and /api/auth/me.
+- MongoDB-backed, owner-scoped calendar and task create/read/update/delete endpoints.
+- Google sign-in button, account recovery on refresh, explicit sign-out and guest access.
+- Task drag and drop ordering, short completion animation, gentle sound and feedback messages.
+- Empty calendar invitation, dashboard challenge podium preview and expanded account settings.
+- Monthly and yearly subscription entry, monthly-equivalent totals and calculated next renewal dates.
+- Challenge leaderboard with profile initials and a visual three-place podium (sample data only).
 
 ### Changed
-- Replaced prior logo with the supplied planet artwork, removing its embedded text.
-- Simplified navigation and removed the redundant breadcrumb.
-- Clarified future Python backend boundaries for provider integrations and ranking.
+- Dashboard progress donut now uses stable conic-gradient bounds and centered text.
+- Session and API calls are centralized; guest mode remains local.
+- API CORS origins are restricted through FRONTEND_ORIGINS.
 
 ### Fixed
-- Fresh visits open the login screen rather than the dashboard.
-- Guest entrance runs the same intro as named entrance.
-- Missing routes continue to use the dedicated 404 page.
+- Undefined MongoDB collection in Google authentication, missing Pydantic calendar schema and missing Python auth dependencies.
+- Calendar routes now validate ObjectIds and check document ownership.
+- Token verification now checks audience, issuer and required claims.
 
 ### Security
-- Demo entrance is not authentication, imported ICS data stays browser-local, and sample leaderboard users are fictional.
+- Google subject rather than mutable email identifies users.
+- Authenticated tasks and events are queried per Google subject.
+- Production readiness remains blocked until deployment, OAuth configuration, end-to-end tests and remaining data services are verified.
+- Current short-lived bearer token uses sessionStorage and requires a reviewed session/cookie migration before public production use.
 
 ## Release history
 
-No release has been published.
+No verified production release has been published.

@@ -1,79 +1,93 @@
-# Authentication Routes (Google OAuth).
-#
-# This module handles Google Single Sign-On (SSO). It verifies the Google ID token,
-# creates a user in MongoDB if they don't exist, and issues our own internal JWT.
+"""Google sign-in and signed access tokens.
 
+Google's subject is the user identifier. Emails can change and must not be
+used as a permanent database key.
+"""
 import os
-import jwt
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+from datetime import datetime, timedelta, timezone
 
-from api.database import users_collection
+import jwt
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
+from pydantic import BaseModel, Field
+
+from api.database import get_db
 
 router = APIRouter()
-security = HTTPBearer()
+bearer = HTTPBearer(auto_error=False)
+
 
 class GoogleAuthRequest(BaseModel):
-    # Schema for the token React sends us after a successful Google login.
-    token: str
+    token: str = Field(min_length=20, max_length=8192)
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    # Dependency to protect your other routes. Verifies YOUR internal JWT.
-    token = credentials.credentials
-    secret_key = os.getenv("JWT_SECRET_KEY")
-    
+def signing_key():
+    secret = os.getenv("JWT_SECRET_KEY")
+    if not secret or len(secret) < 32:
+        raise HTTPException(status_code=503, detail="Authentication is not configured")
+    return secret
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Sign in required")
     try:
-        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-        return payload.get("sub")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        payload = jwt.decode(
+            credentials.credentials, signing_key(),
+            algorithms=["HS256"], audience="lifeorbit-api", issuer="lifeorbit",
+            options={"require": ["sub", "exp", "iat", "aud", "iss"]},
+        )
+        return payload["sub"]
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Session expired or invalid")
+
 
 @router.post("/google")
 def google_auth(request: GoogleAuthRequest):
-    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
-    
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured")
     try:
-        # 1. Verify the token with Google
-        idinfo = id_token.verify_oauth2_token(
-            request.token, 
-            google_requests.Request(), 
-            google_client_id
+        identity = id_token.verify_oauth2_token(
+            request.token, google_requests.Request(), client_id
         )
-        
-        user_email = idinfo['email']
-        user_name = idinfo.get('name', 'Unknown User')
-        google_id = idinfo['sub']
-        
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
+        if identity.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+            raise ValueError("Unknown issuer")
+        if not identity.get("email_verified"):
+            raise ValueError("Email is not verified")
+        subject = identity["sub"]
+    except (ValueError, KeyError):
+        raise HTTPException(status_code=401, detail="Invalid Google credential")
 
-    # 2. Database Logic: Check if user exists in MongoDB
-    user = users_collection.find_one({"email": user_email})
-    
-    if not user:
-        # User is new -> Register them in MongoDB
-        new_user = {
-            "email": user_email,
-            "name": user_name,
-            "google_id": google_id,
-            "created_at": datetime.utcnow()
-        }
-        users_collection.insert_one(new_user)
-
-    # 3. Generate our own JWT
-    secret_key = os.getenv("JWT_SECRET_KEY")
-    expiration = datetime.utcnow() + timedelta(hours=24)
-    payload = {"sub": user_email, "exp": expiration}
-    
-    our_token = jwt.encode(payload, secret_key, algorithm="HS256")
-    
-    return {
-        "access_token": our_token, 
-        "token_type": "bearer",
-        "user_email": user_email,
-        "user_name": user_name
+    db = get_db()
+    profile = {
+        "google_id": subject,
+        "email": identity.get("email", ""),
+        "name": identity.get("name", "User"),
+        "picture": identity.get("picture"),
+        "updated_at": datetime.now(timezone.utc),
     }
+    db.users.update_one(
+        {"google_id": subject},
+        {"$set": profile, "$setOnInsert": {"created_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {"sub": subject, "iss": "lifeorbit", "aud": "lifeorbit-api",
+         "iat": now, "exp": now + timedelta(hours=2)},
+        signing_key(), algorithm="HS256",
+    )
+    return {
+        "access_token": token, "token_type": "bearer", "expires_in": 7200,
+        "user": {"id": subject, "name": profile["name"], "email": profile["email"], "picture": profile["picture"]},
+    }
+
+
+@router.get("/me")
+def me(current_user: str = Depends(get_current_user)):
+    user = get_db().users.find_one({"google_id": current_user}, {"_id": 0, "google_id": 0, "updated_at": 0, "created_at": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="Account not found")
+    return {"id": current_user, **user}
