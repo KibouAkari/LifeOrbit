@@ -1,0 +1,36 @@
+name: Demo structure
+
+on:
+  push:
+    paths:
+      - "index.html"
+      - "src/**"
+      - ".github/workflows/demo.yml"
+  pull_request:
+    paths:
+      - "index.html"
+      - "src/**"
+      - ".github/workflows/demo.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check page boundaries and shared shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s index.html
+          test -s src/main.js
+          test -s src/styles.css
+          for page in login dashboard tasks notes calendar subscriptions challenges account; do
+            test -s "src/pages/$page.js"
+            grep -q 'export function render' "src/pages/$page.js"
+          done
+          grep -q 'src/main.js' index.html
+          grep -q '## \[Unreleased\]' CHANGELOG.md
+          echo "Demo structure checks passed."

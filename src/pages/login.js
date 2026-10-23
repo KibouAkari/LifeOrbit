@@ -1,0 +1,3 @@
+// Login screen is a visual placeholder: NO passwords and NO real authentication.
+import {escapeHtml,icon} from '../lib.js';
+export function render(){return `<div class="auth-page"><div class="auth-panel"><img src="./assets/icon.svg" width="54" height="54" alt=""><div class="eyebrow">WELCOME TO LIFEORBIT</div><h1>Your space, your pace.</h1><p>Pick up where you left off. For now, this is a local demo without authentication.</p><a class="button primary full" href="#/dashboard">Enter demo ${icon('arrow',16)}</a><small>Real sign-in, sessions and private workspaces will be added with the backend.</small></div></div>`;}
