@@ -58,7 +58,7 @@ Requirements: Node.js 20.19+ or 22.12+, npm.
 ```bash
 git clone https://github.com/KibouAkari/LifeOrbit.git
 cd LifeOrbit
-npm ci
+npm install
 npm run dev
 ```
 

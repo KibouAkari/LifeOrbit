@@ -3,13 +3,13 @@
 ## Frontend (ready for Vercel)
 
 The repository root is the Vite project. Import the GitHub repository in
-Vercel. Framework preset **Vite**, install command `npm ci`, build command
+Vercel. Framework preset **Vite**, install command `npm install`, build command
 `npm run build`, output directory `dist`.
 
 Locally:
 
 ```bash
-npm ci
+npm install
 npm run typecheck
 npm run build
 npm run preview

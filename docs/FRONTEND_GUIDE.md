@@ -7,7 +7,7 @@ Three developers, one shared React UI.
 Install Node.js 20.19+ or 22.12+ and npm, then:
 
 ```bash
-npm ci
+npm install
 npm run dev
 ```
 
