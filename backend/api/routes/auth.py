@@ -22,7 +22,6 @@ bearer = HTTPBearer(auto_error=False)
 class GoogleAuthRequest(BaseModel):
     token: str = Field(min_length=20, max_length=8192)
 
-
 def signing_key():
     secret = os.getenv("JWT_SECRET_KEY")
     if not secret or len(secret) < 32:

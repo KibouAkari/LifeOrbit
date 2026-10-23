@@ -13,7 +13,6 @@ def get_client():
         raise HTTPException(status_code=503, detail="Database not configured")
     return MongoClient(uri, serverSelectionTimeoutMS=5000)
 
-
 def get_db():
     name = os.getenv("MONGODB_DATABASE", "lifeorbit")
     return get_client()[name]

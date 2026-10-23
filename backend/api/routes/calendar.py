@@ -8,7 +8,6 @@ from api.routes.auth import get_current_user
 
 router = APIRouter()
 
-
 def output(doc):
     return {"id": str(doc["_id"]), "title": doc["title"], "date": doc["date"]}
 
