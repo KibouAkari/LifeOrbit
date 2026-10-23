@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+vendor/
+
+# Build output
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+
+# Temporary and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+tmp/
+.cache/
