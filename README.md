@@ -44,7 +44,7 @@ flowchart TB
 
 ## Design direction
 
-**Friendly by default.** A soft, approachable visual identity with plenty of breathing room, clear typography and gentle colour accents. Progress should feel encouraging, never guilt-inducing.
+**Calm and practical.** A soft, approachable visual identity with plenty of breathing room, clear typography and gentle colour accents. Progress should feel encouraging, never guilt-inducing.
 
 **Useful first.** Important information should be visible at a glance, with as few clicks as possible. Accessible contrast, keyboard support and thoughtful mobile layouts matter.
 
@@ -102,3 +102,8 @@ Built for a hackathon, and made for people who like building thoughtful tools. I
 ## License
 
 LifeOrbit is provided under the [MIT License](LICENSE). The project is in an early stage and is not yet a production-ready place for sensitive information.
+
+
+## Interface update
+
+The React interface now uses a shared lavender and graphite design system, a reworked dashboard, restrained navigation transitions, a login preview with an explicit guest link, and a dedicated 404 page. See [Design system](docs/DESIGN_SYSTEM.md) and [Python backend integration](docs/BACKEND_INTEGRATION.md).
