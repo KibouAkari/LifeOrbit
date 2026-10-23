@@ -1,76 +1,86 @@
-# Authentication Routes and Security.
-
-# This module handles user registration, login operations, and JWT (JSON Web Token) 
-# generation. It includes password hashing logic (using bcrypt) for secure storage. 
-# It also provides the `get_current_user` dependency function used to protect 
-# other API endpoints by verifying the authorization token.
-# ==================================================================================
+# Authentication Routes (Google OAuth).
+#
+# This module handles Google Single Sign-On (SSO). It verifies the Google ID token
+# sent by the React frontend, creates a user in MongoDB if they don't exist,
+# and issues our own internal JWT to protect our API endpoints.
 
 import os
 import jwt
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from passlib.context import CryptContext
-from api.database import users_collection
-from api.models import UserRegistrationRequest, UserLoginRequest
+from pydantic import BaseModel
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+# from api.database import users_collection
 
 router = APIRouter()
 security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class GoogleAuthRequest(BaseModel):
+    # Schema for the token React sends us after a successful Google login.
+    token: str
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Dependency function to protect routes. 
-    Verifies the JWT token and returns the user's email or ID.
-    """
+    # Dependency to protect your other routes (Calendar, Dashboard).
+    # Verifies YOUR internal JWT, not the Google one!
     token = credentials.credentials
     secret_key = os.getenv("JWT_SECRET_KEY")
+    
     try:
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-        return payload.get("sub") # Returns the user identifier (e.g., email)
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        return payload.get("sub") # Returns the user email
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-def register_user(user: UserRegistrationRequest):
-    """
-    Creates a new user account.
-    """
-    # Check if user already exists
-    if users_collection.find_one({"email": user.email}):
-        raise HTTPException(status_code=400, detail="Email already registered")
+@router.post("/google")
+def google_auth(request: GoogleAuthRequest):
+    # 1. Verifies the Google token.
+    # 2. Creates a user in DB if they are new.
+    # 3. Returns our own JWT for future API calls.
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
     
-    # Hash the password for security
-    hashed_password = pwd_context.hash(user.password)
-    
-    # Save to MongoDB Atlas
-    new_user = {
-        "username": user.username,
-        "email": user.email,
-        "password": hashed_password,
-        "created_at": datetime.utcnow()
-    }
-    users_collection.insert_one(new_user)
-    
-    return {"message": "User registered successfully"}
+    try:
+        # 1. Verify the token with Google's official library
+        idinfo = id_token.verify_oauth2_token(
+            request.token, 
+            google_requests.Request(), 
+            google_client_id
+        )
+        
+        # 2. Extract user info from Google's response
+        user_email = idinfo['email']
+        user_name = idinfo.get('name', 'Unknown User')
+        google_id = idinfo['sub'] # Google's unique ID for this user
+        
+    except ValueError:
+        # If the token is fake or expired, Google's library throws a ValueError
+        raise HTTPException(status_code=401, detail="Invalid Google token")
 
-@router.post("/login")
-def login_user(user: UserLoginRequest):
-    """
-    Authenticates a user and returns a JWT access token.
-    """
-    # Find user in database
-    db_user = users_collection.find_one({"email": user.email})
-    if not db_user or not pwd_context.verify(user.password, db_user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    # Generate JWT Token
+    # 3. Database Logic: Check if user exists (TODO: Uncomment when DB is ready)
+    # user = users_collection.find_one({"email": user_email})
+    # 
+    # if not user:
+    #     # User is logging in for the first time -> Register them!
+    #     new_user = {
+    #         "email": user_email,
+    #         "name": user_name,
+    #         "google_id": google_id,
+    #         "created_at": datetime.utcnow()
+    #     }
+    #     users_collection.insert_one(new_user)
+
+    # 4. Generate our own JWT (just like before)
     secret_key = os.getenv("JWT_SECRET_KEY")
     expiration = datetime.utcnow() + timedelta(hours=24)
-    payload = {"sub": db_user["email"], "exp": expiration}
-    token = jwt.encode(payload, secret_key, algorithm="HS256")
+    payload = {"sub": user_email, "exp": expiration}
     
-    return {"access_token": token, "token_type": "bearer"}
+    our_token = jwt.encode(payload, secret_key, algorithm="HS256")
+    
+    return {
+        "access_token": our_token, 
+        "token_type": "bearer",
+        "user_email": user_email,
+        "user_name": user_name
+    }
