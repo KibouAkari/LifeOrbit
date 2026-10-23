@@ -11,7 +11,7 @@ All changes remain under Unreleased until a verified release.
 - Notebook layout with chapters, editable pages and browser-local persistence.
 - Subscription overview with totals separated by currency and simpler entry.
 - Interactive daily challenges with a clearly labelled sample leaderboard.
-- Dashboard updates for user greeting and task, event, note and challenge summaries.
+- Dashboard updates for user greeting, task, event, note and challenge summaries, plus a demo leaderboard preview.
 
 ### Changed
 - Replaced prior logo with the supplied planet artwork, removing its embedded text.
