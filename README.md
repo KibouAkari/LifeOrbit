@@ -50,13 +50,13 @@ flowchart TB
 
 ## Getting started
 
-LifeOrbit is currently being scoped for a hackathon. **There are no verified install or run commands yet.** Once the application framework is selected, we'll add tested prerequisites, environment variables, setup steps and a local development command here.
+LifeOrbit is currently being scoped for a hackathon. A dependency-free browser demo is now included. It uses native JavaScript modules and browser-local storage. It is not a production app or secure authentication system.
 
-For now, check the [roadmap](docs/ROADMAP.md), [product brief](docs/PRODUCT.md), [architecture notes](docs/ARCHITECTURE.md) and [contributing guide](CONTRIBUTING.md).
+Run it locally with Python 3 from the repository root:\n\n```bash\npython3 -m http.server 8000\n```\n\nOpen **http://localhost:8000** in a modern browser. Avoid opening `index.html` through `file://`, because ES modules may be blocked. The code is organised into separate page modules in `src/pages/`, all sharing the sidebar and theme system in `src/main.js`.\n\nFor a consistent team workflow, start with the **[Frontend team guide](docs/FRONTEND_GUIDE.md)**. Also see the [roadmap](docs/ROADMAP.md), [product brief](docs/PRODUCT.md), [architecture notes](docs/ARCHITECTURE.md) and [contributing guide](CONTRIBUTING.md).
 
 ## Project notes
 
-- **Roadmap:** [Milestones and priorities](docs/ROADMAP.md)
+- **Frontend guide:** [Run the demo and build consistent pages](docs/FRONTEND_GUIDE.md)\n- **Roadmap:** [Milestones and priorities](docs/ROADMAP.md)
 - **Product:** [Goals, use cases and MVP scope](docs/PRODUCT.md)
 - **Architecture:** [Decisions to make before implementation](docs/ARCHITECTURE.md)
 - **Design:** [UI and brand direction](docs/DESIGN.md)
