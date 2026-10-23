@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowUpRight, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards } from "lucide-react";
+import { ArrowUpRight, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards, Check } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { newId } from "../data/storage";
 
@@ -10,7 +10,8 @@ export default function Dashboard() {
   const [task, setTask] = useState("");
   const pending = state.tasks.filter(t => !t.done);
   const completed = state.tasks.filter(t => t.done);
-  const events = useMemo(() => [...state.events].sort((a,b) => a.date.localeCompare(b.date)).filter(e=>e.date >= new Date().toLocaleDateString("sv-SE")).slice(0,4), [state.events]);
+  const today = new Date().toLocaleDateString("sv-SE");
+  const events = useMemo(() => [...state.events].sort((a,b) => a.date.localeCompare(b.date)).filter(e=>e.date >= today).slice(0,4), [state.events, today]);
   const progress = state.tasks.length ? Math.round(100*completed.length/state.tasks.length) : 0;
   function addTask(e: FormEvent) { e.preventDefault(); if (!task.trim()) return; patch("tasks", [...state.tasks, { id: newId(), title: task.trim(), done: false }]); setTask(""); }
   return <div className="dashboard">

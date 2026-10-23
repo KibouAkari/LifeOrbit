@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { LayoutGrid, NotebookPen, CheckCheck, CalendarDays, WalletCards, Target, Settings2, Sun, Moon, Menu, CircleUserRound, X } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import type { Section } from "../types";
@@ -12,21 +12,9 @@ const navigation = [
   ["challenges", "Challenges", Target],
 ] as const;
 
-export function Layout({ section, children }: { section: Section; children: ReactNode }) {
+export function Layout({ section, dark, children }: { section: Section; dark: boolean; children: ReactNode }) {
   const { state, patch } = useApp();
   const [open, setOpen] = useState(false);
-  const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
-  useEffect(() => {
-    const media = matchMedia("(prefers-color-scheme: dark)");
-    const handle = () => setSystemDark(media.matches);
-    media.addEventListener("change", handle);
-    return () => media.removeEventListener("change", handle);
-  }, []);
-  const dark = state.theme === "dark" || (state.theme === "system" && systemDark);
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#18191c" : "#f8f8fa");
-  }, [dark]);
 
   if (section === "login") return <>{children}</>;
 
