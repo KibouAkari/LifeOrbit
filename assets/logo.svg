@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+<title id="title">LifeOrbit</title><desc id="desc">A friendly planet with an orbiting star beside the LifeOrbit wordmark.</desc>
+<defs><linearGradient id="planet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6FE0BE"/><stop offset="1" stop-color="#65A8F5"/></linearGradient></defs>
+<g transform="translate(14 13)"><circle cx="80" cy="77" r="50" fill="url(#planet)"/><ellipse cx="80" cy="77" rx="75" ry="28" transform="rotate(-26 80 77)" fill="none" stroke="#427C94" stroke-width="9"/><path d="M68 80q12 13 25 0" fill="none" stroke="#184D63" stroke-width="5" stroke-linecap="round"/><circle cx="61" cy="67" r="4" fill="#184D63"/><circle cx="99" cy="67" r="4" fill="#184D63"/><path d="m146 14 4 12 12 4-12 4-4 12-4-12-12-4 12-4z" fill="#F8C96A"/></g>
+<text x="190" y="111" font-family="Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-weight="750" font-size="64" letter-spacing="-2.8" fill="#203A4B">Life<tspan fill="#439E9A">Orbit</tspan></text>
+</svg>
