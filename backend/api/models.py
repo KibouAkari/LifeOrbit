@@ -1,9 +1,17 @@
-"""Shared request schemas. Keep transport validation out of route logic."""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
 
+# Schema for user registration
+class UserRegister(BaseModel):
+    username: str
+    email: str
+    password: str
 
-class CalendarEventInput(BaseModel):
-    title: str = Field(min_length=1, max_length=120)
-    starts_at: str
-    ends_at: str
-    timezone: str = "UTC"
+# Schema for creating a new calendar event
+class CalendarEvent(BaseModel):
+    title: str
+    description: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    user_id: str
