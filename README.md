@@ -37,8 +37,8 @@ For the frontend set `VITE_GOOGLE_CLIENT_ID` to the Google OAuth web client ID; 
 | Tasks | Authenticated MongoDB CRUD and ordering; drag/drop, completion feedback |
 | Calendar | Authenticated MongoDB create/list/delete with weekly view |
 | Notes | Local browser storage only |
-| Subscriptions | Local browser storage only |
-| Challenges and ranking | Local progress and **sample** leaderboard, not a live multiplayer service |
+| Subscriptions | Local browser storage; monthly/yearly renewal projections, no payment integration |
+| Challenges and ranking | Local progress and graphic **sample** podium, not a live multiplayer service |
 | Reminders and account controls | Not production ready |
 
 Guest data is stored on the current device. Signed-in data must be isolated from guest records; backend-backed features are enabled only with Google authentication.

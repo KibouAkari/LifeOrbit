@@ -10,6 +10,8 @@ All changes remain under Unreleased until a verified release.
 - Google sign-in button, account recovery on refresh, explicit sign-out and guest access.
 - Task drag and drop ordering, short completion animation, gentle sound and feedback messages.
 - Empty calendar invitation, dashboard challenge podium preview and expanded account settings.
+- Monthly and yearly subscription entry, monthly-equivalent totals and calculated next renewal dates.
+- Challenge leaderboard with profile initials and a visual three-place podium (sample data only).
 
 ### Changed
 - Dashboard progress donut now uses stable conic-gradient bounds and centered text.
