@@ -58,18 +58,18 @@ def google_auth(request: GoogleAuthRequest):
         # If the token is fake or expired, Google's library throws a ValueError
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
-    # 3. Database Logic: Check if user exists (TODO: Uncomment when DB is ready)
-    # user = users_collection.find_one({"email": user_email})
-    # 
-    # if not user:
-    #     # User is logging in for the first time -> Register them!
-    #     new_user = {
-    #         "email": user_email,
-    #         "name": user_name,
-    #         "google_id": google_id,
-    #         "created_at": datetime.utcnow()
-    #     }
-    #     users_collection.insert_one(new_user)
+    # 3. Database Logic: Check if user exists 
+    user = users_collection.find_one({"email": user_email})
+     
+    if not user:
+        # User is logging in for the first time -> Register them!
+        new_user = {
+            "email": user_email,
+            "name": user_name,
+            "google_id": google_id,
+            "created_at": datetime.utcnow()
+        }
+        users_collection.insert_one(new_user)
 
     # 4. Generate our own JWT (just like before)
     secret_key = os.getenv("JWT_SECRET_KEY")
