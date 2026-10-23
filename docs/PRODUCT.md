@@ -1,45 +1,56 @@
-# Product brief
+# LifeOrbit · product brief
 
-## What is LifeOrbit?
+**Tagline:** Your day, in a better orbit.
 
-A minimal, friendly personal command centre for the everyday things that otherwise live in separate apps.
+LifeOrbit is a minimal, friendly life manager: fewer scattered apps,
+less mental overhead and one approachable place to organise daily life.
 
-**Promise:** Give users a clear view of their day and help them follow through with less friction.
+## Navigation and screens
 
-## Who is it for?
+| Screen | Intended experience |
+| --- | --- |
+| Login | Friendly login window with clear validation and session handling. |
+| Dashboard | Overview of events, to-dos, notes and active challenges. |
+| Notes | Multiple notes with rich text and image attachment support. |
+| Planner | Open versus finished tasks, with simple task management. |
+| Calendar | Clean day, week and month views. |
+| Subscription overview | Central overview of active subscriptions and renewal dates. |
+| Challenges / Leaderboard | Habit challenges (e.g. water, push-ups), earned points and an optional social leaderboard. |
 
-People who manage classes, work, appointments, personal projects or expenses and want a simpler place to keep track of their commitments.
+## Audience
 
-## Core journeys
+People who want one calm, practical home for planning rather than a
+complicated productivity system. Start with individual accounts; shared
+workspaces are a stretch goal.
 
-1. **Start the day:** Sign in and see today's events, priorities, reminders and progress on one dashboard.
-2. **Catch a thought:** Add a note or task quickly without losing focus.
-3. **Prepare for tomorrow:** Review calendar items, task deadlines and any upcoming subscription renewals.
-4. **Stay motivated:** Complete a daily or weekly challenge and get a small, satisfying progress cue.
+## Product principles
 
-## Hackathon MVP candidate
+1. Useful information in one glance.
+2. Low friction: creating and completing a task should be easy.
+3. Friendly and cute, but not childish or visually noisy.
+4. Progress without pressure: no shame or manipulative streak mechanics.
+5. Privacy first: notes, schedules and subscriptions belong to the user.
+6. Accessibility and mobile use are baseline quality, not optional polish.
 
-| Priority | Capability | Definition of done |
-| --- | --- | --- |
-| P0 | Personal account | Each user can sign in and access only their own records. |
-| P0 | Dashboard | Today's tasks and upcoming events appear in one useful view. |
-| P0 | Tasks | Add, complete, edit and remove a task. |
-| P0 | Notes | Save, view, edit and delete a note. |
-| P1 | Calendar | Create and view events with dates and times. |
-| P1 | Subscriptions | Track an active subscription with renewal date and cost. |
-| P1 | Challenges | Show and complete daily/weekly goals with progress. |
-| P1 | Reminders | Deliver or display a timely, reliable reminder. |
+## MVP behaviours
 
-**Scope may shrink** to protect quality and deliver a compelling demo. P0 is the core; P1 is stretch work. No integration, notification service or third-party provider has been selected yet.
+**Dashboard:** upcoming events, due tasks, recent notes, challenge progress.
+**Notes:** text, basic editing, several notes; images if available.
+**Planner:** task status, due date and basic priorities.
+**Calendar:** event CRUD and day/week/month navigation.
+**Subscriptions:** manual entry, recurrence, currency, next renewal and totals by currency.
+**Challenges:** daily/weekly/monthly goals, points and opt-in rankings.
+**Notifications:** start with in-app reminders before push/email delivery.
+**Login:** per-user private workspace and secure session management.
 
-## Success criteria
+## Not in first MVP
 
-A demo participant should understand the dashboard within seconds, add a task quickly, find their next event, and know what requires attention today. Personal data must remain isolated between users.
+Automatic payments or bank integrations, silent external account access,
+AI acting without confirmation, third-party calendar sync and automated
+alarm orchestration. These require additional security and complexity.
 
-## Non-goals for the hackathon
+## Success criteria for the demo
 
-Automated bank connections, account scraping for subscription discovery, complex AI recommendations, elaborate reward economies and full two-way sync with external calendar providers.
-
-## Important product decisions still open
-
-Authentication provider, application framework, storage, notification channel, recurring event behaviour, timezone handling, data retention and the exact scoring system for challenges.
+A participant can log in, add a task and note, schedule an event,
+track a subscription, complete a challenge and see the dashboard
+reflect these actions without manually refreshing or switching apps.

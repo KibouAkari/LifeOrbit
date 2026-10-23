@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest an improvement to LifeOrbit
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What user problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested experience
+      description: Explain the smallest useful version.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature area
+      options:
+        - Dashboard
+        - Notes
+        - Tasks / Planner
+        - Calendar
+        - Subscriptions
+        - Challenges / Leaderboard
+        - Accounts / Security
+        - Notifications / Focus
+        - Other
+    validations:
+      required: true
