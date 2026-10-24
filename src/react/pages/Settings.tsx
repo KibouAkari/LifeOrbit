@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Download, LogOut, Palette, ShieldCheck, UserRound } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { currentUser, hasSession, request, type SignedInUser } from "../data/api";
+import { FriendsPanel } from "../components/FriendsPanel";
 import { Heading } from "../components/UI";
 import type { Theme } from "../types";
 
@@ -83,6 +84,7 @@ export default function Settings(){
        <option value="system">Match device</option><option value="light">Light</option><option value="dark">Dark</option>
      </select></label>
    </section>
+   <FriendsPanel/>
    <section className="surface-card settings-section settings-access">
      <h2><ShieldCheck size={19}/> Account & privacy</h2>
      <div className="settings-links"><a href="#/privacy">Privacy policy</a><a href="#/terms">Terms of service</a></div>
