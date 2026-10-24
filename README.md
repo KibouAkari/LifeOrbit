@@ -99,7 +99,7 @@ The challenge-specific documentation is kept **in the repository, not on the web
 
 **[Read the Zentral Hack dossier](docs/hackathon/README.md)** · [Requirements](docs/hackathon/REQUIREMENTS.md) · [Pitch](docs/hackathon/PITCH.md) · [Evidence](docs/hackathon/EVIDENCE.md)
 
-The project predates the hackathon; event-specific results will be entered only after they actually occur.
+LifeOrbit was conceived at the start of Zentral Hack: the team collected ideas in Miro, structured features, divided work, chose the technology stack and developed the prototype from scratch. The detailed chronology and evidence are documented in the dossier.
 
 ## Documentation
 
