@@ -11,9 +11,9 @@ type ContextValue={
  };
  reset:()=>void;
 };
-type Workspace=Pick<Store,"notes"|"subscriptions"|"challenges"> & {chapters:{id:string;name:string}[]};
+type Workspace=Pick<Store,"notes"|"subscriptions"|"challenges"|"chapters">;
 const Context=createContext<ContextValue|null>(null);
-const chaptersKey="lifeorbit-chapters-v1";
+
 
 export function AppProvider({children}:{children:ReactNode}){
   const [state,setState]=useState<Store>(readDemo);
@@ -29,8 +29,8 @@ export function AppProvider({children}:{children:ReactNode}){
         const data=await request<Workspace>("/workspace");
         if(!active)return;
         hydrated.current=true;
-        setState(current=>({...current,notes:data.notes.map(n=>({id:n.id,title:n.title,body:n.body})),subscriptions:data.subscriptions,challenges:data.challenges}));
-        try{localStorage.setItem(chaptersKey,JSON.stringify(data.chapters));}catch{}
+        setState(current=>({...current,notes:data.notes,chapters:data.chapters.length?data.chapters:structuredClone(initialState.chapters),subscriptions:data.subscriptions,challenges:data.challenges}));
+
         setReadyToSync(true);
       }catch(err){console.error("Workspace load failed",err);}
     }
@@ -53,15 +53,13 @@ export function AppProvider({children}:{children:ReactNode}){
     if(!readyToSync||!hydrated.current)return;
     // Coalesce typing into a single request rather than saving each keystroke.
     const handle=window.setTimeout(()=>{
-      let chapters:{id:string;name:string}[]=[];
-      try{chapters=JSON.parse(localStorage.getItem(chaptersKey)||"[]") as typeof chapters;}catch{}
       void request<Workspace>("/workspace",{method:"PUT",body:JSON.stringify({
-        notes:state.notes.map(n=>({...n,chapter_id:localStorage.getItem("lifeorbit-note-chapter-"+n.id)||"personal"})),
-        subscriptions:state.subscriptions,challenges:state.challenges,chapters
+        notes:state.notes,
+        subscriptions:state.subscriptions,challenges:state.challenges,chapters:state.chapters
       })}).catch(err=>console.error("Workspace save failed",err));
     },900);
     return()=>clearTimeout(handle);
-  },[state.notes,state.subscriptions,state.challenges,readyToSync]);
+  },[state.notes,state.subscriptions,state.challenges,state.chapters,readyToSync]);
 
   const patch=useCallback(function patch<K extends keyof Store>(key:K,value:Store[K]|((current:Store[K])=>Store[K])){
     setState(s=>({...s,[key]:typeof value==="function"?(value as (x:Store[K])=>Store[K])(s[key]):value}));
