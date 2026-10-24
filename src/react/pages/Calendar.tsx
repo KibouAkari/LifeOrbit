@@ -24,6 +24,9 @@ export default function Calendar(){
  const [importing,setImporting]=useState(false);
  const [hidden,setHidden]=useState<string[]>([]);
  const [imports,setImports]=useState<{id:string;name:string;events:number}[]>([]);
+ const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
+ const [invited,setInvited]=useState<CalendarEvent[]>([]);
+ const [messageInvite,setMessageInvite]=useState("");
  const input=useRef<HTMLInputElement>(null);
  const today=useMemo(()=>new Date(),[]);
  const online=hasSession();
@@ -41,10 +44,11 @@ export default function Calendar(){
    return Array.from({length},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+i);return d;});
  },[base,view]);
  const source=(event:CalendarEvent)=>event.source_id||event.source||"mongodb";
- useEffect(()=>{if(online)void request<typeof imports>("/calendar/imports").then(setImports).catch(()=>undefined);},[online]);
+ useEffect(()=>{if(!online)return;void Promise.all([request<typeof imports>("/calendar/imports"),request<{friends:typeof friends}>("/friends"),request<CalendarEvent[]>("/sharing/events")]).then(([sources,data,events])=>{setImports(sources);setFriends(data.friends);setInvited(events)}).catch(()=>undefined);},[online]);
  const origins=[...new Set(state.events.map(source))];
- const visible=(day:Date)=>state.events.filter(e=>e.date===iso(day)&&!hidden.includes(source(e))).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
+ const visible=(day:Date)=>[...state.events,...invited].filter(e=>e.date===iso(day)&&!hidden.includes(source(e))).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
  const heading=view==="month"?base.toLocaleDateString("en",{month:"long",year:"numeric"}):`${days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – ${days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}`;
+ async function invite(id:string,friendId:string){try{await request("/sharing/events",{method:"POST",body:JSON.stringify({resource_id:id,recipient_id:friendId})});setMessageInvite("Invitation sent")}catch(e){setMessageInvite(e instanceof Error?e.message:"Invitation failed")}}
  function open(day:string,item?:CalendarEvent){
    setDate(day);setEditing(item?.id||null);setTitle(item?.title||"");setStart(format(item?.start_time)||"09:00");setEnd(format(item?.end_time)||"10:00");setCreating(true);
  }
@@ -130,22 +134,25 @@ export default function Calendar(){
     <button className="button primary">{editing?"Update":"Add event"}</button>
     {editing&&<button type="button" className="button" onClick={()=>{const item=state.events.find(x=>x.id===editing);if(item)void remove(item)}}>Delete</button>}
     <button type="button" className="text-button" onClick={()=>setCreating(false)}>Cancel</button>
+    {editing&&friends.length>0&&<label>Invite friend <select className="select" defaultValue="" onChange={e=>{if(e.target.value)void invite(editing,e.target.value);e.target.value=""}}><option value="">Choose a friend</option>{friends.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>}
+    <span role="status">{messageInvite}</span>
    </form>}
    {!state.events.length&&!creating&&<div className="calendar-first-event"><CalendarDays size={28}/><h2>Add your first event</h2><p>Make space for your next plan.</p><button className="button primary" onClick={()=>open(iso(new Date()))}>Create event</button></div>}
-   <div className={view==="month"?"weekly-grid calendar-month-grid":"weekly-grid calendar-week-grid"}>
-    {days.map(day=><section key={iso(day)} className={`week-day ${iso(day)===iso(new Date())?"is-today":""} ${day.getMonth()!==base.getMonth()&&view==="month"?"out-of-month":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
-      <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>
-      {visible(day).map(item=><div className="week-event" key={item.id} draggable onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)}>
-        <button className="calendar-event-main" onClick={()=>open(item.date,item)}><span>{caption(item)}</span></button>
-        <div className="calendar-event-resize">
-         <button title="Move 15 minutes earlier" onClick={()=>void shiftEvent(item,item.date,-15)}>−</button>
-         <button title="Move 15 minutes later" onClick={()=>void shiftEvent(item,item.date,15)}>+</button>
-        </div>
-        <button className="calendar-resize-grip" aria-label="Drag to change event duration" title="Drag vertically to extend or shorten" onPointerDown={e=>{e.stopPropagation();const element=e.currentTarget;element.setPointerCapture(e.pointerId);element.dataset.startY=String(e.clientY);}} onPointerUp={e=>{const initial=Number(e.currentTarget.dataset.startY||e.clientY);const steps=Math.round((e.clientY-initial)/15);if(steps!==0)void resizeEvent(item,steps*15);e.currentTarget.releasePointerCapture(e.pointerId);}}>⋮</button>
-      </div>)}
-      <button className="week-add" onClick={()=>open(iso(day))} aria-label={`Add event on ${iso(day)}`}>+</button>
-    </section>)}
-   </div>
+   {view==="week"?<div className="orbit-timeline-shell"><div className="orbit-timeline">
+    <div className="orbit-times"><div className="orbit-time-heading">GMT</div>{Array.from({length:18},(_,i)=><div className="orbit-time-label" key={i}>{String(i+6).padStart(2,"0")}:00</div>)}</div>
+    {days.map(day=><div key={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
+      <button className="orbit-day-heading" onClick={()=>open(iso(day))}>{day.toLocaleDateString("en",{weekday:"short"})}<strong>{day.getDate()}</strong></button>
+      <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(17*60,Math.round((e.clientY-bounds.top)/16)*15));const h=6+Math.floor(minutes/60);const m=minutes%60;open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.min(23,h+1)).padStart(2,"0")}:${String(m).padStart(2,"0")}`)}}>
+        {visible(day).map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=Math.max(0,((sh-6)*60+sm)*64/60);const height=Math.max(24,((eh-sh)*60+em-sm)*64/60);return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""}`} key={item.id} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`}}>
+          <button className="orbit-event-label" onClick={()=>item.source==="invited"?setMessage("Invited events are read only."):open(item.date,item)}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
+          {item.source!=="invited"&&<button className="orbit-event-grip" aria-label="Resize event" title="Drag to change duration" onPointerDown={e=>{e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);e.currentTarget.dataset.startY=String(e.clientY)}} onPointerUp={e=>{e.stopPropagation();const initial=Number(e.currentTarget.dataset.startY||e.clientY);const steps=Math.round((e.clientY-initial)/16);if(steps)void resizeEvent(item,steps*15);e.currentTarget.releasePointerCapture(e.pointerId)}}/>}
+        </div>})}
+      </div>
+    </div>)}
+   </div></div>:<div className="weekly-grid calendar-month-grid">{days.map(day=><section key={iso(day)} className={`week-day ${iso(day)===iso(new Date())?"is-today":""} ${day.getMonth()!==base.getMonth()?"out-of-month":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
+     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><button key={item.id} className={`week-event ${item.source==="invited"?"invited-event":""}`} onClick={()=>item.source==="invited"?setMessage("This invitation is read only"):open(item.date,item)}>{caption(item)}</button>)}
+     <button className="week-add" onClick={()=>open(iso(day))}>+</button>
+   </section>)}</div>}
    <p className="calendar-help">Drag an event to another day. Edit its start and end time to resize it. Importing .ics files creates a copy, not a live Google, Outlook or Apple connection.</p>
  </div>;
 }
