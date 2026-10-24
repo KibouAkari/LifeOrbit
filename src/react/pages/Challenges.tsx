@@ -33,15 +33,18 @@ export default function Challenges(){
  const week=useMemo(()=>{const d=new Date(today);d.setDate(d.getDate()-(d.getDay()+6)%7);return keyFor(d)},[today]);
  const suggestions=[
    ...choose(daily,seedFor(today)+shuffle,2),
-   ...choose(weekly,seedFor(today)/7|0+shuffle,1)
+   ...choose(weekly,Math.floor(seedFor(today)/7)+shuffle,1)
  ];
+ const idFor=(s:Suggestion)=>{
+   const suffix=s.period==="Daily"?keyFor(today):week;
+   return `${s.period.toLowerCase()}-${suffix}-${s.title.toLowerCase().replace(/\W+/g,"-")}`;
+ };
  const accepted=state.challenges;
  const points=accepted.reduce((total,c)=>total+Math.min(c.value,c.target)*10,0);
  const scores=[{id:"alex",name:"Alex",points:180},{id:"taylor",name:"Taylor",points:140},{id:"you",name:state.account||"You",points}].sort((a,b)=>b.points-a.points);
  const finished=accepted.filter(c=>c.value>=c.target).length;
  function add(s:Suggestion){
-   const suffix=s.period==="Daily"?keyFor(today):week;
-   const id=s.period.toLowerCase()+"-"+suffix+"-"+s.title.toLowerCase().replace(/\W+/g,"-");
+   const id=idFor(s);
    if(accepted.some(c=>c.id===id)){setMessage("Already in your challenges.");return;}
    patch("challenges",current=>[...current,{id,title:s.title,target:s.target,unit:s.unit,value:0}]);
    setMessage("Challenge added. You've got this!");
@@ -51,7 +54,7 @@ export default function Challenges(){
    patch("challenges",current=>current.map(c=>c.id===item.id?{...c,value:next}:c));
    setMessage(reset?"Progress reset":next===item.target?"Challenge completed! Nice work.":"Progress saved");
  }
- const available=suggestions.filter(s=>!accepted.some(c=>c.id.includes(s.title.toLowerCase().replace(/\W+/g,"-"))));
+ const available=suggestions.filter(s=>!accepted.some(c=>c.id===idFor(s)));
  return <div className="work-page"><Heading title="Challenges" description="Small habits. Better days."/>
    <section className="challenge-summary"><div><span>Total points</span><strong>{points}</strong><p>{finished} of {accepted.length} challenges completed</p></div><Trophy size={42}/></section>
    <div className="challenge-layout">

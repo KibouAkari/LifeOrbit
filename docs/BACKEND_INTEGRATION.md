@@ -28,6 +28,10 @@ VITE_GOOGLE_CLIENT_ID is public and exists only in the frontend build.
 GOOGLE_CLIENT_ID, MONGODB_URI and JWT_SECRET_KEY must remain server-side.
 With same-origin API, omit VITE_API_BASE_URL. The OAuth Web client must allow
 the exact deployed HTTPS origin; Vercel environment changes require redeploy.
+For a separate API origin, set VITE_API_BASE_URL in the frontend, add its exact
+origin to FRONTEND_ORIGINS, and use credentials-enabled CORS. Keep
+AUTH_COOKIE_SAMESITE=strict for same-site origins; use `none` for a cross-site
+frontend/API pair (HTTPS is required).
 
 ## Production risks
 
