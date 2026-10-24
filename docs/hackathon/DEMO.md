@@ -1,6 +1,6 @@
 # Reproducible LifeOrbit demonstration
 
-**Purpose:** Demonstrate a working prototype and a verifiable **hackathon-specific improvement**. Do not expose personal or employer data.
+**Purpose:** Demonstrate a working prototype and the **prototype developed from the initial hackathon idea**. Do not expose personal or employer data.
 
 ## Preparation
 
@@ -9,7 +9,7 @@
 - Confirm test users can log in, access MongoDB and refresh the same-origin API.
 - Pre-check a real permitted public .ics fixture for calendar tests.
 - Have a screen recording or screenshots from the actual build as a connectivity backup.
-- Open the exact final commit or PR proving the new work.
+- Keep the initial Miro planning board, first commits and final code history ready to show the development sequence.
 - Avoid live environment-secret screens and private calendar URLs.
 
 ## Suggested live walkthrough
@@ -25,7 +25,7 @@
 | 7 | Show your **new hackathon increment** | Before/after behaviour is observable | Record |
 | 8 | Open relevant PR/changelog | Chronology, ownership and tests are traceable | Record |
 
-Do not imply every feature is part of the 24-hour deliverable. Clearly identify the **new** portion of this workflow.
+Do not imply every feature is part of the 24-hour deliverable. Clearly identify the team's **actual work from ideation to implementation**.
 
 ## Acceptance criteria
 
@@ -33,7 +33,7 @@ Do not imply every feature is part of the 24-hour deliverable. Clearly identify 
 2. An invited guest can respond, but cannot alter the organizer's event.
 3. Sharing permissions remain effective after refresh and across two sessions.
 4. A rejected or malformed feed URL yields a controlled error, not a 500 or secret disclosure.
-5. The hackathon increment solves the selected goal with a visible change and evidence.
+5. The prototype built during the hackathon solves the selected goal with a visible change and evidence.
 6. Error and loading states are understandable on a typical phone screen.
 7. The full walkthrough can run inside the allotted pitch without complex recovery.
 
