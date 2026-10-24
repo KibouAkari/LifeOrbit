@@ -95,9 +95,9 @@ python -m compileall -q backend api
 
 ## Zentral Hack project documentation
 
-LifeOrbit entstand während des Zentral Hacks: Wir entschieden uns zu Beginn für die Idee, sammelten Funktionen in Miro, strukturierten und verteilten die Aufgaben, legten die Technologien fest und entwickelten den Prototyp von Grund auf.
+LifeOrbit was conceived and built by a two-person team during Zentral Hack. We collected features in Miro, organised the ideas and responsibilities, selected our technologies and developed the prototype from scratch.
 
-Der Projektverlauf, die technischen Entscheidungen und das Ergebnis sind in der [Zentral-Hack-Projektdokumentation](docs/hackathon/README.md) beschrieben.
+The project history, technical decisions and implemented functionality are described in the [Zentral Hack project documentation](docs/hackathon/README.md).
 
 ## Documentation
 
