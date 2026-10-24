@@ -3,6 +3,13 @@
 ## Confirmed runtime issue (24 October 2026)
 - Registration HTTP 500 traced to MongoDB Atlas DNS NXDOMAIN for placeholder `cluster.mongodb.net`. It requires a correct private Vercel `MONGODB_URI` value, redeployment, and a successful database health test. Code now returns a sanitized 503 for MongoDB failures. This is **not fixed in deployment until the variable is corrected**.
 
+## Recent mitigations
+- Removed browser sessionStorage JWT persistence for authenticated users; a Secure HttpOnly SameSite cookie now carries the short-lived token.
+- Added owner-scoped MongoDB storage for notes, chapters, subscriptions and personal challenges.
+- Corrected a potential authenticated-data-to-guest-state leak at logout.
+- Added server-side profile edits and account data export.
+- The actual Atlas connection URI remains invalid in Vercel; `/api/health/database` safely returns 503 until corrected.
+
 ## Findings
 
 | Severity | Finding | Status |
@@ -10,7 +17,7 @@
 | Critical to functionality | Vite-only deployment returned 404 for /api routes | Added root Python function and route rewrite; deployment verification outstanding |
 | High | API source used inconsistent absolute imports under a monorepo | Converted to one backend package namespace |
 | High | Login endpoints have no effective brute-force protection | Open: configure Vercel WAF / durable per-account and per-IP throttling before launch |
-| High | Access tokens stored in sessionStorage, exposed to XSS | Open: migrate to secure, HttpOnly server-managed sessions |
+| High | Browser-accessible JWT | Mitigated with HttpOnly SameSite cookie; token revocation and session rotation remain open |
 | High | Public email/password registration lacks verified email and recovery | Open: block public signup until verified flows exist |
 | High | Other account data features remain browser-local while signed in | Open: database-backed notes, subscriptions, challenges and privacy controls |
 | Medium | No vulnerability scanning in CI | Added Python audit and npm audit jobs; examine actual reports |

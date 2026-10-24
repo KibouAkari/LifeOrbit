@@ -4,6 +4,16 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · Personal workspace and interface
+- Migrated guest notebook metadata to a single chapter and page data structure.
+- Connected account notebook chapters, notes, subscriptions and personal challenge progress to MongoDB workspace storage.
+- Added rotating daily/weekly challenge suggestions, progress animations and clearer personal feedback.
+- Rebuilt Settings with server-side display-name editing and account data export.
+- Simplified login into a Google-first entry, progressive email form and discreet guest action.
+- Refined dashboard density, entrance effects and responsive panel layouts.
+- Fixed logout behaviour to clear authenticated workspace records from React memory before guest state can be persisted.
+
+
 ### 24 October 2026 · Challenges experience
 - Added rotating daily and weekly challenge suggestions with accessible progress feedback.
 - Improved personal challenge cards and retained the centre-first podium layout.
