@@ -7,7 +7,7 @@ export const initialState: Store = {
   notes: [],
   chapters: [{ id: "personal", name: "Personal" }, { id: "ideas", name: "Ideas" }],
   events: [], subscriptions: [],
-  challenges: [], templates: [], leaderboard_opt_in:false,
+  challenges: [], templates: [], leaderboard_opt_in:true,
 };
 export function readDemo(): Store {
   try {
