@@ -58,3 +58,9 @@ Public HTTPS and webcal feed links are supported without a provider hostname all
 In Notes, personal chapters may be deleted, with their pages transferred to Personal. A separate Shared notebooks space uses a dedicated MongoDB collection. Owners create a notebook and invite confirmed friends; members can save shared pages. Updates are fetched periodically. Concurrent edits to the same page still need revision checks for safe conflict resolution, so this is not yet a realtime collaborative editor.
 
 Calendar gestures need manual regression tests with mouse, touch, narrow-screen scrolling and event overlaps before public release. The mobile layout intentionally keeps the seven-day time grid horizontally scrollable rather than compressing it into unusable columns.
+
+## Notification and calendar color update
+
+Events are styled by stable calendar-source colors derived from their source identifiers. Incoming friend event invitations and note shares are included in the account's unread notifications. An account-scoped read record is persisted in MongoDB; the frontend refreshes unread counts while the app is open.
+
+Tasks support an optional timezone-aware ISO deadline stored as a MongoDB datetime. They appear as reminders when due within one hour. This is a polling in-app reminder, not a guaranteed push at exactly one hour before the deadline and not a background message if the app is closed.

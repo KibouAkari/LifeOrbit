@@ -1,5 +1,5 @@
 """Request schemas shared by the Python API."""
-from datetime import date, time
+from datetime import date, time, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -16,12 +16,14 @@ class TaskInput(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     done: bool = False
     order: int = 0
+    due_at: datetime | None = None
 
 
 class TaskPatch(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=120)
     done: bool | None = None
     order: int | None = None
+    due_at: datetime | None = None
 
 
 class NoteInput(BaseModel):

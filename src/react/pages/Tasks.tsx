@@ -25,6 +25,9 @@ function completionSound() {
 export default function Tasks() {
   const { state, patch } = useApp();
   const [title, setTitle] = useState("");
+  const [dueAt,setDueAt]=useState("");
+  const [editingDue,setEditingDue]=useState<string|null>(null);
+  const [editingDueValue,setEditingDueValue]=useState("");
   const [view, setView] = useState<"open" | "all" | "done">("open");
   const [finishing, setFinishing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -42,9 +45,9 @@ export default function Tasks() {
     e.preventDefault(); if (!title.trim()) return;
     try {
       const value = title.trim();
-      const item = online ? await request<Task>("/tasks", {method:"POST", body:JSON.stringify({title:value,done:false,order:state.tasks.length})}) : {id:newId(),title:value,done:false};
+      const item = online ? await request<Task>("/tasks", {method:"POST", body:JSON.stringify({title:value,done:false,order:state.tasks.length,due_at:dueAt?new Date(dueAt).toISOString():null})}) : {id:newId(),title:value,done:false,due_at:dueAt?new Date(dueAt).toISOString():null};
       patch("tasks", current => [...current, item]);
-      setTitle(""); setView("open"); setNotice("Task added");
+      setTitle("");setDueAt(""); setView("open"); setNotice("Task added");
     } catch (err) { setNotice(err instanceof Error ? err.message : "Could not add task"); }
   }
   async function toggle(item: Task) {
@@ -60,6 +63,8 @@ export default function Tasks() {
     }, delay);
     timers.current.push(id);
   }
+  function editDeadline(item:Task){const date=item.due_at?new Date(item.due_at):null;setEditingDueValue(date?new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16):"");setEditingDue(item.id)}
+  async function updateDeadline(item:Task){try{const date=editingDueValue?new Date(editingDueValue):null;if(date&&Number.isNaN(date.getTime()))throw new Error("Enter a valid deadline");const due_at=date?date.toISOString():null;if(online)await request(`/tasks/${item.id}`,{method:"PATCH",body:JSON.stringify({due_at})});patch("tasks",rows=>rows.map(row=>row.id===item.id?{...row,due_at}:row));setEditingDue(null);setNotice("Due date updated")}catch(err){setNotice(err instanceof Error?err.message:"Unable to save deadline")}}
   async function remove(item: Task) {
     try {
       if (online) await request(`/tasks/${item.id}`,{method:"DELETE"});
@@ -84,12 +89,13 @@ export default function Tasks() {
       <button className={view==="all"?"selected":""} onClick={()=>setView("all")}>All tasks <span>{state.tasks.length}</span></button>
       <button className={view==="done"?"selected":""} onClick={()=>setView("done")}>Completed <span>{completed.length}</span></button>
     </aside><section className="task-content">
-      <form className="inline-add" onSubmit={add}><Plus size={19}/><input aria-label="New task" placeholder="Add a task" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)}/><button className="button primary">Add</button></form>
+      <form className="inline-add" onSubmit={add}><Plus size={19}/><input aria-label="New task" placeholder="Add a task" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)}/><input className="task-datetime" type="datetime-local" aria-label="Task deadline" value={dueAt} onChange={e=>setDueAt(e.target.value)}/><button className="button primary">Add</button></form>
       <p className="feedback-line" role="status" aria-live="polite">{notice}</p>
       <div className="task-list">{visible.length?visible.map(item=><div className={`task-item ${finishing===item.id?"completing":""}`} key={item.id} draggable onDragStart={() => {dragged.current=item.id}} onDragOver={(e:DragEvent)=>e.preventDefault()} onDrop={()=>void drop(item.id)}>
         <GripVertical size={17} className="drag-handle" aria-label="Drag to reorder"/>
         <input type="checkbox" checked={item.done||finishing===item.id} aria-label={`Complete ${item.title}`} onChange={()=>void toggle(item)}/>
-        <span className={item.done?"done":""}>{item.title}</span>
+        <span className={item.done?"done":""}>{item.title}{item.due_at&&<small className="task-due-label">Due {new Date(item.due_at).toLocaleString()}</small>}</span>
+        {editingDue===item.id?<><input className="task-datetime" type="datetime-local" aria-label="Edit task due date" value={editingDueValue} onChange={e=>setEditingDueValue(e.target.value)}/><button className="text-button" onClick={()=>void updateDeadline(item)}>Save</button><button className="text-button" onClick={()=>setEditingDue(null)}>Cancel</button></>:<button className="text-button" onClick={()=>editDeadline(item)}>Due date</button>}
         <button className="icon-button remove-on-hover" aria-label="Remove task" onClick={()=>void remove(item)}><Trash2 size={16}/></button>
       </div>):<div className="quiet-empty">Everything is done. Enjoy the day.</div>}</div>
     </section></div>
