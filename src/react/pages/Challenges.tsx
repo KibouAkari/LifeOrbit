@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Crown, Plus, RotateCcw, Trophy, RefreshCw, CheckCircle2, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { newId } from "../data/storage";
 import { Heading } from "../components/UI";
 import type { Challenge } from "../types";
 
