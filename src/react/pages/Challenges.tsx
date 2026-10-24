@@ -60,6 +60,14 @@ export default function Challenges(){
   try{const data=await request<{participants:Ranked[]}>("/leaderboard");setRank(data.participants);}
   catch{setMessage("Leaderboard could not be refreshed.");}
  }
+ useEffect(()=>{
+  if(!state.templates.length)return;
+  patch("challenges",rows=>{
+    const missing=state.templates.filter(t=>!rows.some(c=>c.id===`${t.id}-${key(t.period)}`));
+    if(!missing.length)return rows;
+    return [...rows,...missing.map(t=>({id:`${t.id}-${key(t.period)}`,title:t.title,target:t.target,value:0,unit:t.unit,period:t.period,date_key:key(t.period),custom:true}))];
+  });
+ },[state.templates,patch]);
  useEffect(()=>{void loadRanking();},[points,state.leaderboard_opt_in]);
  function choose(item:Omit<ChallengeTemplate,"id">){
   const date_key=key(item.period);
@@ -93,6 +101,7 @@ export default function Challenges(){
     <div className="challenge-meter" role="progressbar" aria-label={c.title} aria-valuenow={c.value} aria-valuemax={c.target} aria-valuemin={0}><span style={{width:`${Math.round(c.value/c.target*100)}%`}}/></div>
     <button className="button primary" onClick={()=>increment(c)}><Plus size={16}/> Add progress</button>
    </article>):<div className="quiet-empty"><CheckCircle2 size={20}/> All clear. Pick something new below.</div>}
+   {state.templates.length>0&&<div className="saved-challenge-templates"><h3>Your recurring challenges</h3>{state.templates.map(t=><div key={t.id}><strong>{t.title}</strong><span>{t.period} · {t.target} {t.unit}</span><button className="text-button" onClick={()=>patch("templates",rows=>rows.filter(x=>x.id!==t.id))}>Remove</button></div>)}</div>}
    <div className="challenge-section-top challenge-discover-title"><h2>Something new</h2><button className="text-button" onClick={()=>setRefresh(x=>x+1)}><RefreshCw size={16}/> Surprise me</button></div>
    <div className="challenge-discover">{suggestions.map((c,i)=><button className="challenge-suggestion" key={c.title+i} onClick={()=>choose(c)}><span><strong>{c.title}</strong><small>{c.period==="daily"?"Daily":"Weekly"} · {c.target} {c.unit}</small></span><Plus size={16}/></button>)}</div>
    <form className="challenge-custom" onSubmit={makeCustom}><h3>Create a recurring challenge</h3><input className="input" placeholder="Challenge name" required maxLength={120} value={name} onChange={e=>setName(e.target.value)}/><div className="challenge-custom-fields"><input className="input" type="number" min={1} max={100000} value={target} onChange={e=>setTarget(Number(e.target.value))}/><input className="input" value={unit} maxLength={30} onChange={e=>setUnit(e.target.value)}/><select className="select" value={period} onChange={e=>setPeriod(e.target.value as "daily"|"weekly")}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div><button className="button">Add challenge</button></form>
