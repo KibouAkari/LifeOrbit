@@ -45,7 +45,7 @@ export default function Notes(){
     if(!window.confirm(`Delete "${chapter.name}"? Its notes will be moved to Personal.`))return;
     patch("notes",current=>current.map(n=>n.chapter_id===id?{...n,chapter_id:"personal"}:n));
     patch("chapters",current=>current.filter(c=>c.id!==id));
-    if(chapter.id===chapter)setChapter("personal");
+    if(id===chapter)setChapter("personal");
     setSelected(null);setNotice("Chapter removed. Its notes were kept.");
   }
   function createChapter(){
