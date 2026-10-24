@@ -1,61 +1,95 @@
+<div align="center">
+
+<img src="assets/icon.svg" alt="LifeOrbital" width="88"/>
+
 # LifeOrbital
 
-A thoughtful place for your schedule, tasks, notes, subscriptions and daily challenges.
+**Less organising. More living.**
 
-<img src="assets/icon.svg" width="86" alt="LifeOrbital icon"/>
+Your tasks, calendar, notes, subscriptions and everyday progress in one thoughtful workspace.
 
-## Run the frontend
+</div>
 
-Node.js 22 recommended.
+## Start locally
+
+Requirements: Node.js 22, npm, Python 3.12.
 
 ```bash
 npm install
 npm run dev
-npm run typecheck
-npm run build
 ```
 
-## Run the Python API
+The frontend runs at http://localhost:5173. To start the FastAPI backend
+locally in a second terminal:
 
 ```bash
-cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn api.index:app --reload --port 8000
+uvicorn backend.api.index:app --reload --port 8000
 ```
 
-Copy `backend/.env.example` to `backend/.env` and supply `MONGODB_URI`, `MONGODB_DATABASE`, `GOOGLE_CLIENT_ID`, `JWT_SECRET_KEY` (at least 32 characters), and `FRONTEND_ORIGINS`. Do **not** commit .env files.
+Vite proxies `/api` to port 8000 in local development.
 
-For the frontend set `VITE_GOOGLE_CLIENT_ID` to the Google OAuth web client ID; optionally set `VITE_API_BASE_URL` to the Python API origin (without /api). During local development, Vite proxies /api to localhost:8000.
+## Deploy
 
-## Account setup and OAuth
+The **existing Vercel project** builds the Vite frontend and now includes a
+root `api/index.py` Python Function that exports the FastAPI app from
+`backend/api/index.py`. Both share one hostname, so `/api/*` routes no longer
+need a separate project. This still requires deployment verification.
 
-The frontend uses **VITE_GOOGLE_CLIENT_ID**, not GOOGLE_CLIENT_ID. Set that public client ID in the **frontend Vercel project** for Production and Preview as needed, then redeploy. The backend separately requires GOOGLE_CLIENT_ID, JWT_SECRET_KEY, MONGODB_URI and FRONTEND_ORIGINS. Google Cloud must list the exact HTTPS frontend origin under Authorized JavaScript origins.
+Configure the *same Vercel project* with:
 
-Email/password accounts use bcrypt-hashed passwords and MongoDB. Register and sign-in endpoints: POST /api/auth/register and POST /api/auth/login. Run the index creation helper before accepting public registration. Session tokens still require security review and operational testing.
-
-## Current integration status
-
-| Feature | State |
+| Environment variable | Where used |
 | --- | --- |
-| Google login | API + frontend integration implemented; requires configured Google client ID, MongoDB and tested deployment |
-| Tasks | Authenticated MongoDB CRUD and ordering; drag/drop, completion feedback |
-| Calendar | Authenticated MongoDB create/list/delete with weekly view |
-| Notes | Local browser storage only |
-| Subscriptions | Local browser storage; monthly/yearly renewal projections, no payment integration |
-| Challenges and ranking | Local progress and graphic **sample** podium, not a live multiplayer service |
-| Reminders and account controls | Not production ready |
+| `MONGODB_URI` | Python only. Never expose to Vite |
+| `MONGODB_DATABASE` | Python only |
+| `JWT_SECRET_KEY` | Python only; random high-entropy secret |
+| `GOOGLE_CLIENT_ID` | Python token verification |
+| `VITE_GOOGLE_CLIENT_ID` | Public OAuth web client ID bundled at build time |
+| `FRONTEND_ORIGINS` | Python CORS origins, exact HTTPS hostnames |
 
-Guest data is stored on the current device. Signed-in data must be isolated from guest records; backend-backed features are enabled only with Google authentication.
+Do **not** set `VITE_API_BASE_URL` for the same-origin deployment, or set
+it to the frontend origin without an `/api` suffix. A stale API URL will keep
+sending requests to the wrong host. Rebuild and redeploy when changing Vite
+variables.
 
-## Before public launch
+Check `https://<your-host>/api/health` before testing login. A JSON health
+response proves routing, but not MongoDB connectivity. Configure Atlas network
+access and provision indexes using `backend.api.database.ensure_indexes()`
+once during setup, after making sure indexes do not conflict with old data.
 
-Validate the full frontend build, Python import/tests, Google OAuth origins,
-MongoDB indexes, actual deployed CORS, rate limiting, refresh/session storage
-strategy, privacy controls, and all user-data endpoints. Bearer tokens currently
-use sessionStorage as a temporary integration; migrate to a reviewed session
-design before storing sensitive production data.
+## What works
 
-See [Backend integration](docs/BACKEND_INTEGRATION.md), [Design system](docs/DESIGN_SYSTEM.md),
-[Contributing](CONTRIBUTING.md) and [Changelog](CHANGELOG.md).
+React and TypeScript pages, themes, tasks, week calendar, notebook-style notes,
+recurring-subscription projections and challenges. Python implements Google
+login, password login/registration and owner-scoped task and calendar endpoints.
+
+**Limits:** Notes, subscriptions and challenges still use browser-local state,
+while the leaderboard contains fictional demo scores. Password recovery,
+email verification, account deletion and a production-grade session mechanism
+remain to be implemented. Do not use for sensitive personal data yet.
+
+## Quality gates
+
+```bash
+npm run typecheck
+npm run build
+npm audit --audit-level=high
+python -m compileall -q backend api
+pip-audit -r backend/requirements.txt
+```
+
+GitHub Actions runs security checks on pull requests and weekly. See
+[security findings](docs/SECURITY_AUDIT.md),
+[backend integration](docs/BACKEND_INTEGRATION.md),
+[frontend guide](docs/FRONTEND_GUIDE.md),
+[contributing](CONTRIBUTING.md), and [changelog](CHANGELOG.md).
+
+## Collaboration
+
+Developers work on separate page modules in `src/react/pages`; changes
+to shared layout, API types and global CSS require review. Document
+user-facing changes under **Unreleased** before merging.
+
+Licensed under [MIT](LICENSE).
