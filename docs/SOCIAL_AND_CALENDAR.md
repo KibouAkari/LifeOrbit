@@ -74,3 +74,11 @@ A MongoDB timestamp read without tzinfo was previously compared with a timezone-
 Calendar drag and resize uses window-level pointermove/pointerup handling rather than relying solely on browser pointer capture. This is intended to improve Firefox/Zen and touch handling; interactive regression testing remains required. Mobile subscription cards and the notification overlay now fit narrow viewports.
 
 New workspaces opt into the ranking by default. This changes default account discoverability and should be reviewed as part of the app privacy policy and launch consent design.
+
+## Live activity and event actions (24 October 2026)
+
+The notification bell refreshes every four seconds while LifeOrbit is visible and shows a small animated in-app toast for new unread event, note and notebook invitations. Sound plays only after a user gesture to respect browser audio policies. This is foreground polling, not server-push or an OS notification when the app is closed.
+
+Shared notebook pages refresh approximately every three seconds while visible, with local unsaved edits protected from automatic replacement. Calendar invitations refresh every five seconds. Simultaneous editing by multiple accounts remains a known conflict risk and needs revision-based writes.
+
+Calendar events support a context menu via right-click, or a visible Actions control on touch/keyboard devices. Edit opens a small responsive dialog, Share opens a friend picker and Delete asks for confirmation. Movement by drag remains available, but explicit editing is the accessible fallback.

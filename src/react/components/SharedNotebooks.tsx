@@ -32,7 +32,7 @@ export default function SharedNotebooks(){
   }
   catch(err){setNotice(err instanceof Error?err.message:"Unable to load shared notebooks")}
  },[]);
- useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},10000);return()=>window.clearInterval(poll)},[refresh]);
+ useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);return()=>{window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus)}},[refresh]);
  const book=books.find(x=>x.id===selected);
  useEffect(()=>{
   if(!page||dirty)return;
