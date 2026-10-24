@@ -27,6 +27,7 @@ export default function Tasks() {
   const [title, setTitle] = useState("");
   const [dueAt,setDueAt]=useState("");
   const [editingDue,setEditingDue]=useState<string|null>(null);
+  const [editingDueValue,setEditingDueValue]=useState("");
   const [view, setView] = useState<"open" | "all" | "done">("open");
   const [finishing, setFinishing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -62,7 +63,8 @@ export default function Tasks() {
     }, delay);
     timers.current.push(id);
   }
-  async function updateDeadline(item:Task,value:string){try{const due_at=value?new Date(value).toISOString():null;if(online)await request(`/tasks/${item.id}`,{method:"PATCH",body:JSON.stringify({due_at})});patch("tasks",rows=>rows.map(row=>row.id===item.id?{...row,due_at}:row));setEditingDue(null);setNotice("Due date updated")}catch(err){setNotice(err instanceof Error?err.message:"Unable to save deadline")}}
+  function editDeadline(item:Task){const date=item.due_at?new Date(item.due_at):null;setEditingDueValue(date?new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16):"");setEditingDue(item.id)}
+  async function updateDeadline(item:Task){try{const date=editingDueValue?new Date(editingDueValue):null;if(date&&Number.isNaN(date.getTime()))throw new Error("Enter a valid deadline");const due_at=date?date.toISOString():null;if(online)await request(`/tasks/${item.id}`,{method:"PATCH",body:JSON.stringify({due_at})});patch("tasks",rows=>rows.map(row=>row.id===item.id?{...row,due_at}:row));setEditingDue(null);setNotice("Due date updated")}catch(err){setNotice(err instanceof Error?err.message:"Unable to save deadline")}}
   async function remove(item: Task) {
     try {
       if (online) await request(`/tasks/${item.id}`,{method:"DELETE"});
@@ -93,7 +95,7 @@ export default function Tasks() {
         <GripVertical size={17} className="drag-handle" aria-label="Drag to reorder"/>
         <input type="checkbox" checked={item.done||finishing===item.id} aria-label={`Complete ${item.title}`} onChange={()=>void toggle(item)}/>
         <span className={item.done?"done":""}>{item.title}{item.due_at&&<small className="task-due-label">Due {new Date(item.due_at).toLocaleString()}</small>}</span>
-        {editingDue===item.id?<input type="datetime-local" aria-label="Edit task due date" defaultValue={item.due_at?new Date(new Date(item.due_at).getTime()-new Date(item.due_at).getTimezoneOffset()*60000).toISOString().slice(0,16):""} onChange={e=>void updateDeadline(item,e.target.value)}/>:<button className="text-button" onClick={()=>setEditingDue(item.id)}>Due date</button>}
+        {editingDue===item.id?<><input className="task-datetime" type="datetime-local" aria-label="Edit task due date" value={editingDueValue} onChange={e=>setEditingDueValue(e.target.value)}/><button className="text-button" onClick={()=>void updateDeadline(item)}>Save</button><button className="text-button" onClick={()=>setEditingDue(null)}>Cancel</button></>:<button className="text-button" onClick={()=>editDeadline(item)}>Due date</button>}
         <button className="icon-button remove-on-hover" aria-label="Remove task" onClick={()=>void remove(item)}><Trash2 size={16}/></button>
       </div>):<div className="quiet-empty">Everything is done. Enjoy the day.</div>}</div>
     </section></div>

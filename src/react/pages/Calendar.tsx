@@ -54,6 +54,7 @@ export default function Calendar(){
  const [feedForm,setFeedForm]=useState(false),[feedUrl,setFeedUrl]=useState(""),[feedName,setFeedName]=useState("");
  const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
+ const calendarColors=useRef(new Map<string,string>());
  const gesture=useRef<{id:string;mode:"move"|"resize";startX:number;startY:number;pointerId:number;original:CalendarEvent;captureTarget:HTMLElement;target:HTMLElement;dragging:boolean}|null>(null);
  const [dragging,setDragging]=useState(false);
  function beginGesture(e:React.PointerEvent<HTMLElement>,event:CalendarEvent,mode:"move"|"resize"){
@@ -120,7 +121,14 @@ export default function Calendar(){
  useEffect(()=>{if(!online)return;void Promise.all([request<typeof imports>("/calendar/imports"),request<{friends:typeof friends}>("/friends"),request<CalendarEvent[]>("/sharing/events"),request<typeof feeds>("/calendar/feeds")]).then(([sources,data,events,subscriptions])=>{setImports(sources);setFriends(data.friends);setInvited(events);setFeeds(subscriptions)}).catch(()=>undefined);},[online]);
  const origins=[...new Set([...state.events,...invited].map(source))];
  const palette=["#b7a7fb","#7dcac6","#f0b77b","#83b4ee","#e79fbf","#9bce86","#d2ac80","#97c5dc"];
- const calendarColor=(id:string)=>{let hash=0;for(const c of id)hash=(hash*31+c.charCodeAt(0))>>>0;return palette[hash%palette.length]};
+ const calendarColor=(id:string)=>{
+   const assigned=calendarColors.current.get(id);
+   if(assigned)return assigned;
+   const index=calendarColors.current.size;
+   const color=index<palette.length?palette[index]:`hsl(${((index-palette.length)*137.508)%360} 58% 68%)`;
+   calendarColors.current.set(id,color);
+   return color;
+ };
  const visible=(day:Date)=>[...state.events,...invited].filter(e=>e.date===iso(day)&&!hidden.includes(source(e))).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
  const heading=view==="month"?base.toLocaleDateString("en",{month:"long",year:"numeric"}):`${days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – ${days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}`;
  async function invite(id:string,friendId:string){try{await request("/sharing/events",{method:"POST",body:JSON.stringify({resource_id:id,recipient_id:friendId})});setMessageInvite("Invitation sent")}catch(e){setMessageInvite(e instanceof Error?e.message:"Invitation failed")}}
