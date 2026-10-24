@@ -1,4 +1,4 @@
-# LifeOrbital security review
+# LifeOrbit security review
 
 Updated 24 October 2026.
 
@@ -13,7 +13,7 @@ GitHub Actions runs TypeScript/build validation, npm audit and pip-audit on pull
 - MongoDB documents for tasks, events and workspaces are owner-scoped.
 - Friend requests are restricted to real accounts, and only their recipients can accept.
 - Shared notes, events and challenges can only be read by confirmed friends; removing a friendship disables access to an existing share.
-- Private iCal URL feeds are limited to recognized provider hosts, HTTPS, no redirects, 1 MB response and 500 events. Stored private URLs are encrypted.
+- Private iCal URL feeds accept public HTTPS hosts after DNS/IP validation, pin the verified TLS connection to the chosen public IP, reject redirects and enforce 1 MB response and 500 event limits. Stored private URLs are encrypted.
 - HTML and CSS motion respects reduced-motion accessibility settings.
 
 ## Open risks and release blockers
@@ -23,7 +23,7 @@ GitHub Actions runs TypeScript/build validation, npm audit and pip-audit on pull
 | High | No durable rate limiting on public auth and friend-request endpoints | Apply per-IP/account limits and abuse controls |
 | High | Public email changes are not yet verified at the new email address | Confirm possession of new address before switching |
 | High | No comprehensive password recovery and session revocation | Build verification, recovery and session lifecycle |
-| High | Calendar feed SSRF defense is primarily hostname allowlisting | Add network-level egress filtering, DNS/IP pinning and redirect/port regression tests |
+| High | Calendar feed SSRF defense requires ongoing review despite public-IP validation and TLS pinning | Add network-level egress filtering and regression tests for redirects, DNS changes and unusual hostnames |
 | High | Shared workspace writes replace the full document | Use revision checks and conflict management before real-time multi-author editing |
 | High | Shared calendars lack precise timezone/recurrence semantics | Normalize UTC instants, DST and RFC 5545 recurrence semantics |
 | Medium | Private feed encryption key is derived from JWT signing key | Introduce independent versioned encryption key and rotation |

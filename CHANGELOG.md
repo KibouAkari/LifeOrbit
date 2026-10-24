@@ -1,8 +1,16 @@
 # Changelog
 
-LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased until a verified tagged release.
+LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. This file preserves the project's development history. No stable version has been tagged; dates below identify development work, not production release dates.
 
 ## [Unreleased]
+
+### 2026-10-24 · Public repository documentation review
+- Rebuilt the README around the current product, architecture, verified setup, capabilities and limitations.
+- Replaced outdated contribution instructions and refreshed security disclosure, deployment and release checklists.
+- Reconciled architecture, backend API documentation and roadmap language with the current implementation.
+- Added a public-source checklist distinguishing repository visibility from a security-reviewed public application launch.
+- Preserved all prior dated development entries without fabricating a tagged release.
+
 
 ### 2026-10-24 · Challenge limits and calendar context menu
 - Limited active challenges to three personal and two shared slots.
@@ -97,13 +105,13 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 - Hide completed challenges without deleting their points history or adding reset controls.
 - Replace example leaderboards with a MongoDB ranking of real accounts; other accounts appear only by opt-in, while your own score is always visible.
 - Remove the unnecessary security section for Google-only accounts from Settings and place Appearance alongside Profile.
-- Centre the left-side login message vertically and increase the LifeOrbital wordmark size.
+- Centre the left-side login message vertically and increase the LifeOrbit wordmark size.
 
 
 ### 2026-10-24 · Restore Google authentication and legal page cleanup
 - Fixed production-wide API HTTP 500 errors caused by missing `icalendar` in root Vercel Python dependencies.
 - Kept root requirements in sync with the backend requirements to prevent future imports from breaking the whole API.
-- Simplified the login hero: removed the redundant small planet logo at top left and the bottom slogan; retained the LifeOrbital wordmark and the prominent login icon.
+- Simplified the login hero: removed the redundant small planet logo at top left and the bottom slogan; retained the LifeOrbit wordmark and the prominent login icon.
 - Reworked privacy and terms content to describe the implemented Google, Vercel and MongoDB data flows and removed the visible draft label.
 - Documented that operator identity and formal legal review are still needed for a fully public legal notice.
 
@@ -111,7 +119,7 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 ### 2026-10-24 · Real users, identity and calendar import
 - Removed fictional Alex/Taylor leaderboard accounts and sample positions from Challenges and Dashboard.
 - Dashboard challenge insights now show actual personal points and the stored display name.
-- Prevented Google sign-in from overwriting a LifeOrbital display name saved in MongoDB.
+- Prevented Google sign-in from overwriting a LifeOrbit display name saved in MongoDB.
 - Added password-confirmed email changes and authenticated password changes for local accounts.
 - Added corresponding account forms in Settings. Google-only accounts use Google for their credentials.
 - Removed guest entry from Login and styled the Google sign-in button with rounded corners.
@@ -150,7 +158,7 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 ### Initial repository foundation
 - Created README, MIT License, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue and PR templates.
 - Added roadmap, product plan, architecture, brand, design and team workflow documentation.
-- Built CI checks and the LifeOrbital planet logo.
+- Built CI checks and the LifeOrbit planet logo.
 
 ## Releases
 

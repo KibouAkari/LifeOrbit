@@ -19,8 +19,7 @@ User-owned tasks/events are filtered by JWT subject. New registrations use
 MongoDB IDs, including Google registration. Older records from the original
 Google-subject system may require migration before users can see them.
 
-**Not yet backend-backed:** verified email, password reset, account deletion,
-and real public leaderboards. Challenge points are not server-authoritative.
+**Not yet fully implemented:** new-email verification, password recovery, account deletion and fully server-authoritative challenge scoring. A real account leaderboard is implemented, but competitive actions are not independently verified. Challenge points are not server-authoritative.
 
 ## OAuth and credentials
 
@@ -39,3 +38,14 @@ Short-lived tokens are now held in Secure HttpOnly SameSite cookies. They still 
 reviewed session invalidation, refresh/revocation, and XSS protections.
 Password endpoints need durable per-account and per-IP throttling,
 email verification and recovery flows. See security audit.
+
+## Additional live routes
+
+- `/api/friends`: discover, request, accept, decline and remove friends.
+- `/api/sharing`: private note shares, event invitations/RSVPs, participants and shared challenge proposals.
+- `/api/shared-notebooks`: create notebooks, invite friends, save/delete pages and move a private note to a shared notebook.
+- `/api/calendar/feeds`: subscribe, refresh and remove validated public HTTPS iCalendar feeds.
+- `/api/notifications`: authenticated unread invitations and task reminders with dismissal.
+- `/api/leaderboard`: participant ranking based on stored user/challenge data.
+
+See [Social & Calendar](SOCIAL_AND_CALENDAR.md) for access and synchronization details and [API implementation](../backend/api/index.py) for mounted routes.
