@@ -1,29 +1,31 @@
-# Projektmaterial und Quellen
+# Project Sources and References
 
-Die Entwicklung von LifeOrbit lässt sich anhand unserer Planungsunterlagen, des Quellcodes und der technischen Dokumentation nachvollziehen.
+This page records the main sources for understanding LifeOrbit's development and implementation.
 
-## Projektmaterial
+## Planning
 
-**Miro-Board:** Hier fand zu Beginn des Hackathons die gemeinsame Ideensammlung statt. Darauf folgten die Strukturierung der Funktionen und die Aufteilung der Arbeit. Der zugehörige Link beziehungsweise ein Export kann dem Dokument ergänzt werden.
+The project began with a shared **Miro board** used for collecting feature ideas, organising areas of the application and dividing work between the two team members. The original board is the primary source for the earliest planning stages; no link or export is included in the current documentation.
 
-**GitHub-Repository:** [KibouAkari/LifeOrbit](https://github.com/KibouAkari/LifeOrbit) enthält den Quellcode der Anwendung. Die Commit-History und Pull Requests dokumentieren technische Änderungen.
+## Source code
 
-**Webanwendung:** [www.lifeorbit.dev](https://www.lifeorbit.dev/) zeigt den bereitgestellten Prototypen.
+- [LifeOrbit repository](https://github.com/KibouAkari/LifeOrbit): application source and project structure
+- [Commit history](https://github.com/KibouAkari/LifeOrbit/commits/main/): chronological code changes
+- [Changelog](../../CHANGELOG.md): feature-oriented development history
+- [Root README](../../README.md): current capabilities and local setup
 
-**Allgemeine Projektdokumentation:** Die [README](../../README.md), das [Changelog](../../CHANGELOG.md) sowie die Dokumente zu [Architektur](../ARCHITECTURE.md), [Deployment](../DEPLOYMENT.md) und [Sicherheit](../SECURITY_AUDIT.md) beschreiben den Aufbau und die Entwicklung ausführlicher.
+## Technical references
 
-## Ergänzende Nachweise
+- [Architecture](../ARCHITECTURE.md)
+- [Data model](../DATA_MODEL.md)
+- [Backend integration](../BACKEND_INTEGRATION.md)
+- [Deployment](../DEPLOYMENT.md)
+- [Security review](../SECURITY_AUDIT.md)
+- [Design system](../DESIGN_SYSTEM.md)
 
-Für die Darstellung des Projektverlaufs sind insbesondere folgende Unterlagen hilfreich:
+## Application
 
-- Ein Export des ursprünglichen Miro-Boards mit Feature- und Ideensammlung
-- Die damalige Aufgabenaufteilung und Beschreibung der Bereiche
-- Die ersten Git-Commits nach den technischen Entscheidungen
-- Echte Screenshots oder Aufzeichnungen der entwickelten Anwendung
-- Tatsächlich durchgeführte Tests oder erhaltenes Nutzerfeedback
+The web application is available at [lifeorbit.dev](https://www.lifeorbit.dev/). Availability and exact functionality depend on the deployed version.
 
-Solche Materialien werden nur aufgenommen, wenn sie vorliegen und ohne vertrauliche oder personenbezogene Informationen veröffentlicht werden dürfen.
+## Source handling
 
-## Umgang mit den Quellen
-
-Bei zeitlichen Abläufen und Teambeiträgen stützen wir uns auf die tatsächlichen Planungsunterlagen und die Projektgeschichte. Fehlende Einzelheiten werden nicht nachträglich erfunden. Screenshots zeigen die echte Anwendung und werden nicht durch generierte Illustrationen als vermeintliche Belege ersetzt.
+Details about who implemented a particular feature, exact timestamps, user feedback or quantitative outcomes should be attributed only where supporting project records exist. No personal credentials, private calendars or confidential information should be included in documentation or screenshots.

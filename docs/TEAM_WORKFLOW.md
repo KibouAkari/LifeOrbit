@@ -26,6 +26,6 @@ Backlog → Ready → In progress → In review → Done.
 Focus on the seven core implementations and a complete demo flow first.
 Treat the seven additional ideas as stretch goals, not launch blockers.
 
-## Zentral Hack submission workflow
+## Zentral Hack project records
 
-Use the dedicated [Zentral Hack dossier](hackathon/README.md). Freeze a pre-event Git baseline, record the three contributors' actual work and commit evidence during the 24-hour event, and fill in demo, validation, AI disclosure and judging matrices before the pitch. Do not claim previous repository work as a new hackathon achievement.
+The [Zentral Hack project documentation](hackathon/README.md) describes the two-person team's work from initial Miro ideation and feature planning through architecture and implementation. Actual planning artefacts, source commits and design decisions provide the basis for detailed attribution. The project documentation is written as a factual technical record, not as a pitch or submission guide.

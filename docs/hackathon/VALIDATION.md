@@ -1,36 +1,27 @@
-# Bedienbarkeit und Erfahrungen
+# Usability and Design Considerations
 
-## Unser Ansatz
+## Design objectives
 
-Bei LifeOrbit war uns wichtig, dass die Anwendung nicht nur viele Funktionen bietet, sondern sich trotz ihres Umfangs verständlich anfühlt. Die einzelnen Bereiche sollen visuell zusammengehören und ohne lange Einarbeitung nutzbar sein.
+We wanted a coherent interface that brings multiple planning tools together without becoming visually overwhelming. Consistent spacing, colour, reusable components and predictable navigation were central to the design.
 
-Daraus ergaben sich für die Entwicklung mehrere Fragen:
+## Interaction considerations
 
-- Findet man wichtige Aufgaben und Termine schnell?
-- Lassen sich neue Einträge ohne unnötige Schritte erstellen?
-- Sind Einladungen und gemeinsame Notizbücher verständlich?
-- Funktioniert die Bedienung auch auf kleineren Bildschirmen?
-- Bleiben Inhalte nach einem erneuten Laden verfügbar?
+The project's implementation raised several usability questions:
 
-## Erkenntnisse aus der Umsetzung
+- Whether key tasks and events can be found quickly
+- Whether event creation and rescheduling are understandable
+- Whether invitations and shared notebooks communicate user permissions clearly
+- How well dense calendar views work on narrow screens
+- Whether updates from other accounts appear without requiring a manual refresh
 
-Während der Entwicklung zeigte sich, dass die Benutzeroberfläche besonders beim Kalender anspruchsvoll ist. Das Verschieben von Terminen sowie das Anpassen ihrer Dauer müssen sowohl mit verschiedenen Browsern als auch mit unterschiedlichen Eingabegeräten funktionieren.
+## Challenges encountered in development
 
-Ein weiterer wichtiger Bereich war das Zusammenspiel mehrerer Benutzerkonten. Bei Einladungen und gemeinsam genutzten Notizen muss klar sein, wer welche Rechte hat und wann neue Informationen sichtbar werden.
+Calendar movement and duration adjustments are particularly sensitive to differences between mouse, touch and browser behaviour. Context menus need to appear near their triggering controls without being shifted by layout containers.
 
-Auch beim responsiven Design mussten wir berücksichtigen, dass sich komplexere Ansichten wie ein Wochenkalender nicht beliebig auf ein schmales Display verkleinern lassen.
+Collaboration requires clear ownership and timely notification of updates. Responsive layouts also require different treatment for elements such as seven-day calendar grids, which cannot simply be compressed to phone width.
 
-## Nutzerfeedback
+## User feedback
 
-Diese Dokumentation enthält bewusst keine erfundenen Interviewergebnisse oder Nutzungszahlen. Ein unabhängiger Nutzertest lässt sich mit wenigen typischen Aufgaben durchführen, beispielsweise:
+The provided project history does not establish the number of independent participants in a usability study or any measured usability scores. This document therefore makes no quantitative claims.
 
-- Eine neue Aufgabe mit Deadline erstellen
-- Einen Termin anlegen und eine Person einladen
-- Eine Einladung annehmen
-- Eine Notiz in einem gemeinsamen Notizbuch bearbeiten
-
-Beobachtungen daraus können ergänzt werden, sobald echte Rückmeldungen und Einverständnisse vorliegen.
-
-## Bedeutung für die Weiterentwicklung
-
-Für die Weiterentwicklung sind verständliche Interaktionen, mobile Bedienbarkeit, zuverlässige Speicherung und klare Rückmeldungen besonders wichtig. Ein schlanker Aufbau hilft nur dann, wenn die häufigsten Aktionen tatsächlich einfach funktionieren.
+Future feedback could focus on task creation, receiving invitations, editing shared notes and navigating the calendar on different devices. Any measured outcomes should be reported with the actual test conditions and sample size.

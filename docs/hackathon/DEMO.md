@@ -1,30 +1,25 @@
-# Ergebnis und Demonstration
+# Application Functionality
 
-## Der entstandene Prototyp
+This chapter describes representative workflows supported by the LifeOrbit prototype. It is not a presentation script or a record of tests that have not been performed.
 
-Aus der ursprünglichen Planung im Miro-Board entstand eine Webanwendung, deren Funktionen über eine gemeinsame Navigation erreichbar sind. Benutzer können eigene Inhalte verwalten und bestimmte Informationen mit Freunden teilen.
+## Personal planning
 
-Die Anwendung ist unter [lifeorbit.dev](https://www.lifeorbit.dev/) erreichbar. Der Quellcode liegt im [LifeOrbit-Repository](https://github.com/KibouAkari/LifeOrbit).
+A signed-in user can create a task, set a deadline and track whether it is completed. Tasks whose deadline has passed can be reviewed separately, and the dashboard indicates when overdue tasks exist.
 
-## Ein typisches Anwendungsbeispiel
+Calendar events can be scheduled and managed through weekly or monthly views. The interface also provides direct event actions such as editing and deleting.
 
-Ein möglicher Ablauf zeigt, wie die wichtigsten Bereiche zusammenarbeiten:
+## Sharing and collaboration
 
-1. Eine Person meldet sich an und sieht ihre persönliche Übersicht.
-2. Sie erfasst eine Aufgabe mit einer Deadline.
-3. Im Kalender legt sie einen Termin fest und lädt einen Freund ein.
-4. Der Freund sieht die Einladung und kann sie annehmen oder ablehnen.
-5. Beide können ein gemeinsames Notizbuch nutzen, um Informationen zum Termin festzuhalten.
-6. Das Dashboard zeigt die persönlichen Aufgaben und Termine weiterhin zentral an.
+Users can establish connections through friend requests. Event organisers can invite friends; recipients can respond to invitations without receiving permission to edit the original event.
 
-Dieses Beispiel illustriert die beabsichtigte Nutzung. Die tatsächliche Durchführung einer Live-Demo und ihr Ergebnis müssen anhand der realen Veranstaltung dokumentiert werden.
+Notes may be organised into chapters. Personal notes can be moved into shared notebooks, where invited members have access to common pages. Shared updates are periodically retrieved from the server.
 
-## Was wir zeigen möchten
+## Other sections
 
-Bei der Vorstellung von LifeOrbit steht nicht die Anzahl der eingebauten Funktionen im Vordergrund, sondern der Ablauf von der Idee bis zur funktionierenden Lösung.
+Subscriptions track recurring costs and renewal information. Challenges provide small personal goals and optional shared participation. Account settings include profile information and appearance preferences.
 
-Ein Blick auf das ursprüngliche Miro-Board zeigt den Ausgangspunkt. Danach lässt sich am Prototyp zeigen, wie die einzelnen Bereiche umgesetzt und verbunden wurden.
+## Current limitations
 
-## Bekannte Grenzen
+Calendar feed subscriptions need manual refresh. Live updates rely on polling, and simultaneous changes to the same shared note can conflict. Calendar gestures may behave differently depending on browser and input device.
 
-Der aktuelle Stand ist ein Prototyp. Insbesondere die gleichzeitige Bearbeitung gemeinsamer Inhalte, die zuverlässige Aktualisierung im Hintergrund und die Bedienung des Kalenders in allen Browsern bieten noch Raum für Verbesserungen. Die technische Umsetzung und ihre Grenzen werden in [Technische Umsetzung](REQUIREMENTS.md) erläutert.
+These limitations are relevant to interpreting the prototype's functionality and are documented more fully in the technical guides.

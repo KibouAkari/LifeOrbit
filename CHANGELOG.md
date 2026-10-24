@@ -4,6 +4,12 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-10-24 · Factual English Zentral Hack documentation
+- Rewrote all nine retained Zentral Hack documents in English, based on a two-person team and the actual Miro-to-implementation project history.
+- Removed the standalone pitch document and presentation/submission-oriented framing.
+- Updated documentation links and kept project facts, technology decisions, limitations and AI usage transparent.
+
+
 ### 2026-10-24 · Zentral Hack project documentation
 - Replaced the previous submission-oriented dossier with a cohesive German project narrative about Miro ideation, feature planning, role distribution, architecture, development and results.
 - Removed internal submission checklists, pending tables and jury-optimization framing from the project documentation.
