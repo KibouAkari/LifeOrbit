@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
@@ -41,17 +41,15 @@ def secret_key():
     return secret
 
 
-def issue_token(user):
+def issue_token(user, response: Response):
     now = datetime.now(timezone.utc)
     access_token = jwt.encode({
         "sub": str(user["_id"]), "iss": "lifeorbital",
         "aud": "lifeorbital-api", "iat": now,
         "exp": now + timedelta(hours=2),
     }, secret_key(), algorithm="HS256")
-    return {
-        "access_token": access_token, "token_type": "bearer", "expires_in": 7200,
-        "user": public_user(user),
-    }
+    response.set_cookie("lifeorbital_auth", access_token, httponly=True, secure=True, samesite="strict", max_age=7200, path="/api")
+    return {"user": public_user(user), "expires_in": 7200}
 
 
 def public_user(user):
@@ -61,12 +59,13 @@ def public_user(user):
     }
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
-    if credentials is None:
+def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
+    token = request.cookies.get("lifeorbital_auth") or (credentials.credentials if credentials else None)
+    if not token:
         raise HTTPException(status_code=401, detail="Sign in required")
     try:
         claims = jwt.decode(
-            credentials.credentials, secret_key(), algorithms=["HS256"],
+            token, secret_key(), algorithms=["HS256"],
             issuer="lifeorbital", audience="lifeorbital-api",
             options={"require": ["sub", "iat", "exp", "aud", "iss"]},
         )
@@ -86,7 +85,7 @@ def find_user(user_id: str):
 
 
 @router.post("/register", status_code=201)
-def register(payload: RegisterRequest):
+def register(payload: RegisterRequest, response: Response):
     secret_key()
     db = get_db()
     email = payload.email.strip().lower()
@@ -102,20 +101,20 @@ def register(payload: RegisterRequest):
     except DuplicateKeyError:
         raise HTTPException(status_code=409, detail="Email already registered")
     user["_id"] = outcome.inserted_id
-    return issue_token(user)
+    return issue_token(user, response)
 
 
 @router.post("/login")
-def password_login(payload: LoginRequest):
+def password_login(payload: LoginRequest, response: Response):
     user = get_db().users.find_one({"email": payload.email.strip().lower()})
     # Do not disclose whether an email exists.
     if not user or not user.get("password_hash") or not passwords.verify(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    return issue_token(user)
+    return issue_token(user, response)
 
 
 @router.post("/google")
-def google_login(payload: GoogleAuthRequest):
+def google_login(payload: GoogleAuthRequest, response: Response):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=503, detail="Google login is not configured")
@@ -157,9 +156,15 @@ def google_login(payload: GoogleAuthRequest):
         except DuplicateKeyError:
             raise HTTPException(status_code=409, detail="An account already uses this email.")
         user.update(profile)
-    return issue_token(user)
+    return issue_token(user, response)
 
 
 @router.get("/me")
 def me(user_id: str = Depends(get_current_user)):
     return public_user(find_user(user_id))
+
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie("lifeorbital_auth", path="/api", secure=True, httponly=True, samesite="strict")
+    return {"signed_out": True}

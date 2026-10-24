@@ -1,8 +1,9 @@
 export type Theme = "light" | "dark" | "system";
 export type Task = { id: string; title: string; done: boolean; order?: number };
-export type Note = { id: string; title: string; body: string };
+export type Note = { id: string; title: string; body: string; chapter_id: string };
+export type Chapter = { id: string; name: string };
 export type Event = { id: string; title: string; date: string };
 export type Subscription = { id: string; name: string; amount: number; currency: string; renews: string; interval?: "monthly" | "yearly" };
 export type Challenge = { id: string; title: string; value: number; target: number; unit: string };
-export type Store = { theme: Theme; account: string; tasks: Task[]; notes: Note[]; events: Event[]; subscriptions: Subscription[]; challenges: Challenge[] };
+export type Store = { theme: Theme; account: string; tasks: Task[]; notes: Note[]; chapters: Chapter[]; events: Event[]; subscriptions: Subscription[]; challenges: Challenge[] };
 export type Section = "dashboard" | "notes" | "tasks" | "calendar" | "subscriptions" | "challenges" | "settings" | "login";

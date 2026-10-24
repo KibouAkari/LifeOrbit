@@ -4,6 +4,24 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · Interface refinements
+- Reworked Settings around a profile summary, appearance and privacy without decorative or non-functional controls.
+- Made Dashboard cards denser, added restrained staggered entrance transitions and improved challenge progress feedback.
+- Corrected authenticated workspace hydration on page refresh.
+
+### 24 October 2026 · Authentication and workspace integration
+- Moved signed-in authentication from sessionStorage bearer tokens to Secure HttpOnly SameSite cookies.
+- Updated React API and account restoration to use cookie-based authentication.
+- Added debounced MongoDB workspace persistence for notes, subscriptions and challenge progress; chapter metadata migration still needs refinement.
+
+### 24 October 2026 · MongoDB connection diagnosis
+- Confirmed registration failures result from a non-resolving MongoDB Atlas hostname in Vercel, not the React form.
+- Added an authenticated data workspace API for notes, notebook chapters, subscriptions and personal challenge progress.
+- Added database health route and sanitized 503 responses for MongoDB failures.
+- Added Atlas configuration and verification instructions without publishing secrets.
+- Retained the public-release blockers for account security and session architecture.
+
+
 ### 24 October 2026 · Deployment and security repairs
 - Located production 404 root cause: the Vercel project deployed only Vite and had no live Python API.
 - Added an in-project FastAPI function entrypoint, explicit Python requirements and /api routing configuration.

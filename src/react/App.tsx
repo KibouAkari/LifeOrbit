@@ -1,7 +1,7 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { Layout } from "./components/Layout";
 import { useApp } from "./context/AppContext";
-import { clearSession, hasSession } from "./data/api";
+import { clearSession, hasSession, signOut } from "./data/api";
 import { restoreSession } from "./services/session";
 import type { Section } from "./types";
 import Dashboard from "./pages/Dashboard";
@@ -33,7 +33,11 @@ export default function App() {
   const [intro, setIntro] = useState(false);
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
-  const { state, patch } = useApp();
+  const [logoutError, setLogoutError] = useState("");
+  const signingOut = useRef(false);
+  const { state, patch, workspaceStatus, workspaceError, restoreWorkspace } = useApp();
+  const patchRef = useRef(patch);
+  patchRef.current = patch;
   const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
 
   useEffect(() => {
@@ -41,26 +45,44 @@ export default function App() {
     restoreSession().then(user => {
       if (!alive) return;
       setSignedIn(Boolean(user));
-      if (user) patch("account", user.name);
+      if (user) { patchRef.current("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
       setReady(true);
     });
     const navigate = () => setRoute(routeFromHash());
     const enter = () => { setSignedIn(hasSession()); setIntro(true); location.hash = "#/dashboard"; };
-    const logout = () => {
-      clearSession(); sessionStorage.removeItem("lifeorbit_guest");
-      setSignedIn(false); setIntro(false); patch("account", "");
+    const authExpired = () => {
+      setSignedIn(false); setIntro(false); sessionStorage.removeItem("lifeorbit_guest");
       location.hash = "#/login"; setRoute("login");
+    };
+    const logout = async () => {
+      if (signingOut.current) return;
+      signingOut.current = true;
+      setLogoutError("");
+      try {
+        await signOut();
+        clearSession();
+        sessionStorage.removeItem("lifeorbit_guest");
+        setSignedIn(false); setIntro(false); patchRef.current("account", "");
+        window.dispatchEvent(new Event("lifeorbit:logout-complete"));
+        location.hash = "#/login"; setRoute("login");
+      } catch (error) {
+        setLogoutError(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+      } finally {
+        signingOut.current = false;
+      }
     };
     window.addEventListener("hashchange", navigate);
     window.addEventListener("lifeorbit:auth", enter);
     window.addEventListener("lifeorbit:logout", logout);
+    window.addEventListener("lifeorbit:auth-expired", authExpired);
     return () => {
       alive = false;
       window.removeEventListener("hashchange", navigate);
       window.removeEventListener("lifeorbit:auth", enter);
       window.removeEventListener("lifeorbit:logout", logout);
+      window.removeEventListener("lifeorbit:auth-expired", authExpired);
     };
-  }, [patch]);
+  }, []);
 
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
@@ -79,6 +101,15 @@ export default function App() {
   if (!signedIn && !guestMode()) return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "login") return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "not-found") return <NotFound />;
+  if (signedIn && workspaceStatus !== "ready") return <Layout section={route} dark={dark}>
+    <section className="work-page" role={workspaceStatus === "error" ? undefined : "status"}>
+      <h1>{workspaceStatus === "error" ? "Your workspace could not be loaded." : "Loading your workspace…"}</h1>
+      {workspaceStatus === "error" && <><p className="auth-error" role="alert">{workspaceError}</p><button className="button primary" onClick={restoreWorkspace}>Try again</button></>}
+    </section>
+  </Layout>;
   const Page = pages[route];
-  return <Layout section={route} dark={dark}><div className="page-enter" key={route}><Page /></div></Layout>;
+  return <Layout section={route} dark={dark}>
+    {logoutError && <p className="auth-error" role="alert">Sign out failed: {logoutError}</p>}
+    <div className="page-enter" key={route}><Page /></div>
+  </Layout>;
 }

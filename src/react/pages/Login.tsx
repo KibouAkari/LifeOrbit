@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState,type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { exchangeGoogleCredential,loginAccount,registerAccount,saveSession,type AuthResponse } from "../data/api";
+import { clearSession,exchangeGoogleCredential,hasSession,loginAccount,registerAccount,saveSession,signOut,type AuthResponse } from "../data/api";
 import { useApp } from "../context/AppContext";
 declare global {
   interface Window { google?:{accounts:{id:{
@@ -16,7 +16,7 @@ export default function Login(){
   const googleButton=useRef<HTMLDivElement>(null);
   const clientId=import.meta.env.VITE_GOOGLE_CLIENT_ID as string|undefined;
   function complete(result:AuthResponse){
-    saveSession(result.access_token);sessionStorage.removeItem("lifeorbit_guest");
+    saveSession("");sessionStorage.removeItem("lifeorbit_guest");
     patch("account",result.user.name);
     window.dispatchEvent(new Event("lifeorbit:auth"));
   }
@@ -45,7 +45,14 @@ export default function Login(){
     catch(e){setError(e instanceof Error?e.message:"Unable to sign in.");}
     finally{setBusy(false);}
   }
-  function guest(){sessionStorage.setItem("lifeorbit_guest","true");patch("account","Guest");window.dispatchEvent(new Event("lifeorbit:auth"));}
+  async function guest(){
+    setError("");
+    if(hasSession()){
+      try{await signOut();clearSession();}
+      catch(e){setError(e instanceof Error?e.message:"Could not sign out. Please try again.");return;}
+    }
+    sessionStorage.setItem("lifeorbit_guest","true");patch("account","Guest");window.dispatchEvent(new Event("lifeorbit:auth"));
+  }
   return <main className="login-screen"><div className="login-layout">
     <section className="login-intro"><a className="brand" href="#/login"><img src="/assets/icon.svg" alt=""/>LifeOrbital</a><div><h1>Less organising.<br/>More living.</h1><p>Everything important to your day, beautifully in one place.</p></div><small>Plan a little. Live a lot.</small></section>
     <section className="login-form-side"><div className="login-panel">
