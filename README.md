@@ -30,7 +30,13 @@ React + TypeScript + Vite on the frontend. Python FastAPI + Pydantic on the back
 
 ## Screenshots
 
-The current user-interface screenshots are described in [UX Structure](docs/UX_STRUCTURE.md). Screenshots should be captured from an actually deployed version before they are committed; mockup images are not presented as real screenshots.
+These are actual screenshots of an earlier development preview. The latest UI may differ slightly.
+
+| Dashboard | Login |
+| --- | --- |
+| ![Dashboard preview](docs/screenshots/dashboard.webp) | ![Login preview](docs/screenshots/login.webp) |
+
+See [UX Structure](docs/UX_STRUCTURE.md) for page layouts and interaction patterns.
 
 ## Run locally
 
