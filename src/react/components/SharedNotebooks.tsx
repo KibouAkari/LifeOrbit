@@ -2,7 +2,7 @@ import {useCallback,useEffect,useState} from "react";
 import {Plus,Users,BookOpen,Trash2} from "lucide-react";
 import {request} from "../data/api";
 type Page={id:string;title:string;body:string};
-type SharedBook={id:string;title:string;owner:string;owner_name:string;members:{id:string;name:string}[];pages:Page[]};
+type SharedBook={id:string;title:string;owner:string;is_owner:boolean;owner_name:string;members:{id:string;name:string}[];pages:Page[]};
 type Friend={id:string;name:string};
 export default function SharedNotebooks(){
  const [books,setBooks]=useState<SharedBook[]>([]);
@@ -51,7 +51,7 @@ export default function SharedNotebooks(){
    <form onSubmit={e=>{e.preventDefault();void createBook()}}><input className="input" placeholder="New shared notebook" maxLength={80} value={newTitle} onChange={e=>setNewTitle(e.target.value)}/><button className="button primary" disabled={busy||!newTitle.trim()}><Plus size={16}/> Create</button></form>
   </aside>
   <div className="shared-notebook-content">
-   {book?<><header><div><h2>{book.title}</h2><p className="muted">Shared by {book.owner_name}</p></div>{book.owner_name&&<button className="button" onClick={()=>void removeBook()} title="Delete notebook (owner only)"><Trash2 size={15}/></button>}</header>
+   {book?<><header><div><h2>{book.title}</h2><p className="muted">Shared by {book.owner_name}</p></div>{book.is_owner&&<button className="button" onClick={()=>void removeBook()} title="Delete notebook (owner only)"><Trash2 size={15}/></button>}</header>
     <div className="shared-notebook-invite"><select className="select" aria-label="Invite a friend" value={invite} onChange={e=>setInvite(e.target.value)}><option value="">Invite a friend</option>{friends.filter(f=>!book.members.some(m=>m.id===f.id)).map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><button className="button" disabled={busy||!invite} onClick={()=>void inviteFriend()}>Invite</button></div>
     <div className="shared-notebook-pages">{book.pages.map(item=><button key={item.id} className={page===item.id?"selected":""} onClick={()=>{setPage(item.id);setTitle(item.title);setBody(item.body)}}>{item.title}</button>)}<button onClick={()=>{setPage("");setTitle("Untitled page");setBody("")}}><Plus size={15}/> New page</button></div>
     <input className="input" placeholder="Page title" maxLength={120} value={title} onChange={e=>setTitle(e.target.value)}/><textarea className="textarea" rows={12} maxLength={50000} placeholder="Write together..." value={body} onChange={e=>setBody(e.target.value)}/><button className="button primary" disabled={busy||!title.trim()} onClick={()=>void savePage()}>Save shared page</button>
