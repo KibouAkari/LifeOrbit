@@ -43,3 +43,5 @@ def ensure_indexes():
     db.workspaces.create_index("user_id", unique=True)
     db.friendships.create_index("pair", unique=True)
     db.friendships.create_index([("recipient",1),("status",1)])
+    db.shares.create_index([("owner",1),("recipient",1),("kind",1),("resource_id",1)],unique=True)
+    db.shares.create_index([("recipient",1),("kind",1)])
