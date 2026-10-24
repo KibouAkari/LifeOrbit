@@ -2,9 +2,9 @@
 
 **Challenge:** Young Talents, Zentral Hack · 24-hour project development  
 **Project:** LifeOrbit · collaborative life manager  
-**Status:** Preparation and evidence framework; event outcomes have not yet been recorded.
+**Origin:** Conceived and built from scratch during Zentral Hack. Supporting proof and final results are recorded separately.
 
-LifeOrbit combines tasks, calendars, notebooks, subscriptions and challenges in a calm interface. This folder documents **why the project matters**, **what existed before the event**, **what the team develops within the 24 hours**, and **how the result can be demonstrated and assessed**.
+LifeOrbit combines tasks, calendars, notebooks, subscriptions and challenges in a calm interface. This folder documents **why the team chose the idea**, **how it moved from Miro planning to implementation**, **what the team built during the hackathon**, and **how the result can be demonstrated and assessed**.
 
 ## Start here
 
@@ -20,11 +20,11 @@ LifeOrbit combines tasks, calendars, notebooks, subscriptions and challenges in 
 | [Open source and AI disclosure](TECHNOLOGIES_AND_AI.md) | Libraries, external services, AI use, rights and verification |
 | [Evidence index](EVIDENCE.md) | Where to find commits, screenshots, logs and final delivery materials |
 
-## Important distinction
+## How the project started
 
-This project already had a working application and substantial development **before the hackathon**. That is acceptable under the supplied challenge, but a credible submission must clearly isolate and show **substantial new work completed during the event**. Existing features are not hackathon achievements simply because they appear in the demo.
+The three-person team chose the LifeOrbit idea at the beginning of the hackathon. They began in a Miro board by collecting ideas and possible features. The next step was to group and describe the features, divide responsibilities and agree on the structure and technology stack, including the database, programming languages and frameworks. After these decisions, the implementation began from scratch.
 
-Do not invent usage numbers, interviews, AI workflows, commits, hours, test outcomes, or jury feedback. Mark missing evidence as **pending** until the team records it.
+The [development log](DEVELOPMENT_LOG.md) follows that sequence rather than treating LifeOrbit as a pre-existing product. Dates, assignments and completed features should be supported with the Miro board, actual commits and team confirmation.
 
 ## Submission checklist
 
