@@ -76,6 +76,15 @@ export default function Calendar(){
      patch("events",rows=>rows.map(e=>e.id===item.id?updated:e));setMessage("Event moved");
    }catch(error){setMessage(error instanceof Error?error.message:"Move failed");}
  }
+ async function resizeEvent(item:CalendarEvent,delta:number){
+  if(!item.start_time||!item.end_time)return;
+  const end_time=advance(item.end_time,delta);
+  if(end_time<=item.start_time){setMessage("The event must have a positive duration.");return;}
+  try{
+   if(online)await request(`/calendar/events/${item.id}`,{method:"PUT",body:JSON.stringify({title:item.title,date:item.date,start_time:item.start_time,end_time})});
+   patch("events",rows=>rows.map(e=>e.id===item.id?{...e,end_time}:e));setMessage("Event duration updated");
+  }catch(error){setMessage(error instanceof Error?error.message:"Could not resize event");}
+ }
  async function importIcs(file?:File){
    if(!file)return;
    if(file.size>1e6){setMessage("Choose an .ics file below 1 MB");return;}
@@ -130,6 +139,7 @@ export default function Calendar(){
          <button title="Move 15 minutes earlier" onClick={()=>void shiftEvent(item,item.date,-15)}>−</button>
          <button title="Move 15 minutes later" onClick={()=>void shiftEvent(item,item.date,15)}>+</button>
         </div>
+        <button className="calendar-resize-grip" aria-label="Drag to change event duration" title="Drag vertically to extend or shorten" onPointerDown={e=>{e.stopPropagation();const element=e.currentTarget;element.setPointerCapture(e.pointerId);element.dataset.startY=String(e.clientY);}} onPointerUp={e=>{const initial=Number(e.currentTarget.dataset.startY||e.clientY);const steps=Math.round((e.clientY-initial)/15);if(steps!==0)void resizeEvent(item,steps*15);e.currentTarget.releasePointerCapture(e.pointerId);}}>⋮</button>
       </div>)}
       <button className="week-add" onClick={()=>open(iso(day))} aria-label={`Add event on ${iso(day)}`}>+</button>
     </section>)}
