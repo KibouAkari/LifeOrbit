@@ -79,7 +79,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       chapters: [],
       subscriptions: [],
       challenges: [],
-      templates: [], leaderboard_opt_in:false,
+      templates: [], leaderboard_opt_in:true,
     }));
 
     void enqueue(async () => {
@@ -104,7 +104,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         chapters,
         subscriptions: data.subscriptions,
         challenges: data.challenges,
-        templates: data.templates || [], leaderboard_opt_in: data.leaderboard_opt_in || false,
+        templates: data.templates || [], leaderboard_opt_in: data.leaderboard_opt_in ?? true,
       }));
       workspaceWritable.current = true;
       setWorkspaceStatus("ready");
