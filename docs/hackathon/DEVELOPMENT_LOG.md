@@ -1,74 +1,82 @@
-# 24-hour development log and contribution record
+# LifeOrbit · Entwicklung während des Zentral Hack
 
-This file is a **fillable evidence record**, not a report of completed hackathon work.
+LifeOrbit entstand am Anfang des Hackathons als gemeinsame Idee unseres dreiköpfigen Teams. Wir haben nicht mit einem bereits fertigen Prototyp begonnen, sondern die Anwendung von Grund auf geplant und aufgebaut.
 
-## Before the clock starts: baseline
+Dieses Dokument beschreibt den bekannten Ablauf. Konkrete Zeitpunkte, Aufgabenverantwortliche und Ergebnisse ergänzen wir anhand unseres Miro-Boards und der Git-History.
 
-| Field | Fill in during preparation |
-| --- | --- |
-| Start date and local time | Pending |
-| Pre-event Git commit SHA / tag | Pending |
-| Existing deployed URL and version | https://www.lifeorbit.dev/ · version to confirm |
-| Existing features | Refer to current README; capture factual baseline |
-| Baseline known bugs | Record confirmed examples and reproduction steps |
-| Team members / roles | Three collaborators mentioned in planning; names and roles to confirm |
-| Consent-safe before screenshots/video | Pending |
+## 1. Ideensammlung im Miro-Board
 
-**Baseline rule:** avoid presenting tasks completed before this immutable SHA as work done during the 24-hour event.
+Zu Beginn haben wir uns für das Thema LifeOrbit entschieden. In Miro sammelten wir Funktionen und Ideen für einen Life Manager, der wichtige Bereiche des Alltags an einem Ort vereint.
 
-## Proposed high-value focus
+Zu den geplanten Bereichen gehörten beispielsweise Tasks, Kalender, Notes, Subscriptions, ein Dashboard und Challenges. Weitere Ideen und ihre ursprüngliche Priorisierung sollten anhand des Miro-Boards belegt werden.
 
-Choose one cohesive improvement that can be **developed, tested and demonstrated** in 24 hours. Possible scope, subject to team agreement:
+**Nachweis:** Link oder Export des ursprünglichen Miro-Boards ergänzen.
 
-1. Reliable cross-device calendar invitation/RSVP experience
-2. Refined mobile task/calendar workflow with tested interactions
-3. Better shared notebook consistency with explicit conflict messages
-4. End-to-end automated test cases for shared access and calendar imports
+## 2. Ideen ordnen und Aufgaben aufteilen
 
-Do **not** commit to all four. Select one primary goal, name its acceptance criteria, and assign responsibilities.
+Im nächsten Schritt haben wir die gesammelten Funktionen genauer beschrieben, zusammengehörende Themen geordnet und besprochen, welche Teile für den Prototyp besonders wichtig sind. Danach verteilten wir Aufgaben und Zuständigkeiten innerhalb des Teams.
 
-## Sprint record
+**Nachweis:** Miro-Abschnitte mit Featurebeschreibungen und Teamaufteilung ergänzen.
 
-| Time / checkpoint | Owner | Work and decision | Commit/PR | Test result | Next step |
-| --- | --- | --- | --- | --- | --- |
-| T+0h baseline | Pending | Freeze pre-event state and choose goal | Pending | Pending | Pending |
-| T+4h | Pending | Record first implemented increment | Pending | Pending | Pending |
-| T+8h | Pending | Review integration and blocking issues | Pending | Pending | Pending |
-| T+12h | Pending | Demonstrate feature and gather feedback | Pending | Pending | Pending |
-| T+18h | Pending | Fix defects and verify mobile/permissions | Pending | Pending | Pending |
-| T+22h | Pending | Freeze demo, confirm backup recording | Pending | Pending | Pending |
-| T+24h | Pending | Final status, measurable delta and learning | Pending | Pending | Submit/pitch |
+## 3. Technische Grundentscheidungen
 
-Actual work can follow a different schedule. The table is a recording aid, not a claimed timeline.
+Bevor die eigentliche Entwicklung richtig begann, haben wir über den grundlegenden Aufbau entschieden. Dazu gehörten Datenbank, Programmiersprachen, Frameworks und die Verbindung zwischen Frontend und Backend.
 
-## Before vs after
+Der entstandene Projektstack umfasst React mit TypeScript, Python mit FastAPI, MongoDB und Vercel. Welche Alternativen wir damals diskutiert haben und warum wir uns so entschieden haben, ergänzen wir nur dort, wo unsere Planungsnotizen das belegen.
 
-| Dimension | Before event (link evidence) | After event (link evidence) | Improvement |
+| Bereich | Umgesetzte Technologie | Ursprüngliche Begründung |
+| --- | --- | --- |
+| Frontend | React, TypeScript, Vite | Im Team anhand der Planung ergänzen |
+| Backend | Python, FastAPI | Im Team anhand der Planung ergänzen |
+| Datenbank | MongoDB Atlas | Im Team anhand der Planung ergänzen |
+| Hosting | Vercel | Im Team anhand der Planung ergänzen |
+| Design und Featureplanung | Miro | Gemeinsame Sammlung und Strukturierung |
+
+## 4. Entwicklung des Prototyps
+
+Auf Basis dieser Entscheidungen begannen wir mit der Implementierung. Die Anwendung entwickelte sich schrittweise von der Grundstruktur mit Navigation und Benutzerkonten zu den einzelnen Funktionen und ihrer Verbindung mit dem Backend.
+
+Der heutige Code enthält unter anderem Tasks, Calendar, Notes, Shared Notebooks, Subscriptions und Challenges. Die genaue Reihenfolge, die während des Hackathons fertiggestellten Bereiche und der Beitrag der einzelnen Teammitglieder müssen mit Commits und tatsächlichen Arbeitsergebnissen ergänzt werden.
+
+## 5. Tests und Verbesserungen
+
+Während der Entwicklung können technische Probleme und Rückmeldungen in einem kurzen Protokoll festgehalten werden. Notiert werden nur tatsächlich beobachtete Probleme und ihre Korrekturen.
+
+| Bereich | Feststellung | Änderung | Nachweis |
 | --- | --- | --- | --- |
-| Key user workflow | Pending | Pending | Pending |
-| Completion time / steps | Pending | Pending | Pending |
-| Reliability | Pending | Pending | Pending |
-| Mobile usability | Pending | Pending | Pending |
-| Security and permissions | Pending | Pending | Pending |
-| Tests/build status | Pending | Pending | Pending |
+| Funktionalität | Zu ergänzen | Zu ergänzen | Commit / Demo |
+| Bedienbarkeit | Zu ergänzen | Zu ergänzen | Test / Screenshot |
+| Zusammenarbeit | Zu ergänzen | Zu ergänzen | PR / Teamnotiz |
+| Sicherheit | Zu ergänzen | Zu ergänzen | Test / Review |
 
-## Individual contributions
+## 6. Entwicklungsverlauf mit Nachweisen
 
-For each team member record the scope, implementation and verifiable evidence. Joint work should be attributed honestly.
+| Phase | Was stattgefunden hat | Beleg / Zeitpunkt |
+| --- | --- | --- |
+| Projektwahl | Wir entschieden uns zu Beginn für LifeOrbit | Teamnotiz oder Miro |
+| Ideensammlung | Wir sammelten Funktionen und Ideen in Miro | Miro-Link / Export fehlt |
+| Strukturierung | Wir beschrieben Funktionen genauer und teilten die Arbeit auf | Miro / Teamnotizen fehlen |
+| Architektur | Wir wählten Datenbank, Sprachen, Frameworks und grundlegenden Aufbau | Commit / Entscheidungsmatrix ergänzen |
+| Umsetzung | Wir entwickelten den Prototyp von Grund auf | Git-Commits verlinken |
+| Integration und Tests | Wir verbanden und prüften die entwickelten Bereiche | Test- und Buildnachweise ergänzen |
+| Abschluss | Wir zeigen den tatsächlich erreichten Stand und nächste Schritte | Demo und Pitch ergänzen |
 
-| Contributor | Role | Dated commits/PRs | Decisions / design | Testing / feedback |
-| --- | --- | --- | --- | --- |
-| Member 1 (confirm) | Pending | Pending | Pending | Pending |
-| Member 2 (confirm) | Pending | Pending | Pending | Pending |
-| Member 3 (confirm) | Pending | Pending | Pending | Pending |
+## Beiträge im Dreierteam
 
-## Final 24-hour retrospective
+| Person | Hauptverantwortung | Konkrete Umsetzung | Nachweise |
+| --- | --- | --- | --- |
+| Teammitglied 1 | Ergänzen | Ergänzen | Commits / PRs |
+| Teammitglied 2 | Ergänzen | Ergänzen | Commits / PRs |
+| Teammitglied 3 | Ergänzen | Ergänzen | Commits / PRs |
 
-**Built:** Pending  
-**Demonstrated:** Pending  
-**What users told us:** Pending  
-**Important technical discovery:** Pending  
-**What did not work:** Pending  
-**Next iteration:** Pending
+## Ergebnis und Reflexion
 
-Only complete these after observing or building the relevant work.
+**Was wir umgesetzt haben:** Anhand des finalen Hackathon-Stands ergänzen.
+
+**Was besonders herausfordernd war:** Echte technische oder organisatorische Erfahrungen ergänzen.
+
+**Was wir gelernt haben:** Eigene Erkenntnisse des Teams ergänzen.
+
+**Was wir als Nächstes verbessern würden:** Priorisierte nächste Schritte ergänzen.
+
+Bei der Abgabe steht nicht nur das fertige Ergebnis im Vordergrund, sondern auch der nachvollziehbare Weg von der ersten Idee über die Planung bis zum funktionierenden Prototyp.
