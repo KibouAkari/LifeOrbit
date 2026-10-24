@@ -4,6 +4,11 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · Challenges experience
+- Added rotating daily and weekly challenge suggestions with accessible progress feedback.
+- Improved personal challenge cards and retained the centre-first podium layout.
+- Kept illustrative leaderboard scores explicitly distinguished from saved personal progress.
+
 ### 24 October 2026 · Interface refinements
 - Reworked Settings around a profile summary, appearance and privacy without decorative or non-functional controls.
 - Made Dashboard cards denser, added restrained staggered entrance transitions and improved challenge progress feedback.
