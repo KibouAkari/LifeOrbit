@@ -24,11 +24,11 @@ def locate(db,id,user):
     if not access(book,user):raise HTTPException(404,"Notebook not found")
     return book
 
-def serialize(db,book):
+def serialize(db,book,viewer):
     ids=[book["owner"],*book.get("members",[])]
     names={str(u["_id"]):u.get("name","Member") for u in db.users.find(
         {"_id":{"$in":[ObjectId(i) for i in ids if ObjectId.is_valid(i)]}},{"name":1})}
-    return {"id":str(book["_id"]),"title":book["title"],"owner":book["owner"],
+    return {"id":str(book["_id"]),"title":book["title"],"owner":book["owner"],"is_owner":book["owner"]==viewer,
             "owner_name":names.get(book["owner"],"Member"),"members":[{"id":i,"name":names.get(i,"Member")} for i in book.get("members",[])],
             "pages":book.get("pages",[]),"updated_at":book.get("updated_at").isoformat() if book.get("updated_at") else None}
 
@@ -36,14 +36,14 @@ def serialize(db,book):
 def list_notebooks(user:str=Depends(get_current_user)):
     db=get_db()
     books=db.shared_notebooks.find({"$or":[{"owner":user},{"members":user}]}).limit(100)
-    return [serialize(db,b) for b in books]
+    return [serialize(db,b,user) for b in books]
 
 @router.post("",status_code=201)
 def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user)):
     db=get_db()
     doc={"title":payload.title.strip(),"owner":user,"members":[],"pages":[],"updated_at":datetime.now(timezone.utc)}
     doc["_id"]=db.shared_notebooks.insert_one(doc).inserted_id
-    return serialize(db,doc)
+    return serialize(db,doc,user)
 
 @router.post("/{id}/members")
 def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user)):
