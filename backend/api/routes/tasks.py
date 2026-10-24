@@ -9,7 +9,7 @@ from backend.api.routes.auth import get_current_user
 router = APIRouter()
 
 def output(doc):
-    return {"id": str(doc["_id"]), "title": doc["title"], "done": doc["done"], "order": doc.get("order", 0)}
+    return {"id": str(doc["_id"]), "title": doc["title"], "done": doc["done"], "order": doc.get("order", 0), "due_at": doc.get("due_at").isoformat() if doc.get("due_at") else None}
 
 @router.get("")
 def list_tasks(user: str = Depends(get_current_user)):
