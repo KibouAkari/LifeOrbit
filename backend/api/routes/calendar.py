@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from icalendar import Calendar as ICalendar
 from datetime import datetime, date as Date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pymongo.errors import DuplicateKeyError
 
@@ -16,6 +17,7 @@ router = APIRouter()
 class IcalImport(BaseModel):
     content: str = Field(min_length=15, max_length=1000000)
     name: str = Field(default="Imported calendar", min_length=1, max_length=80)
+    time_zone: str = Field(default="UTC", min_length=1, max_length=100)
 
 def output(doc):
     return {
@@ -72,6 +74,10 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
     """Import an uploaded iCalendar file, without fetching arbitrary external URLs."""
     from hashlib import sha256
     try:
+        timezone = ZoneInfo(payload.time_zone)
+    except (ValueError, ZoneInfoNotFoundError):
+        raise HTTPException(400, "Invalid time zone")
+    try:
         calendar = ICalendar.from_ical(payload.content)
     except (ValueError, TypeError, AttributeError):
         raise HTTPException(400, "Invalid calendar file")
@@ -81,15 +87,18 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
         start = item.get("dtstart")
         if not start:
             continue
-        day = start.dt.date() if isinstance(start.dt, datetime) else start.dt
+        source_day = start.dt.date() if isinstance(start.dt, datetime) else start.dt
+        local_start = start.dt.astimezone(timezone) if isinstance(start.dt, datetime) and start.dt.tzinfo else start.dt
+        day = local_start.date() if isinstance(local_start, datetime) else local_start
         if not isinstance(day, Date):
             continue
         title = str(item.get("summary") or "Untitled event")[:120]
         uid = str(item.get("uid") or title + day.isoformat())
-        source_key = sha256((uid + "|" + day.isoformat()).encode()).hexdigest()
-        start_clock = start.dt.strftime("%H:%M") if isinstance(start.dt, datetime) else None
+        source_key = sha256((uid + "|" + source_day.isoformat()).encode()).hexdigest()
+        start_clock = local_start.strftime("%H:%M") if isinstance(local_start, datetime) else None
         end_prop = item.get("dtend")
-        end_clock = end_prop.dt.strftime("%H:%M") if end_prop and isinstance(end_prop.dt, datetime) else None
+        end = end_prop.dt.astimezone(timezone) if end_prop and isinstance(end_prop.dt, datetime) and end_prop.dt.tzinfo else end_prop.dt if end_prop else None
+        end_clock = end.strftime("%H:%M") if isinstance(end, datetime) else None
         entries.append({"user_id": user, "title": title, "date": day.isoformat(),
                         "start_time": start_clock, "end_time": end_clock,
                         "source": "ical_import", "source_key": source_key,

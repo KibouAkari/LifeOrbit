@@ -9,7 +9,7 @@ import type { Event as CalendarEvent } from "../types";
 const iso=(d:Date)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
 const monday=(date:Date)=>{const d=new Date(date);d.setHours(12,0,0,0);d.setDate(d.getDate()-(d.getDay()+6)%7);return d;};
 const format=(time?:string|null)=>time?time.slice(0,5):"";
-const advance=(time:string,minutes:number)=>{const [h,m]=time.split(":").map(Number);const n=Math.max(0,Math.min(1439,h*60+m+minutes));return `${String(Math.floor(n/60)).padStart(2,"0")}:${String(n%60).padStart(2,"0")}`;};
+const advance=(time:string,minutes:number)=>{const [h,m]=time.split(":").map(Number);const n=h*60+m+minutes;if(n<0||n>=1440)return null;return `${String(Math.floor(n/60)).padStart(2,"0")}:${String(n%60).padStart(2,"0")}`;};
 
 export default function Calendar(){
  const {state,patch}=useApp();
@@ -70,6 +70,7 @@ export default function Calendar(){
  async function shiftEvent(item:CalendarEvent,day:string,delta=0){
    const start_time=item.start_time?advance(item.start_time,delta):null;
    const end_time=item.end_time?advance(item.end_time,delta):null;
+   if((item.start_time&&!start_time)||(item.end_time&&!end_time)){setMessage("Events must stay within the same day.");return;}
    const updated={...item,date:day,start_time,end_time};
    try{
      if(online)await request(`/calendar/events/${item.id}`,{method:"PUT",body:JSON.stringify({title:item.title,date:day,start_time,end_time})});
@@ -79,6 +80,7 @@ export default function Calendar(){
  async function resizeEvent(item:CalendarEvent,delta:number){
   if(!item.start_time||!item.end_time)return;
   const end_time=advance(item.end_time,delta);
+  if(!end_time){setMessage("The event must stay within the same day.");return;}
   if(end_time<=item.start_time){setMessage("The event must have a positive duration.");return;}
   try{
    if(online)await request(`/calendar/events/${item.id}`,{method:"PUT",body:JSON.stringify({title:item.title,date:item.date,start_time:item.start_time,end_time})});
@@ -90,7 +92,7 @@ export default function Calendar(){
    if(file.size>1e6){setMessage("Choose an .ics file below 1 MB");return;}
    if(!online){setMessage("Sign in to import a calendar.");return;}
    setImporting(true);try{
-    const result=await request<{imported:number;total:number}>("/calendar/ical-import",{method:"POST",body:JSON.stringify({content:await file.text(),name:file.name.replace(/\\.ics$/i,"")})});
+    const result=await request<{imported:number;total:number}>("/calendar/ical-import",{method:"POST",body:JSON.stringify({content:await file.text(),name:file.name.replace(/\\.ics$/i,""),time_zone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"})});
     const [events, sources]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof imports>("/calendar/imports")]);patch("events",events);setImports(sources);setMessage(`Added ${result.imported} events. ${result.total-result.imported} already existed.`);
    }catch(error){setMessage(error instanceof Error?error.message:"Import failed");}finally{setImporting(false);}
  }
@@ -123,8 +125,8 @@ export default function Calendar(){
    {creating&&<form className="calendar-add calendar-editor" onSubmit={save}>
     <input className="input" required maxLength={120} placeholder="Event name" value={title} onChange={e=>setTitle(e.target.value)}/>
     <input className="input" type="date" required value={date} onChange={e=>setDate(e.target.value)}/>
-    <label><Clock size={15}/> <input className="input" type="time" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-    <label>to <input className="input" type="time" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
+    <label><Clock size={15}/> <input className="input" type="time" required aria-label="Start time" value={start} onChange={e=>setStart(e.target.value)}/></label>
+    <label>to <input className="input" type="time" required aria-label="End time" value={end} onChange={e=>setEnd(e.target.value)}/></label>
     <button className="button primary">{editing?"Update":"Add event"}</button>
     {editing&&<button type="button" className="button" onClick={()=>{const item=state.events.find(x=>x.id===editing);if(item)void remove(item)}}>Delete</button>}
     <button type="button" className="text-button" onClick={()=>setCreating(false)}>Cancel</button>
