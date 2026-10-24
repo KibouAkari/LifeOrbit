@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
-from backend.api.routes import auth, calendar, challenges, dashboard, tasks, workspace, leaderboard, friends, sharing, calendar_feeds
+from backend.api.routes import auth, calendar, challenges, dashboard, tasks, workspace, leaderboard, friends, sharing, calendar_feeds, shared_notebooks
 
 app = FastAPI(title="LifeOrbital API", version="0.4.0",
               docs_url=None if os.getenv("VERCEL_ENV")=="production" else "/api/docs",
@@ -24,6 +24,7 @@ app.include_router(leaderboard.router,prefix="/api/leaderboard")
 app.include_router(friends.router,prefix="/api/friends")
 app.include_router(sharing.router,prefix="/api/sharing")
 app.include_router(calendar_feeds.router,prefix="/api/calendar/feeds")
+app.include_router(shared_notebooks.router,prefix="/api/shared-notebooks")
 
 @app.exception_handler(PyMongoError)
 async def mongodb_failure(request: Request, exc: PyMongoError):

@@ -3,6 +3,11 @@ import base64
 import hashlib
 import os
 import re
+import socket
+import ipaddress
+import ssl
+import urllib3
+from urllib.parse import urlunsplit
 from datetime import datetime, timezone, date as Date
 from urllib.parse import urlsplit
 
@@ -29,37 +34,68 @@ def cipher():
     return Fernet(base64.urlsafe_b64encode(material))
 
 def validate_url(raw):
-    raw=raw.strip()
-    if raw.startswith("webcal://"):
-        raw="https://"+raw[len("webcal://"):]
-    url=urlsplit(raw)
-    host=(url.hostname or "").lower().rstrip(".")
-    providers={"calendar.google.com","outlook.office365.com","outlook.live.com","outlook.office.com","calendar.live.com","caldav.icloud.com"}
-    apple=bool(re.fullmatch(r"p[0-9]+-caldav\.icloud\.com",host))
-    if (url.scheme!="https" or url.username or url.password or url.port not in (None,443)
-        or url.fragment or (host not in providers and not apple)):
-        raise HTTPException(400,"Use a Google, Outlook or iCloud calendar subscription URL (https or webcal). Links from other providers are not yet supported")
-    return raw
+    """Accept public HTTPS calendar URLs, but never private network targets."""
+    raw = raw.strip()
+    if raw.lower().startswith("webcal://"):
+        raw = "https://" + raw[9:]
+    url = urlsplit(raw)
+    host = (url.hostname or "").rstrip(".").lower()
+    if (url.scheme != "https" or not host or url.username or url.password
+            or url.port not in (None, 443) or url.fragment or len(raw) > 2048):
+        raise HTTPException(400, "Use a valid public HTTPS or webcal calendar URL.")
+    try:
+        addresses = {entry[4][0] for entry in socket.getaddrinfo(
+            host, 443, type=socket.SOCK_STREAM)}
+        if not addresses or any(not ipaddress.ip_address(ip).is_global for ip in addresses):
+            raise ValueError("Non-public address")
+    except (socket.gaierror, ValueError, OSError):
+        raise HTTPException(400, "The calendar URL must resolve to a public Internet address.")
+    return raw, host, sorted(addresses)[0]
+
+
+def fetch_calendar_bytes(raw):
+    """Use a validated IP as the actual connection destination, with the original TLS hostname."""
+    validated, host, ip = validate_url(raw)
+    parsed = urlsplit(validated)
+    target = urlunsplit(("", "", parsed.path or "/", parsed.query, ""))
+    pool = urllib3.HTTPSConnectionPool(
+        ip, port=443, maxsize=1, block=True, server_hostname=host,
+        assert_hostname=host, cert_reqs=ssl.CERT_REQUIRED,
+        timeout=urllib3.Timeout(connect=4.0, read=12.0),
+        retries=False
+    )
+    try:
+        response = pool.urlopen("GET", target, headers={
+            "Host": host, "Accept": "text/calendar",
+            "User-Agent": "LifeOrbit-Calendar/1.0"
+        }, redirect=False, preload_content=False)
+        try:
+            if response.status != 200:
+                raise HTTPException(422, "Calendar provider did not return a calendar file")
+            chunks = []
+            count = 0
+            for chunk in response.stream(65536):
+                count += len(chunk)
+                if count > MAX_BYTES:
+                    raise HTTPException(413, "Calendar feed exceeds the 1 MB limit")
+                chunks.append(chunk)
+            return b"".join(chunks)
+        finally:
+            response.release_conn()
+    except urllib3.exceptions.HTTPError:
+        raise HTTPException(502, "Could not securely fetch the calendar feed")
+    finally:
+        pool.close()
+
 
 def fetch_events(raw):
-    raw=validate_url(raw)
+    raw_bytes = fetch_calendar_bytes(raw)
+    if b"BEGIN:VCALENDAR" not in raw_bytes[:500]:
+        raise HTTPException(422, "The URL did not return an iCalendar file")
     try:
-        response=requests.get(raw,headers={"Accept":"text/calendar"},timeout=(4,12),
-                              allow_redirects=False,stream=True)
-        if response.status_code!=200:raise HTTPException(422,"Calendar provider did not return a calendar file")
-        chunks=[];total=0
-        for chunk in response.iter_content(65536):
-            total+=len(chunk)
-            if total>MAX_BYTES:raise HTTPException(413,"Calendar feed exceeds the 1 MB limit")
-            chunks.append(chunk)
-        raw_bytes=b"".join(chunks)
-        if b"BEGIN:VCALENDAR" not in raw_bytes[:500]:
-            raise HTTPException(422,"Provider did not return iCalendar content")
-        cal=Calendar.from_ical(raw_bytes)
-    except requests.RequestException:
-        raise HTTPException(502,"Calendar provider is unavailable")
-    except (ValueError,TypeError,AttributeError):
-        raise HTTPException(422,"Invalid iCalendar feed")
+        cal = Calendar.from_ical(raw_bytes)
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(422, "Invalid iCalendar feed")
     events=[]
     for item in cal.walk("VEVENT"):
         start=item.get("dtstart")
@@ -91,7 +127,7 @@ def create_feed(payload:FeedInput,user:str=Depends(get_current_user)):
     db=get_db()
     if db.calendar_feeds.count_documents({"user_id":user})>=10:
         raise HTTPException(400,"Maximum of ten subscribed calendars")
-    clean_url=validate_url(payload.url)
+    clean_url=validate_url(payload.url)[0]
     events=fetch_events(clean_url)
     doc={"user_id":user,"name":payload.name,"url_encrypted":cipher().encrypt(clean_url.encode()).decode(),
          "created_at":datetime.now(timezone.utc)}

@@ -4,12 +4,14 @@ import { useApp } from "../context/AppContext";
 import { hasSession,request } from "../data/api";
 import { newId } from "../data/storage";
 import { Heading } from "../components/UI";
+import SharedNotebooks from "../components/SharedNotebooks";
 
 // Chapters and pages are stored as one workspace for authenticated accounts.
 export default function Notes(){
   const {state,patch,flushWorkspace}=useApp();
   const [chapter,setChapter]=useState("personal");
   const [sharedMode,setSharedMode]=useState(false);
+  const [sharedNotebooksMode,setSharedNotebooksMode]=useState(false);
   const [shared,setShared]=useState<{id:string;title:string;body:string;shared_by:string}[]>([]);
   const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
   const [notice,setNotice]=useState("");
@@ -38,6 +40,15 @@ export default function Notes(){
   function change(field:"title"|"body",value:string){
     patch("notes",current=>current.map(n=>n.id===selected?{...n,[field]:value}:n));
   }
+  function deleteChapter(id:string){
+    const itemToDelete=state.chapters.find(c=>c.id===id);
+    if(!itemToDelete)return;
+    if(!window.confirm(`Delete "${itemToDelete.name}"? Its notes will be moved to Personal.`))return;
+    patch("notes",current=>current.map(n=>n.chapter_id===id?{...n,chapter_id:"personal"}:n));
+    patch("chapters",current=>current.filter(c=>c.id!==id));
+    if(id===chapter)setChapter("personal");
+    setSelected(null);setNotice("Chapter removed. Its notes were kept.");
+  }
   function createChapter(){
     const name=chapterName.trim().slice(0,80);
     if(!name)return;
@@ -47,13 +58,15 @@ export default function Notes(){
     setSelected(null);setAddingChapter(false);setChapterName("");
   }
   return <div className="work-page"><Heading title="Notes" description="A place for everything worth keeping."/>
-    <div className="notebook"><aside className="notebook-chapters"><div className="notebook-section-heading"><button className={!sharedMode?"selected":""} onClick={()=>{setSharedMode(false);setSelected(null)}}>My notes</button><button className={sharedMode?"selected":""} onClick={()=>{setSharedMode(true);setSelected(null)}}>Shared {shared.length>0&&`(${shared.length})`}</button></div>
+    <div className="notes-mode-tabs"><button className={!sharedMode&&!sharedNotebooksMode?"active":""} onClick={()=>{setSharedMode(false);setSharedNotebooksMode(false)}}>My notes</button><button className={sharedNotebooksMode?"active":""} onClick={()=>{setSharedMode(false);setSharedNotebooksMode(true)}}>Shared notebooks</button><button className={sharedMode?"active":""} onClick={()=>{setSharedMode(true);setSharedNotebooksMode(false)}}>Received notes {shared.length>0&&`(${shared.length})`}</button></div>
+    {sharedNotebooksMode&&<SharedNotebooks/>}
+    <div className="notebook" style={{display:sharedNotebooksMode?"none":undefined}}><aside className="notebook-chapters"><div className="notebook-section-heading"><button className={!sharedMode?"selected":""} onClick={()=>{setSharedMode(false);setSharedNotebooksMode(false);setSelected(null)}}>My notes</button><button className={sharedMode?"selected":""} onClick={()=>{setSharedMode(true);setSharedNotebooksMode(false);setSelected(null)}}>Received notes</button></div>
       {!sharedMode&&<div className="notebook-section-heading">Chapters <button aria-label="Add chapter" onClick={()=>setAddingChapter(!addingChapter)}><Plus size={16}/></button></div>}
       {!sharedMode&&addingChapter&&<form className="chapter-add" onSubmit={e=>{e.preventDefault();createChapter();}}>
         <input className="input" autoFocus aria-label="Chapter name" maxLength={80} placeholder="Chapter name" value={chapterName} onChange={e=>setChapterName(e.target.value)}/>
         <button className="button primary">Add</button>
       </form>}
-      {!sharedMode&&state.chapters.map(c=><button className={chapter===c.id?"selected":""} key={c.id} onClick={()=>{setChapter(c.id);setSelected(null);}}><BookOpen size={17}/>{c.name}</button>)}
+      {!sharedMode&&state.chapters.map(c=><div className="chapter-row" key={c.id}><button className={chapter===c.id?"selected":""} onClick={()=>{setChapter(c.id);setSelected(null);}}><BookOpen size={17}/>{c.name}</button>{c.id!=="personal"&&<button className="chapter-remove" title={`Delete ${c.name}`} aria-label={`Delete chapter ${c.name}`} onClick={()=>deleteChapter(c.id)}><Trash2 size={15}/></button>}</div>)}
     </aside><section className="notebook-list">
       <div className="notebook-section-heading">Pages {!sharedMode&&<button aria-label="New note" onClick={create}><Plus size={17}/></button>}</div>
       {sharedMode?shared.map(n=><button key={n.id} className={selected===n.id?"selected":""} onClick={()=>setSelected(n.id)}><strong>{n.title}</strong><small>From {n.shared_by}</small></button>):items.length?items.map(n=><button className={selected===n.id?"selected":""} key={n.id} onClick={()=>setSelected(n.id)}><strong>{n.title}</strong><small>{n.body.slice(0,64)||"Empty note"}</small></button>):<div className="quiet-empty">No pages here yet.</div>}
