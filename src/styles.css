@@ -273,7 +273,7 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 /* Settings cards fill both columns without forcing privacy across the page. */
 .settings-clean{grid-auto-flow:row dense;align-items:start}
 .settings-clean .settings-compact{grid-column:auto!important;max-width:none;width:100%;height:auto}
-.orbit-event-grip{height:17px;z-index:3;cursor:ns-resize}
+.orbit-event-grip{height:17px;max-height:calc(100% - 12px);z-index:3;cursor:ns-resize}
 .orbit-event-label{touch-action:none}
 .orbit-timed-event{touch-action:none;will-change:transform}
 @media(max-width:760px){.settings-clean .settings-compact{grid-column:1/-1!important}}
