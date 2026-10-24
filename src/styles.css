@@ -173,3 +173,9 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .login-refined .form{animation:login-appear .25s ease both}
 @keyframes login-appear{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.login-refined,.login-refined .form{animation:none!important}}
+
+/* Keep login controls soft and leaderboard data honest. */
+.google-button>div{border-radius:999px!important;overflow:hidden}
+.personal-ranking{display:flex;align-items:center;gap:14px;padding:18px 0}
+.personal-ranking p{color:var(--muted);font-size:13px;margin:4px 0}
+.settings-clean .form+.form{border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
