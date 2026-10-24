@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { hasSession, request } from "../data/api";
@@ -7,7 +7,6 @@ import { Heading } from "../components/UI";
 import type { Event as CalendarEvent } from "../types";
 
 const iso=(d:Date)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
-const dateAt=(d:string)=>new Date(d+"T12:00:00");
 const monday=(date:Date)=>{const d=new Date(date);d.setHours(12,0,0,0);d.setDate(d.getDate()-(d.getDay()+6)%7);return d;};
 const format=(time?:string|null)=>time?time.slice(0,5):"";
 const advance=(time:string,minutes:number)=>{const [h,m]=time.split(":").map(Number);const n=Math.max(0,Math.min(1439,h*60+m+minutes));return `${String(Math.floor(n/60)).padStart(2,"0")}:${String(n%60).padStart(2,"0")}`;};
@@ -16,8 +15,7 @@ export default function Calendar(){
  const {state,patch}=useApp();
  const [view,setView]=useState<"week"|"month">("week");
  const [shift,setShift]=useState(0);
- const [selected,setSelected]=useState(iso(new Date()));
- const [title,setTitle]=useState("");
+  const [title,setTitle]=useState("");
  const [date,setDate]=useState(iso(new Date()));
  const [start,setStart]=useState("09:00"),[end,setEnd]=useState("10:00");
  const [editing,setEditing]=useState<string|null>(null);
@@ -46,7 +44,7 @@ export default function Calendar(){
  const visible=(day:Date)=>state.events.filter(e=>e.date===iso(day)&&!hidden.includes(source(e))).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
  const heading=view==="month"?base.toLocaleDateString("en",{month:"long",year:"numeric"}):`${days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – ${days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}`;
  function open(day:string,item?:CalendarEvent){
-   setSelected(day);setDate(day);setEditing(item?.id||null);setTitle(item?.title||"");setStart(format(item?.start_time)||"09:00");setEnd(format(item?.end_time)||"10:00");setCreating(true);
+   setDate(day);setEditing(item?.id||null);setTitle(item?.title||"");setStart(format(item?.start_time)||"09:00");setEnd(format(item?.end_time)||"10:00");setCreating(true);
  }
  async function save(e:FormEvent){
    e.preventDefault();if(!title.trim()||end<=start){setMessage("Choose an end time after the start time.");return;}
