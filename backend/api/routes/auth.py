@@ -1,9 +1,6 @@
-"""Google sign-in and signed access tokens.
-
-Google's subject is the user identifier. Emails can change and must not be
-used as a permanent database key.
-"""
+"""Account registration, password sign-in and Google identity verification."""
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -11,83 +8,146 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from pydantic import BaseModel, Field
+from passlib.context import CryptContext
+from pydantic import BaseModel, EmailStr, Field
+from pymongo.errors import DuplicateKeyError
 
 from api.database import get_db
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
+passwords = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+class RegisterRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=70)
+    email: EmailStr
+    password: str = Field(min_length=12, max_length=72)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
 
 
 class GoogleAuthRequest(BaseModel):
     token: str = Field(min_length=20, max_length=8192)
 
-def signing_key():
-    secret = os.getenv("JWT_SECRET_KEY")
-    if not secret or len(secret) < 32:
+
+def secret_key():
+    secret = os.getenv("JWT_SECRET_KEY", "")
+    if len(secret) < 32:
         raise HTTPException(status_code=503, detail="Authentication is not configured")
     return secret
 
 
+def issue_token(user):
+    now = datetime.now(timezone.utc)
+    access_token = jwt.encode({
+        "sub": str(user["_id"]), "iss": "lifeorbital",
+        "aud": "lifeorbital-api", "iat": now,
+        "exp": now + timedelta(hours=2),
+    }, secret_key(), algorithm="HS256")
+    return {
+        "access_token": access_token, "token_type": "bearer", "expires_in": 7200,
+        "user": public_user(user),
+    }
+
+
+def public_user(user):
+    return {
+        "id": str(user["_id"]), "name": user.get("name", ""),
+        "email": user.get("email", ""), "picture": user.get("picture"),
+    }
+
+
 def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
-    if not credentials:
+    if credentials is None:
         raise HTTPException(status_code=401, detail="Sign in required")
     try:
-        payload = jwt.decode(
-            credentials.credentials, signing_key(),
-            algorithms=["HS256"], audience="lifeorbit-api", issuer="lifeorbit",
-            options={"require": ["sub", "exp", "iat", "aud", "iss"]},
+        claims = jwt.decode(
+            credentials.credentials, secret_key(), algorithms=["HS256"],
+            issuer="lifeorbital", audience="lifeorbital-api",
+            options={"require": ["sub", "iat", "exp", "aud", "iss"]},
         )
-        return payload["sub"]
+        return claims["sub"]
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Session expired or invalid")
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+
+def find_user(user_id: str):
+    from bson import ObjectId
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    user = get_db().users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=401, detail="Account not found")
+    return user
+
+
+@router.post("/register", status_code=201)
+def register(payload: RegisterRequest):
+    db = get_db()
+    email = payload.email.strip().lower()
+    if db.users.find_one({"email": email}):
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user = {
+        "name": payload.name.strip(), "email": email,
+        "password_hash": passwords.hash(payload.password),
+        "created_at": datetime.now(timezone.utc), "picture": None,
+    }
+    try:
+        outcome = db.users.insert_one(user)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user["_id"] = outcome.inserted_id
+    return issue_token(user)
+
+
+@router.post("/login")
+def password_login(payload: LoginRequest):
+    user = get_db().users.find_one({"email": payload.email.strip().lower()})
+    # Do not disclose whether an email exists.
+    if not user or not user.get("password_hash") or not passwords.verify(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    return issue_token(user)
 
 
 @router.post("/google")
-def google_auth(request: GoogleAuthRequest):
+def google_login(payload: GoogleAuthRequest):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
-        raise HTTPException(status_code=503, detail="Google sign-in is not configured")
+        raise HTTPException(status_code=503, detail="Google login is not configured")
     try:
-        identity = id_token.verify_oauth2_token(
-            request.token, google_requests.Request(), client_id
-        )
-        if identity.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
-            raise ValueError("Unknown issuer")
-        if not identity.get("email_verified"):
-            raise ValueError("Email is not verified")
-        subject = identity["sub"]
+        info = id_token.verify_oauth2_token(payload.token, google_requests.Request(), client_id)
+        if info.get("iss") not in ("accounts.google.com", "https://accounts.google.com") or not info.get("email_verified"):
+            raise ValueError("Unverified identity")
+        google_id = info["sub"]
+        email = info["email"].strip().lower()
     except (ValueError, KeyError):
         raise HTTPException(status_code=401, detail="Invalid Google credential")
 
     db = get_db()
-    profile = {
-        "google_id": subject,
-        "email": identity.get("email", ""),
-        "name": identity.get("name", "User"),
-        "picture": identity.get("picture"),
-        "updated_at": datetime.now(timezone.utc),
-    }
-    db.users.update_one(
-        {"google_id": subject},
-        {"$set": profile, "$setOnInsert": {"created_at": datetime.now(timezone.utc)}},
-        upsert=True,
-    )
-    now = datetime.now(timezone.utc)
-    token = jwt.encode(
-        {"sub": subject, "iss": "lifeorbit", "aud": "lifeorbit-api",
-         "iat": now, "exp": now + timedelta(hours=2)},
-        signing_key(), algorithm="HS256",
-    )
-    return {
-        "access_token": token, "token_type": "bearer", "expires_in": 7200,
-        "user": {"id": subject, "name": profile["name"], "email": profile["email"], "picture": profile["picture"]},
-    }
+    user = db.users.find_one({"google_id": google_id})
+    if user is None:
+        existing = db.users.find_one({"email": email})
+        if existing:
+            # Never silently connect a Google identity to a password account.
+            raise HTTPException(status_code=409, detail="An account already uses this email. Sign in with your password.")
+        record = {"google_id": google_id, "email": email,
+                  "name": info.get("name", "User"), "picture": info.get("picture"),
+                  "created_at": datetime.now(timezone.utc)}
+        try:
+            outcome = db.users.insert_one(record)
+        except DuplicateKeyError:
+            raise HTTPException(status_code=409, detail="Account already exists")
+        record["_id"] = outcome.inserted_id
+        user = record
+    else:
+        db.users.update_one({"_id": user["_id"]}, {"$set": {"picture": info.get("picture")}})
+    return issue_token(user)
 
 
 @router.get("/me")
-def me(current_user: str = Depends(get_current_user)):
-    user = get_db().users.find_one({"google_id": current_user}, {"_id": 0, "google_id": 0, "updated_at": 0, "created_at": 0})
-    if not user:
-        raise HTTPException(status_code=401, detail="Account not found")
-    return {"id": current_user, **user}
+def me(user_id: str = Depends(get_current_user)):
+    return public_user(find_user(user_id))
