@@ -24,6 +24,12 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 | Challenges | Rotating daily and weekly goals, personal progress |
 | Settings | Profile, account credentials, theme and export |
 
+## Live notifications and event management
+
+LifeOrbit checks for new invitations while open and displays a gentle animated alert. After the first user interaction, incoming alerts may play a short sound. Background push delivery is not implemented. Shared notebook pages update automatically while the section is visible; avoid simultaneous edits to the same page until versioned conflict handling is available.
+
+Right-click a calendar appointment for Edit, Share or Delete. On touch devices or with keyboard controls use its Actions button. The editor opens as a responsive dialog with date and start/end times.
+
 ## Notifications and deadlines
 
 Tasks can have a due date and time. The application polls for unread event invitations, shared notes and tasks due within the next hour, showing a badge in the top bar. Read state is persisted in MongoDB. **Notifications currently work inside the running app only.** Background push reminders while the browser is closed require a scheduled backend job and Web Push registration.
