@@ -318,3 +318,10 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .shared-notebook-pages{display:flex;gap:5px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .shared-notebook-pages button{background:var(--surface-alt);border:0;padding:8px 11px;border-radius:8px;color:var(--text);display:flex;align-items:center;gap:5px}
 @media(max-width:740px){.shared-notebook-layout{display:flex;flex-direction:column}.shared-notebook-sidebar{border-right:0;border-bottom:1px solid var(--line)}.shared-notebook-content{padding:15px}.notes-mode-tabs{width:100%}.notes-mode-tabs button{flex:1}}
+
+/* Separate handles prevent click-to-edit from stealing drag gestures. */
+.orbit-timed-event{padding-left:22px!important;padding-bottom:16px!important;min-height:35px!important}
+.orbit-event-move-handle{position:absolute;left:0;top:0;bottom:15px;width:20px;border:0;border-right:1px solid color-mix(in srgb,var(--accent) 30%,transparent);background:transparent;color:inherit;cursor:grab;touch-action:none;display:grid;place-items:center;font-size:12px;letter-spacing:-3px;padding:0}
+.orbit-event-move-handle:active{cursor:grabbing}
+.orbit-event-grip{height:16px!important;border-radius:0 0 7px 7px}
+@media(max-width:760px){.orbit-event-move-handle{width:24px}.orbit-timed-event{padding-left:26px!important}}
