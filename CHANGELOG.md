@@ -4,6 +4,18 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Dashboard hydration and calendar experience
+- Load tasks, events and account workspace in parallel before the authenticated dashboard renders. Removed per-page-only initial loading.
+- Show today as the leftmost day in the default rolling seven-day calendar, while navigation uses Monday-based weeks.
+- Add month calendar overview, event start/end times, time edits and drag-to-move across days.
+- Retain one-time .ics import and make calendar sources visible and hideable. External Google, Outlook and Apple live synchronization remains future integration work.
+- Add randomized daily and weekly challenges, recurring custom challenge templates and animated completion with gentle sound.
+- Hide completed challenges without deleting their points history or adding reset controls.
+- Replace example leaderboards with a MongoDB ranking of real accounts; other accounts appear only by opt-in, while your own score is always visible.
+- Remove the unnecessary security section for Google-only accounts from Settings and place Appearance alongside Profile.
+- Centre the left-side login message vertically and increase the LifeOrbital wordmark size.
+
+
 ### 2026-10-24 · Restore Google authentication and legal page cleanup
 - Fixed production-wide API HTTP 500 errors caused by missing `icalendar` in root Vercel Python dependencies.
 - Kept root requirements in sync with the backend requirements to prevent future imports from breaking the whole API.
