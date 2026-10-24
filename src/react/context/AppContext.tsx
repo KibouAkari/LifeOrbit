@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { initialState, readDemo, writeDemo } from "../data/storage";
-import { hasSession, request } from "../data/api";
-import type { Store } from "../types";
+import { hasSession, request, currentUser } from "../data/api";
+import type { Store, Task, Event as CalendarEvent } from "../types";
 
 type ContextValue = {
   state: Store;
@@ -14,7 +14,7 @@ type ContextValue = {
   };
   reset: () => void;
 };
-type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges">;
+type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges" | "templates" | "leaderboard_opt_in">;
 const Context = createContext<ContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -52,17 +52,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       chapters: [],
       subscriptions: [],
       challenges: [],
+      templates: [], leaderboard_opt_in:false,
     }));
 
     void enqueue(async () => {
       if (generation !== sessionGeneration.current || !hasSession()) return;
-      const data = await request<Workspace>("/workspace");
+      const [data, tasks, events, profile] = await Promise.all([
+        request<Workspace>("/workspace"),
+        request<Task[]>("/tasks"),
+        request<CalendarEvent[]>("/calendar/events"),
+        currentUser(),
+      ]);
       if (generation !== sessionGeneration.current || !hasSession()) return;
       const chapters = data.chapters.length ? data.chapters : structuredClone(initialState.chapters);
       const chapterIds = new Set(chapters.map(chapter => chapter.id));
       const defaultChapter = chapterIds.has("personal") ? "personal" : chapters[0].id;
       setState(current => ({
         ...current,
+        account:profile.name, tasks, events,
         notes: data.notes.map(note => ({
           ...note,
           chapter_id: chapterIds.has(note.chapter_id) ? note.chapter_id : defaultChapter,
@@ -70,6 +77,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         chapters,
         subscriptions: data.subscriptions,
         challenges: data.challenges,
+        templates: data.templates || [], leaderboard_opt_in: data.leaderboard_opt_in || false,
       }));
       workspaceWritable.current = true;
       setWorkspaceStatus("ready");
@@ -109,6 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       chapters: state.chapters,
       subscriptions: state.subscriptions,
       challenges: state.challenges,
+      templates: state.templates, leaderboard_opt_in: state.leaderboard_opt_in,
     };
     const handle = window.setTimeout(() => {
       void enqueue(async () => {
@@ -117,10 +126,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           method: "PUT",
           body: JSON.stringify(workspace),
         });
+        window.dispatchEvent(new Event("lifeorbit:workspace-saved"));
       }).catch(error => console.error("Workspace save failed", error));
     }, 900);
     return () => clearTimeout(handle);
-  }, [state.notes, state.chapters, state.subscriptions, state.challenges, workspaceStatus, enqueue]);
+  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, workspaceStatus, enqueue]);
 
   useEffect(() => {
     if (workspaceStatus === "guest" && !hasSession()) writeDemo(state);

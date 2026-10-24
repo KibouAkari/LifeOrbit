@@ -4,10 +4,10 @@ const LEGACY_KEY = "lifeorbit-demo-v1";
 export const initialState: Store = {
   theme: "system", account: "",
   tasks: [{ id: "t1", title: "Plan the week", done: false }, { id: "t2", title: "Try the LifeOrbit demo", done: true }],
-  notes: [{ id: "n1", title: "Welcome to LifeOrbit", body: "Your space for ideas, thoughts and everything worth remembering.", chapter_id: "personal" }],
+  notes: [],
   chapters: [{ id: "personal", name: "Personal" }, { id: "ideas", name: "Ideas" }],
-  events: [], subscriptions: [{ id: "s1", name: "Example subscription", amount: 9.99, currency: "CHF", renews: "" }],
-  challenges: [{ id: "c1", title: "Drink water", value: 3, target: 8, unit: "glasses" }, { id: "c2", title: "Move a little", value: 1, target: 1, unit: "session" }],
+  events: [], subscriptions: [],
+  challenges: [], templates: [], leaderboard_opt_in:false,
 };
 export function readDemo(): Store {
   try {

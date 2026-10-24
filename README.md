@@ -100,3 +100,9 @@ See [Deployment](docs/DEPLOYMENT.md), [Security Audit](docs/SECURITY_AUDIT.md), 
 ## License
 
 [MIT](LICENSE).
+
+## Calendar and challenges roadmap
+
+The calendar now defaults to a rolling seven-day view beginning today. The arrows move to conventional Monday-based weeks. Month view, timed events, editing and dragging between days use the MongoDB event API. Imports are currently one-time `.ics` uploads. Google Calendar, Microsoft Outlook and Apple CalDAV live synchronization still need separate consent, OAuth or app-specific authorization, encrypted credential storage, background refresh, source mapping and conflict resolution. No account is shown as connected until those services exist.
+
+Challenge suggestions rotate, and users can save recurring personal templates. Public rankings show only accounts that explicitly opt in. Your own profile remains visible to you even if nobody else has joined.
