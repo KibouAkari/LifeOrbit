@@ -6,10 +6,10 @@ This matrix follows the **requirements supplied for the event**, without changin
 
 | Requirement | LifeOrbit response | Evidence to provide | Status |
 | --- | --- | --- | --- |
-| Own idea or independent development | LifeOrbit's own product concept and implementation | Product brief, repo history, team contribution log | Existing project; team authorship to confirm |
+| Own idea or independent development | LifeOrbit's own product concept and implementation | Product brief, repo history, team contribution log | Idea selected at hackathon start; Miro planning and contribution evidence to link |
 | Concrete problem or traceable value | Fragmented planning and small-group coordination | [Problem statement](PROBLEM_AND_SOLUTION.md), demo, feedback | Problem documented; validation pending |
-| Substantial improvement during the 24 hours | Deliver a scoped, testable before/after increment | Baseline SHA, event commits, demo comparison | **Pending event evidence** |
-| Working prototype or traceable demo | Authenticated tasks, calendar, notebook workflow | [Demo script](DEMO.md), recorded results | Prototype code exists; event demonstration pending |
+| Substantial improvement during the 24 hours | Show progression from the initial Miro feature collection to functional implementation | Initial Miro plan, early code commits, final demo and development log | Process described; commit/demo evidence to link |
+| Working prototype or traceable demo | Authenticated tasks, calendar, notebook workflow | [Demo script](DEMO.md), recorded results | Prototype implemented; demonstration evidence pending |
 | Document the work | Repository, README, changelog and this dossier | Repo links and evidence index | Prepared; event entries pending |
 | Present solution and progress | 3-minute pitch with demo and learning | [Pitch](PITCH.md), rehearsal | Script prepared; presentation pending |
 | Disclose OSS and AI tools | Dependency inventory, external services and assistance | [Technology/AI declaration](TECHNOLOGIES_AND_AI.md) | Initial disclosure prepared; team confirmation pending |
