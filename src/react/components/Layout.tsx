@@ -23,6 +23,7 @@ export function Layout({ section, dark, children }: { section: Section; dark: bo
   const [toast,setToast]=useState("");
   const known=useRef<Set<string>|null>(null);
   const audible=useRef(false);
+  const knownFriendCount=useRef<number|null>(null);
   useEffect(()=>{
     const activate=()=>{audible.current=true};
     window.addEventListener("pointerdown",activate,{once:true});
@@ -70,6 +71,13 @@ export function Layout({ section, dark, children }: { section: Section; dark: bo
     return()=>{alive=false;clearInterval(timer);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:friends-changed",focus)};
   },[]);
   useEffect(()=>{if(!toast)return;const handle=window.setTimeout(()=>setToast(""),5000);return()=>clearTimeout(handle)},[toast]);
+  useEffect(()=>{
+    const count=friendData.pending_count;
+    if(knownFriendCount.current!==null&&count>knownFriendCount.current){
+      notify(count===1?"New friend request":"New friend requests");
+    }
+    knownFriendCount.current=count;
+  },[friendData.pending_count]);
   async function readAlert(id:string){try{await request("/notifications/read",{method:"POST",body:JSON.stringify({id})});setAlerts(old=>old.filter(x=>x.id!==id))}catch{}}
 
   if (section === "login") return <>{children}</>;
