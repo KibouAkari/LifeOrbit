@@ -155,3 +155,21 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .challenge-suggestion small{font-size:11px;color:var(--muted)}
 .ranking-disclaimer{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);margin-top:20px}
 @media(max-width:650px){.challenge-discover{grid-template-columns:1fr}}
+
+/* The sign-in surface shares the application's restrained visual language. */
+.login-refined{max-width:405px;animation:login-appear .5s cubic-bezier(.22,.75,.3,1) both}
+.login-mark{display:block;width:76px;height:76px;margin:0 auto 26px;filter:drop-shadow(0 14px 22px rgba(112,151,250,.22))}
+.login-refined>h2{text-align:center;font-size:clamp(25px,3vw,30px);letter-spacing:-.9px;margin:0 0 8px}
+.login-refined>p:not(.auth-hint):not(.auth-error){text-align:center;line-height:1.6;margin-bottom:27px}
+.login-primary-choices{display:flex;align-items:center;flex-direction:column;gap:14px}
+.login-primary-choices .google-button{width:100%;justify-content:center}
+.login-email-choice{width:310px;max-width:100%;justify-content:center;gap:10px}
+.login-email-choice svg:last-child{margin-left:auto}
+.login-refined .demo-link{margin-top:9px;font-size:12px}
+.login-refined .auth-switch{margin-bottom:23px}
+.login-refined .auth-legal{margin-top:30px}
+.login-back{margin:20px auto 0;display:block;border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px}
+.login-back:hover{color:var(--text)}
+.login-refined .form{animation:login-appear .25s ease both}
+@keyframes login-appear{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.login-refined,.login-refined .form{animation:none!important}}
