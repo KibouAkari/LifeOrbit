@@ -46,3 +46,7 @@ Run the index provisioning utility after checking existing data.
 ## Deployment
 
 The FastAPI routes are mounted in the existing Vercel deployment. No new environment secrets are needed for the friends and private sharing database collections.
+
+## October 24 usability fixes
+
+The note editor now provides a friend selection control to share directly. Friend requests update every five seconds and on browser focus. The hourly calendar uses a single captured pointer per gesture, a larger duration handle and more reliable day-column hit testing. iCal subscriptions normalize `webcal://` to HTTPS and accept additional recognized Outlook and iCloud hosts. Arbitrary providers are not accepted because fetching arbitrary user-provided URLs would introduce SSRF risk. Verify each provider link using a non-sensitive test feed before enabling it in production.
