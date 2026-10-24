@@ -24,7 +24,7 @@ Run the index provisioning utility after checking existing data.
 
 ## Integration boundaries
 
-**iCalendar HTTPS URL subscriptions:** Not live yet. Do not fetch arbitrary URLs on the application server: that creates SSRF and internal network exposure risks. A secure implementation requires allowlisted provider hosts, DNS/IP validation, redirect blocking, encrypted URL tokens, background fetch scheduling, per-user rate limits, ETag/Last-Modified tracking, and reconciliation of removed/updated events.
+**iCalendar HTTPS URL subscriptions:** Implemented as a restricted preview: the backend only accepts HTTPS links from an explicit set of Google, Outlook and iCloud iCal provider hosts, blocks redirects, limits downloads to 1 MB and 500 events, encrypts saved URLs using a key derived from JWT_SECRET_KEY, and supports manual refresh (at most once per five minutes) and removal. Never accept arbitrary user-supplied URLs without stronger network egress restrictions. Background scheduling, ETag caching, DNS/IP pinning, local timezone reconciliation and deployment-level network isolation remain open. Treat private iCal URLs like passwords.
 
 **Google Calendar:** Signing in with Google is identity-only. Calendar API consent requires a separate, explicit OAuth scope and a refresh-token lifecycle. It cannot safely be inferred from a Google login ID token. Outlook needs Microsoft Graph authorisation; Apple commonly uses CalDAV or private subscription URLs.
 
