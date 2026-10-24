@@ -28,7 +28,7 @@ export default function Tasks() {
   const [dueAt,setDueAt]=useState("");
   const [editingDue,setEditingDue]=useState<string|null>(null);
   const [editingDueValue,setEditingDueValue]=useState("");
-  const [view, setView] = useState<"open" | "all" | "done">("open");
+  const [view, setView] = useState<"open" | "overdue" | "all" | "done">("open");
   const [finishing, setFinishing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const dragged = useRef<string | null>(null);
@@ -39,7 +39,8 @@ export default function Tasks() {
 
   const open = state.tasks.filter(t => !t.done);
   const completed = state.tasks.filter(t => t.done);
-  const visible = view === "done" ? completed : view === "all" ? state.tasks : open;
+  const overdue=open.filter(t=>t.due_at&&new Date(t.due_at).getTime()<Date.now());
+  const visible = view === "done" ? completed : view === "all" ? state.tasks : view==="overdue"?overdue:open;
 
   async function add(e: FormEvent) {
     e.preventDefault(); if (!title.trim()) return;
@@ -86,6 +87,7 @@ export default function Tasks() {
   return <div className="work-page"><Heading title="My tasks" description={`${open.length} things left to do`}/>
     <div className="task-workspace"><aside className="task-sidebar">
       <button className={view==="open"?"selected":""} onClick={()=>setView("open")}>My day <span>{open.length}</span></button>
+      <button className={view==="overdue"?"selected overdue-link":""} onClick={()=>setView("overdue")}>Overdue <span>{overdue.length}</span></button>
       <button className={view==="all"?"selected":""} onClick={()=>setView("all")}>All tasks <span>{state.tasks.length}</span></button>
       <button className={view==="done"?"selected":""} onClick={()=>setView("done")}>Completed <span>{completed.length}</span></button>
     </aside><section className="task-content">
