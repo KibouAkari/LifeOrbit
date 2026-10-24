@@ -78,8 +78,8 @@ export default function Calendar(){
    if(g.target.hasPointerCapture(e.pointerId))g.target.releasePointerCapture(e.pointerId);
    const delta=Math.round((e.clientY-g.startY)/16)*15;
    if(g.mode==="resize"){if(delta!==0)void resizeEvent(g.original,delta);return;}
-   const elements=document.elementsFromPoint(e.clientX,e.clientY);
-   const target=elements.find(el=>el instanceof HTMLElement&&el.dataset.day) as HTMLElement|undefined;
+   const columns=Array.from(document.querySelectorAll<HTMLElement>(".orbit-day-column[data-day]"));
+   const target=columns.find(el=>{const r=el.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right;});
    const day=target?.dataset.day||g.original.date;
    const minutes=(timeMinutes(g.original.start_time));
    const duration=timeMinutes(g.original.end_time,"10:00")-minutes;
