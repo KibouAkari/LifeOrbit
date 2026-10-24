@@ -41,7 +41,7 @@ export default function App() {
     restoreSession().then(user => {
       if (!alive) return;
       setSignedIn(Boolean(user));
-      if (user) patch("account", user.name);
+      if (user) { patch("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
       setReady(true);
     });
     const navigate = () => setRoute(routeFromHash());

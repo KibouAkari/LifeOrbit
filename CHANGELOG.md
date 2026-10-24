@@ -4,6 +4,11 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · Interface refinements
+- Reworked Settings around a profile summary, appearance and privacy without decorative or non-functional controls.
+- Made Dashboard cards denser, added restrained staggered entrance transitions and improved challenge progress feedback.
+- Corrected authenticated workspace hydration on page refresh.
+
 ### 24 October 2026 · Authentication and workspace integration
 - Moved signed-in authentication from sessionStorage bearer tokens to Secure HttpOnly SameSite cookies.
 - Updated React API and account restoration to use cookie-based authentication.

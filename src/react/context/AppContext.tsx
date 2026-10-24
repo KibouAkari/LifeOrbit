@@ -26,15 +26,16 @@ export function AppProvider({children}:{children:ReactNode}){
         const data=await request<Workspace>("/workspace");
         if(!active)return;
         hydrated.current=true;
-        setState(current=>({...current,notes:data.notes,subscriptions:data.subscriptions,challenges:data.challenges}));
+        setState(current=>({...current,notes:data.notes.map(n=>({id:n.id,title:n.title,body:n.body})),subscriptions:data.subscriptions,challenges:data.challenges}));
         try{localStorage.setItem(chaptersKey,JSON.stringify(data.chapters));}catch{}
         setReadyToSync(true);
       }catch(err){console.error("Workspace load failed",err);}
     }
     const onAuth=()=>{void restore();};
     window.addEventListener("lifeorbit:auth",onAuth);
+    window.addEventListener("lifeorbit:restore",onAuth);
     void restore();
-    return()=>{active=false;window.removeEventListener("lifeorbit:auth",onAuth)};
+    return()=>{active=false;window.removeEventListener("lifeorbit:auth",onAuth);window.removeEventListener("lifeorbit:restore",onAuth)};
   },[]);
 
   useEffect(()=>{
@@ -45,7 +46,7 @@ export function AppProvider({children}:{children:ReactNode}){
       let chapters:{id:string;name:string}[]=[];
       try{chapters=JSON.parse(localStorage.getItem(chaptersKey)||"[]") as typeof chapters;}catch{}
       void request<Workspace>("/workspace",{method:"PUT",body:JSON.stringify({
-        notes:state.notes.map(n=>({...n,chapter_id:"personal"})),
+        notes:state.notes.map(n=>({...n,chapter_id:localStorage.getItem("lifeorbit-note-chapter-"+n.id)||"personal"})),
         subscriptions:state.subscriptions,challenges:state.challenges,chapters
       })}).catch(err=>console.error("Workspace save failed",err));
     },900);
