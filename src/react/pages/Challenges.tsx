@@ -68,7 +68,12 @@ export default function Challenges(){
     return [...rows,...missing.map(t=>({id:`${t.id}-${key(t.period)}`,title:t.title,target:t.target,value:0,unit:t.unit,period:t.period,date_key:key(t.period),custom:true}))];
   });
  },[state.templates,patch]);
- useEffect(()=>{void loadRanking();},[points,state.leaderboard_opt_in]);
+ useEffect(()=>{
+   const refresh=()=>void loadRanking();
+   window.addEventListener("lifeorbit:workspace-saved",refresh);
+   void loadRanking();
+   return()=>window.removeEventListener("lifeorbit:workspace-saved",refresh);
+ },[]);
  function choose(item:Omit<ChallengeTemplate,"id">){
   const date_key=key(item.period);
   const id=`${item.title.toLowerCase().replace(/\W+/g,"-")}-${date_key}`;
