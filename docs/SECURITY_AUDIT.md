@@ -1,5 +1,8 @@
 # Security review · 24 October 2026
 
+## Confirmed runtime issue (24 October 2026)
+- Registration HTTP 500 traced to MongoDB Atlas DNS NXDOMAIN for placeholder `cluster.mongodb.net`. It requires a correct private Vercel `MONGODB_URI` value, redeployment, and a successful database health test. Code now returns a sanitized 503 for MongoDB failures. This is **not fixed in deployment until the variable is corrected**.
+
 ## Findings
 
 | Severity | Finding | Status |

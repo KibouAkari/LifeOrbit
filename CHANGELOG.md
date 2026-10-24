@@ -4,6 +4,14 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · MongoDB connection diagnosis
+- Confirmed registration failures result from a non-resolving MongoDB Atlas hostname in Vercel, not the React form.
+- Added an authenticated data workspace API for notes, notebook chapters, subscriptions and personal challenge progress.
+- Added database health route and sanitized 503 responses for MongoDB failures.
+- Added Atlas configuration and verification instructions without publishing secrets.
+- Retained the public-release blockers for account security and session architecture.
+
+
 ### 24 October 2026 · Deployment and security repairs
 - Located production 404 root cause: the Vercel project deployed only Vite and had no live Python API.
 - Added an in-project FastAPI function entrypoint, explicit Python requirements and /api routing configuration.
