@@ -1,4 +1,4 @@
-# LifeOrbital architecture
+# LifeOrbit architecture
 
 Updated 24 October 2026.
 
@@ -7,8 +7,8 @@ flowchart LR
   B[React and TypeScript] --> A[Same-origin FastAPI /api]
   A --> M[(MongoDB Atlas)]
   A --> G[Google identity token verification]
-  A --> I[Approved iCal HTTPS provider feeds]
-  B --> L[Local UI preferences]
+  A --> I[Validated public HTTPS iCal feeds]
+  B --> L[Local guest preferences]
 ```
 
 ## Technology and responsibility
@@ -19,11 +19,11 @@ Authentication accepts email/password or Google sign-in. A signed short-lived se
 
 Tasks and calendar events use individual owner-scoped API endpoints. Notes, chapters, subscriptions and challenge progress currently use the owner-scoped aggregate `/api/workspace` endpoint. A future design should split these writes into concurrency-safe resources.
 
-Friends, invitations and sharing use separate MongoDB `friendships` and `shares` collections. The server checks ownership and accepted friendships, including on subsequent read requests. The UI refreshes shared read-only notes every 15 seconds while the Shared view is open; there is no collaborative editing server.
+Friends, invitations and sharing use separate MongoDB `friendships` and `shares` collections. The server checks ownership and accepted friendships, including on subsequent read requests. Private note shares are read-only; shared notebooks allow invited members to edit pages with polling, but not conflict-free simultaneous editing.
 
 ## Calendar sources
 
-Manual .ics import creates an owned copy. A subscribed iCal link can be saved encrypted and refreshed on demand if it belongs to a strict HTTPS provider allowlist. The server rejects redirects and caps file and event sizes. The feed link may contain a private access token; never log or expose it in API responses.
+Manual .ics import creates an owned copy. A subscribed public HTTPS or webcal iCalendar link can be saved encrypted and refreshed on demand after public-IP validation and IP-pinned TLS. The server rejects private IP addresses and redirects, and caps file and event sizes. The feed link may contain a private access token; never log or expose it in API responses.
 
 Neither Google Calendar OAuth, Microsoft Graph, nor Apple CalDAV full account integration is implemented. Automatic scheduled refresh requires a background job, token lifecycle, recurrence handling, timezone normalization and security verification.
 
