@@ -62,4 +62,4 @@ export function AppProvider({children}:{children:ReactNode}){
   const reset=useCallback(()=>setState(structuredClone(initialState)),[]);
   return <Context.Provider value={{state,patch,reset}}>{children}</Context.Provider>;
 }
-export function useApp(){const value=useContext(Context);if(!value)throw new Error("Missing AppProvider");return value;}
+export function useApp():ContextValue{const value=useContext(Context);if(!value)throw new Error("Missing AppProvider");return value;}
