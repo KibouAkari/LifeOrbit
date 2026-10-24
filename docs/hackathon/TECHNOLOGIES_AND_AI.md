@@ -40,7 +40,7 @@ LifeOrbit has received **ChatGPT assistance** in design and development discussi
 | Embedded AI end-user feature | **Not established in current repository** | Do not claim it exists |
 | Additional AI tools, models, prompts and paid APIs | Pending team confirmation | Record actual names, purpose, license/data terms |
 
-Using AI does not replace evidence of **the team's independent decisions, testing or substantial 24-hour contribution**. AI output must be reviewed for insecure code, false claims, licensing issues and data leaks.
+Using AI does not replace evidence of **the team's independent decisions, testing or original ideation, architecture choices and 24-hour implementation**. AI output must be reviewed for insecure code, false claims, licensing issues and data leaks.
 
 ## Rights and compliance checklist
 
