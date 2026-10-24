@@ -4,6 +4,11 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · Authentication and workspace integration
+- Moved signed-in authentication from sessionStorage bearer tokens to Secure HttpOnly SameSite cookies.
+- Updated React API and account restoration to use cookie-based authentication.
+- Added debounced MongoDB workspace persistence for notes, subscriptions and challenge progress; chapter metadata migration still needs refinement.
+
 ### 24 October 2026 · MongoDB connection diagnosis
 - Confirmed registration failures result from a non-resolving MongoDB Atlas hostname in Vercel, not the React form.
 - Added an authenticated data workspace API for notes, notebook chapters, subscriptions and personal challenge progress.

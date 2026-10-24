@@ -16,7 +16,7 @@ export default function Login(){
   const googleButton=useRef<HTMLDivElement>(null);
   const clientId=import.meta.env.VITE_GOOGLE_CLIENT_ID as string|undefined;
   function complete(result:AuthResponse){
-    saveSession(result.access_token);sessionStorage.removeItem("lifeorbit_guest");
+    saveSession("");sessionStorage.removeItem("lifeorbit_guest");
     patch("account",result.user.name);
     window.dispatchEvent(new Event("lifeorbit:auth"));
   }

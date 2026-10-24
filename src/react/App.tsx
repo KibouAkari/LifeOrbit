@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { Layout } from "./components/Layout";
 import { useApp } from "./context/AppContext";
-import { clearSession, hasSession } from "./data/api";
+import { clearSession, hasSession, signOut } from "./data/api";
 import { restoreSession } from "./services/session";
 import type { Section } from "./types";
 import Dashboard from "./pages/Dashboard";
@@ -47,6 +47,7 @@ export default function App() {
     const navigate = () => setRoute(routeFromHash());
     const enter = () => { setSignedIn(hasSession()); setIntro(true); location.hash = "#/dashboard"; };
     const logout = () => {
+      void signOut().catch(() => undefined);
       clearSession(); sessionStorage.removeItem("lifeorbit_guest");
       setSignedIn(false); setIntro(false); patch("account", "");
       location.hash = "#/login"; setRoute("login");
