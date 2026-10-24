@@ -4,6 +4,7 @@ import { useApp } from "../context/AppContext";
 import { hasSession,request } from "../data/api";
 import { newId } from "../data/storage";
 import { Heading } from "../components/UI";
+import SharedNotebooks from "../components/SharedNotebooks";
 
 // Chapters and pages are stored as one workspace for authenticated accounts.
 export default function Notes(){
@@ -56,7 +57,8 @@ export default function Notes(){
     setSelected(null);setAddingChapter(false);setChapterName("");
   }
   return <div className="work-page"><Heading title="Notes" description="A place for everything worth keeping."/>
-    <div className="notebook"><aside className="notebook-chapters"><div className="notebook-section-heading"><button className={!sharedMode?"selected":""} onClick={()=>{setSharedMode(false);setSelected(null)}}>My notes</button><button className={sharedMode?"selected":""} onClick={()=>{setSharedMode(true);setSelected(null)}}>Shared {shared.length>0&&`(${shared.length})`}</button></div>
+    {sharedMode&&<SharedNotebooks/>}
+    <div className="notebook" style={{display:sharedMode?"none":undefined}}><aside className="notebook-chapters"><div className="notebook-section-heading"><button className={!sharedMode?"selected":""} onClick={()=>{setSharedMode(false);setSelected(null)}}>My notes</button><button className={sharedMode?"selected":""} onClick={()=>{setSharedMode(true);setSelected(null)}}>Shared {shared.length>0&&`(${shared.length})`}</button></div>
       {!sharedMode&&<div className="notebook-section-heading">Chapters <button aria-label="Add chapter" onClick={()=>setAddingChapter(!addingChapter)}><Plus size={16}/></button></div>}
       {!sharedMode&&addingChapter&&<form className="chapter-add" onSubmit={e=>{e.preventDefault();createChapter();}}>
         <input className="input" autoFocus aria-label="Chapter name" maxLength={80} placeholder="Chapter name" value={chapterName} onChange={e=>setChapterName(e.target.value)}/>
