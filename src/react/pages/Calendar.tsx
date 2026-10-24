@@ -54,6 +54,41 @@ export default function Calendar(){
  const [feedForm,setFeedForm]=useState(false),[feedUrl,setFeedUrl]=useState(""),[feedName,setFeedName]=useState("");
  const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
+ const gesture=useRef<{id:string;mode:"move"|"resize";startX:number;startY:number;original:CalendarEvent;target:HTMLElement}|null>(null);
+ const [dragging,setDragging]=useState(false);
+ function beginGesture(e:React.PointerEvent<HTMLElement>,event:CalendarEvent,mode:"move"|"resize"){
+   if(e.button!==0||event.source==="invited")return;
+   e.preventDefault();e.stopPropagation();
+   gesture.current={id:event.id,mode,startX:e.clientX,startY:e.clientY,original:event,target:e.currentTarget};
+   e.currentTarget.setPointerCapture(e.pointerId);
+   setDragging(true);
+ }
+ function moveGesture(e:React.PointerEvent<HTMLElement>){
+   const g=gesture.current;if(!g)return;
+   const steps=Math.round((e.clientY-g.startY)/16);
+   const horizontal=e.clientX-g.startX;
+   g.target.style.transform=`translate(${horizontal}px,${steps*16}px)`;
+   g.target.style.zIndex="10";
+ }
+ function endGesture(e:React.PointerEvent<HTMLElement>){
+   const g=gesture.current;if(!g)return;
+   e.stopPropagation();
+   gesture.current=null;setDragging(false);
+   g.target.style.transform="";g.target.style.zIndex="";
+   if(g.target.hasPointerCapture(e.pointerId))g.target.releasePointerCapture(e.pointerId);
+   const delta=Math.round((e.clientY-g.startY)/16)*15;
+   if(g.mode==="resize"){if(delta!==0)void resizeEvent(g.original,delta);return;}
+   const elements=document.elementsFromPoint(e.clientX,e.clientY);
+   const target=elements.find(el=>el instanceof HTMLElement&&el.dataset.day) as HTMLElement|undefined;
+   const day=target?.dataset.day||g.original.date;
+   const minutes=(timeMinutes(g.original.start_time));
+   const duration=timeMinutes(g.original.end_time,"10:00")-minutes;
+   const nextStart=minutes+delta;
+   if(nextStart<0||nextStart+duration>=1440){setMessage("Event must remain within the day.");return;}
+   if(day!==g.original.date||delta!==0)void shiftEvent(g.original,day,delta);
+ }
+ function timeMinutes(value?:string|null,fallback="09:00"){const [h,m]=(value||fallback).split(":").map(Number);return h*60+m;}
+ 
  const today=useMemo(()=>new Date(),[]);
  const online=hasSession();
  const base=useMemo(()=>{
@@ -181,12 +216,12 @@ export default function Calendar(){
    {!state.events.length&&!creating&&<div className="calendar-first-event"><CalendarDays size={28}/><h2>Add your first event</h2><p>Make space for your next plan.</p><button className="button primary" onClick={()=>open(iso(new Date()))}>Create event</button></div>}
    {view==="week"?<div className="orbit-timeline-shell"><div className="orbit-timeline">
     <div className="orbit-times"><div className="orbit-time-heading">GMT</div>{Array.from({length:24},(_,i)=><div className="orbit-time-label" key={i}>{String(i).padStart(2,"0")}:00</div>)}</div>
-    {days.map(day=>{const events=visible(day);const positions=layoutEvents(events);return <div key={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
+    {days.map(day=>{const events=visible(day);const positions=layoutEvents(events);return <div key={iso(day)} data-day={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
       <button className="orbit-day-heading" onClick={()=>open(iso(day))}>{day.toLocaleDateString("en",{weekday:"short"})}<strong>{day.getDate()}</strong></button>
       <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(23*60+45,Math.round((e.clientY-bounds.top)/16)*15));const h=Math.floor(minutes/60);const m=minutes%60;const endMinutes=Math.min(23*60+59,minutes+60);open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.floor(endMinutes/60)).padStart(2,"0")}:${String(endMinutes%60).padStart(2,"0")}`)}}>
-        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(24,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""}`} key={item.id} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
+        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(24,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>beginGesture(e,item,"move")} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
           <button className="orbit-event-label" onClick={()=>item.source==="invited"?setMessage("Invited events are read only."):open(item.date,item)}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
-          {item.source!=="invited"&&<button className="orbit-event-grip" aria-label="Resize event" title="Drag to change duration" onPointerDown={e=>{e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);e.currentTarget.dataset.startY=String(e.clientY)}} onPointerUp={e=>{e.stopPropagation();const initial=Number(e.currentTarget.dataset.startY||e.clientY);const steps=Math.round((e.clientY-initial)/16);if(steps)void resizeEvent(item,steps*15);e.currentTarget.releasePointerCapture(e.pointerId)}}/>}
+          {item.source!=="invited"&&<button className="orbit-event-grip" aria-label="Resize event" title="Drag to change duration" onPointerDown={e=>{e.stopPropagation();beginGesture(e,item,"resize")}} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}/>}
         </div>})}
       </div>
     </div>})}
