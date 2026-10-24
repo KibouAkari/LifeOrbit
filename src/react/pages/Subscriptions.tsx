@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Plus, Trash2, WalletCards } from "lucide-react";
+import { Plus, Trash2, WalletCards, Pencil } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { newId } from "../data/storage";
 import { Heading } from "../components/UI";
@@ -26,12 +26,16 @@ function nextRenewal(start:string,interval:"monthly"|"yearly"):string {
 export default function Subscriptions(){
   const {state,patch}=useApp();
   const [show,setShow]=useState(false),[name,setName]=useState(""),[amount,setAmount]=useState(""),[currency,setCurrency]=useState("CHF"),[renews,setRenews]=useState(""),[interval,setInterval]=useState<"monthly"|"yearly">("monthly");
+  const [editing,setEditing]=useState<string|null>(null);
+  const [notice,setNotice]=useState("");
+  function edit(s:Subscription){setEditing(s.id);setName(s.name);setAmount(String(s.amount));setCurrency(s.currency);setRenews(s.renews);setInterval(s.interval||"monthly");setShow(true);}
   const currencies=[...new Set(state.subscriptions.map(s=>s.currency))];
   function add(e:FormEvent){
     e.preventDefault();const value=Number(amount);
     if(!name.trim()||!Number.isFinite(value)||value<0)return;
     const item:Subscription={id:newId(),name:name.trim(),amount:value,currency,renews,interval};
-    patch("subscriptions",current=>[...current,item]);
+    patch("subscriptions",current=>editing?current.map(s=>s.id===editing?{...item,id:editing}:s):[...current,item]);
+    setNotice(editing?"Subscription updated":"Subscription added");setEditing(null);
     setName("");setAmount("");setRenews("");setShow(false);
   }
   const monthlyValue=(s:Subscription)=>s.amount/(s.interval==="yearly"?12:1);
@@ -39,7 +43,7 @@ export default function Subscriptions(){
     <div className="subscription-overview">
       <div><span>Subscriptions</span><strong>{state.subscriptions.length}</strong></div>
       <div><span>Monthly equivalent by currency</span><strong className="summary-currencies">{currencies.length?currencies.map(c=>money(state.subscriptions.filter(s=>s.currency===c).reduce((sum,s)=>sum+monthlyValue(s),0),c)).join(" · "):"None"}</strong></div>
-      <button className="button primary" onClick={()=>setShow(!show)}><Plus size={17}/> Add subscription</button>
+      <button className="button primary" onClick={()=>{setShow(!show);setEditing(null);setName("");setAmount("");setRenews("");}}><Plus size={17}/> Add subscription</button>
     </div>
     {show&&<form className="subscription-form" onSubmit={add}>
       <label>Name<input className="input" required value={name} maxLength={100} onChange={e=>setName(e.target.value)}/></label>
@@ -47,13 +51,14 @@ export default function Subscriptions(){
       <label>Currency<select className="select" value={currency} onChange={e=>setCurrency(e.target.value)}><option>CHF</option><option>EUR</option><option>USD</option></select></label>
       <label>Billing<select className="select" value={interval} onChange={e=>setInterval(e.target.value as "monthly"|"yearly")}><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
       <label>Next renewal<input className="input" type="date" value={renews} onChange={e=>setRenews(e.target.value)}/></label>
-      <button className="button primary">Save</button>
+      <button className="button primary">{editing?"Update subscription":"Save subscription"}</button><button type="button" className="button" onClick={()=>{setShow(false);setEditing(null)}}>Cancel</button>
     </form>}
     <div className="subscription-list">{state.subscriptions.map(s=><div className="subscription-item" key={s.id}>
       <div className="subscription-symbol"><WalletCards size={20}/></div><div><strong>{s.name}</strong><small>{s.renews?`Next checkout ${nextRenewal(s.renews,s.interval||"monthly")}`:"Renewal date not set"} · {s.interval==="yearly"?"Yearly":"Monthly"}</small></div>
       <strong>{money(s.amount,s.currency)} <small>/ {s.interval==="yearly"?"year":"month"}</small></strong>
+      <button className="icon-button" title="Edit subscription" aria-label={`Edit ${s.name}`} onClick={()=>edit(s)}><Pencil size={16}/></button>
       <button className="icon-button remove-on-hover" aria-label={`Remove ${s.name}`} onClick={()=>patch("subscriptions",current=>current.filter(x=>x.id!==s.id))}><Trash2 size={17}/></button>
     </div>)}{!state.subscriptions.length&&<div className="quiet-empty">No subscriptions yet.</div>}</div>
-    <p className="subscription-footnote">Renewal dates are projected locally; no payment is processed or monitored.</p>
+    <p role="status" className="feedback-line">{notice}</p><p className="subscription-footnote">Renewal dates are projected locally; no payment is processed or monitored.</p>
   </div>;
 }

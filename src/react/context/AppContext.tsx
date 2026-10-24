@@ -8,6 +8,7 @@ type ContextValue = {
   workspaceStatus: "guest" | "loading" | "ready" | "error";
   workspaceError: string;
   restoreWorkspace: () => void;
+  flushWorkspace: () => Promise<void>;
   patch: {
     <K extends keyof Store>(key: K, updater: (current: Store[K]) => Store[K]): void;
     <K extends keyof Store>(key: K, value: Store[K]): void;
@@ -31,6 +32,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     workspaceQueue.current = run.catch(() => undefined);
     return run;
   }, []);
+
+  const flushWorkspace = useCallback(() => {
+    if (!hasSession()) return Promise.reject(new Error("Sign in to save your workspace."));
+    if (workspaceStatus !== "ready" || !workspaceWritable.current) {
+      return Promise.reject(new Error("Your workspace is not ready to save."));
+    }
+    const generation = sessionGeneration.current;
+    const workspace: Workspace = {
+      notes: state.notes,
+      chapters: state.chapters,
+      subscriptions: state.subscriptions,
+      challenges: state.challenges,
+      templates: state.templates,
+      leaderboard_opt_in: state.leaderboard_opt_in,
+    };
+    return enqueue(async () => {
+      if (generation !== sessionGeneration.current || !hasSession() || !workspaceWritable.current) {
+        throw new Error("Your workspace changed before it could be saved.");
+      }
+      await request<Workspace>("/workspace", {
+        method: "PUT",
+        body: JSON.stringify(workspace),
+      });
+      window.dispatchEvent(new Event("lifeorbit:workspace-saved"));
+    });
+  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, workspaceStatus, enqueue]);
 
   const restoreWorkspace = useCallback(() => {
     const generation = ++sessionGeneration.current;
@@ -154,7 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [sessionVersion]);
 
-  return <Context.Provider value={{ state, workspaceStatus, workspaceError, restoreWorkspace, patch, reset }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ state, workspaceStatus, workspaceError, restoreWorkspace, flushWorkspace, patch, reset }}>{children}</Context.Provider>;
 };
 
 export function useApp(): ContextValue {

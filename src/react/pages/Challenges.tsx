@@ -44,6 +44,12 @@ export default function Challenges(){
  const [period,setPeriod]=useState<"daily"|"weekly">("daily");
  const [rank,setRank]=useState<Ranked[]>([]);
  const [now]=useState(()=>new Date());
+ const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
+ const [received,setReceived]=useState<{id:string;title:string;target:number;unit:string;period?:"daily"|"weekly";shared_by:string}[]>([]);
+ useEffect(()=>{if(!hasSession())return;void Promise.all([request<{friends:typeof friends}>("/friends"),request<typeof received>("/sharing/challenges")]).then(([f,c])=>{setFriends(f.friends);setReceived(c)}).catch(()=>undefined)},[]);
+ async function shareChallenge(c:Challenge){if(!friends.length){setMessage("Add a friend in Settings first.");return;}const index=window.prompt("Share with: "+friends.map((p,i)=>`${i+1}. ${p.name}`).join(", ")+"\nEnter number");if(!index)return;const target=friends[Number(index)-1];if(!target){setMessage("Choose a valid friend.");return;}try{await request("/sharing/challenges",{method:"POST",body:JSON.stringify({resource_id:c.id,recipient_id:target.id})});setMessage("Challenge shared with "+target.name)}catch(e){setMessage(e instanceof Error?e.message:"Sharing failed")}}
+ function acceptChallenge(c:typeof received[number]){choose({id:newId(),title:c.title,target:c.target,unit:c.unit,period:c.period||"daily"});setMessage("Challenge from "+c.shared_by+" added")}
+
  const points=state.challenges.reduce((sum,c)=>sum+Math.min(c.value,c.target)*10,0);
  const completed=state.challenges.filter(c=>c.value>=c.target);
  const active=state.challenges.filter(c=>c.value<c.target);
@@ -104,8 +110,9 @@ export default function Challenges(){
    {active.length?active.map(c=><article className="challenge-item" key={c.id}>
     <div className="challenge-row"><div><h3>{c.title}</h3><p>{c.value} / {c.target} {c.unit}</p></div><span>{Math.round(c.value/c.target*100)}%</span></div>
     <div className="challenge-meter" role="progressbar" aria-label={c.title} aria-valuenow={c.value} aria-valuemax={c.target} aria-valuemin={0}><span style={{width:`${Math.round(c.value/c.target*100)}%`}}/></div>
-    <button className="button primary" onClick={()=>increment(c)}><Plus size={16}/> Add progress</button>
+    <div className="actions"><button className="button primary" onClick={()=>increment(c)}><Plus size={16}/> Add progress</button>{friends.length>0&&<button className="button" onClick={()=>void shareChallenge(c)}>Share</button>}</div>
    </article>):<div className="quiet-empty"><CheckCircle2 size={20}/> All clear. Pick something new below.</div>}
+   {received.length>0&&<div className="saved-challenge-templates"><h3>From friends</h3>{received.map((c,i)=><div key={c.id+i}><strong>{c.title}</strong><span>From {c.shared_by} · {c.target} {c.unit}</span><button className="button" onClick={()=>acceptChallenge(c)}>Add</button></div>)}</div>}
    {state.templates.length>0&&<div className="saved-challenge-templates"><h3>Your recurring challenges</h3>{state.templates.map(t=><div key={t.id}><strong>{t.title}</strong><span>{t.period} · {t.target} {t.unit}</span><button className="text-button" onClick={()=>patch("templates",rows=>rows.filter(x=>x.id!==t.id))}>Remove</button></div>)}</div>}
    <div className="challenge-section-top challenge-discover-title"><h2>Something new</h2><button className="text-button" onClick={()=>setRefresh(x=>x+1)}><RefreshCw size={16}/> Surprise me</button></div>
    <div className="challenge-discover">{suggestions.map((c,i)=><button className="challenge-suggestion" key={c.title+i} onClick={()=>choose(c)}><span><strong>{c.title}</strong><small>{c.period==="daily"?"Daily":"Weekly"} · {c.target} {c.unit}</small></span><Plus size={16}/></button>)}</div>

@@ -1,57 +1,34 @@
-# LifeOrbit architecture
+# LifeOrbital architecture
 
-## Agreed stack
-
-| Layer | Technology | Status |
-| --- | --- | --- |
-| Frontend | React, TypeScript, Vite | Implemented prototype |
-| Styling | Shared CSS design tokens | Implemented |
-| Frontend hosting | Vercel | Prepared, not deployed |
-| Backend | Python, FastAPI (recommended framework) | Planned |
-| Database | MongoDB | Planned |
-| Authentication | Server-owned sessions | Not implemented |
+Updated 24 October 2026.
 
 ```mermaid
 flowchart LR
-  UI[React on Vercel] --> CLIENT[Typed API boundary]
-  CLIENT -. future HTTPS .-> PY[Python API]
-  PY -. future .-> DB[(MongoDB)]
-  UI --> DEMO[Local demo storage]
+  B[React and TypeScript] --> A[Same-origin FastAPI /api]
+  A --> M[(MongoDB Atlas)]
+  A --> G[Google identity token verification]
+  A --> I[Approved iCal HTTPS provider feeds]
+  B --> L[Local UI preferences]
 ```
 
-### Responsibilities
+## Technology and responsibility
 
-React renders views, validates forms for usability and calls typed services.
-**The Python backend** will own authentication, authorization, persistence,
-validation, reminder scheduling and all sensitive operations. MongoDB access
-happens only from Python. No MongoDB secrets or Python backend credentials
-should ever be exposed as `VITE_*` environment variables.
+React, Vite and TypeScript render the responsive application. Vercel serves the frontend and the root Python Function through the same hostname. Python FastAPI validates identity and ownership, accesses MongoDB, and handles subscribed iCalendar feeds.
 
-The current demo uses localStorage. See `src/react/data/api.ts` for the
-future HTTP boundary; UI pages must not call MongoDB or fetch directly.
+Authentication accepts email/password or Google sign-in. A signed short-lived session is set in a Secure, HttpOnly, SameSite cookie on `/api`. Google sign-in currently verifies identity only: Google Calendar read/write OAuth scopes are **not** included.
 
-### API proposal (not implemented)
+Tasks and calendar events use individual owner-scoped API endpoints. Notes, chapters, subscriptions and challenge progress currently use the owner-scoped aggregate `/api/workspace` endpoint. A future design should split these writes into concurrency-safe resources.
 
-Version future endpoints under `/api/v1`, including session/account,
-tasks, notes, events, subscriptions, challenges and health checks.
-Define a shared OpenAPI contract with typed request/response shapes when
-the backend implementation starts. Use string identifiers mapped from
-MongoDB ObjectIds server-side.
+Friends, invitations and sharing use separate MongoDB `friendships` and `shares` collections. The server checks ownership and accepted friendships, including on subsequent read requests. The UI refreshes shared read-only notes every 15 seconds while the Shared view is open; there is no collaborative editing server.
 
-### Security requirements
+## Calendar sources
 
-Prefer HTTP-only Secure cookies if frontend and API are deployed on
-compatible origins. Explicitly decide SameSite, CSRF and CORS behaviour
-before cross-origin deployment. Never rely on localStorage display names
-as authentication. Every user-owned document must be authorized in Python,
-including filtered MongoDB queries. Define rate limits, session expiry,
-logging redaction and data deletion.
+Manual .ics import creates an owned copy. A subscribed iCal link can be saved encrypted and refreshed on demand if it belongs to a strict HTTPS provider allowlist. The server rejects redirects and caps file and event sizes. The feed link may contain a private access token; never log or expose it in API responses.
 
-### Deployment
+Neither Google Calendar OAuth, Microsoft Graph, nor Apple CalDAV full account integration is implemented. Automatic scheduled refresh requires a background job, token lifecycle, recurrence handling, timezone normalization and security verification.
 
-Vercel builds the **frontend only**. A continuously running Python API and
-reminder worker require separately chosen backend hosting. MongoDB Atlas
-or another MongoDB deployment can be selected later. There is no assumed
-Vercel-hosted Python service.
+## Security and operations
 
-See [deployment guide](DEPLOYMENT.md) and [team frontend guide](FRONTEND_GUIDE.md).
+Use private Vercel environment variables for MONGODB_URI, JWT_SECRET_KEY and backend Google configuration. Only public Google OAuth client IDs may be prefixed with VITE_. Never place secrets in browser-accessible variables.
+
+Use a stable encryption secret and formal rotation procedure for private feed URLs. Limit query, request sizes and retries, and monitor unusual friend requests or feed fetches. Rate limiting and public-account recovery remain release blockers. See [Security Review](SECURITY_AUDIT.md).
