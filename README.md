@@ -1,26 +1,55 @@
 <div align="center">
 
-<img src="assets/icon.svg" alt="LifeOrbital" width="88"/>
+<img src="assets/icon.svg" width="96" alt="LifeOrbital planet icon" />
 
 # LifeOrbital
 
 **Less organising. More living.**
 
-Your tasks, calendar, notes, subscriptions and everyday progress in one thoughtful workspace.
+Tasks, calendars, notebooks, subscriptions and progress in one calm personal workspace.
+
+[Live App](https://lifeorbit-pearl.vercel.app/) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
-## Start locally
+## Product
 
-Requirements: Node.js 22, npm, Python 3.12.
+| Page | Purpose |
+| --- | --- |
+| Dashboard | Daily overview, upcoming items, goals and spending |
+| Tasks | To-do lists, drag and drop, completion feedback |
+| Calendar | Weekly view, events and one-time .ics import |
+| Notes | Book-style chapters and pages |
+| Subscriptions | Monthly/yearly costs and next renewal |
+| Challenges | Rotating daily and weekly goals, personal progress |
+| Settings | Profile, account credentials, theme and export |
+
+## Technology
+
+React + TypeScript + Vite on the frontend. Python FastAPI + Pydantic on the backend. MongoDB Atlas for persistent account data. Google Identity Services and email/password for authentication. Both frontend and backend deploy together on Vercel.
+
+## Screenshots
+
+These are actual screenshots of an earlier development preview. The latest UI may differ slightly.
+
+| Dashboard | Login |
+| --- | --- |
+| ![Dashboard preview](docs/screenshots/dashboard.webp) | ![Login preview](docs/screenshots/login.webp) |
+
+See [UX Structure](docs/UX_STRUCTURE.md) for page layouts and interaction patterns.
+
+## Run locally
+
+Requirements: Node.js 22 and Python 3.12.
+
+Frontend:
 
 ```bash
 npm install
 npm run dev
 ```
 
-The frontend runs at http://localhost:5173. To start the FastAPI backend
-locally in a second terminal:
+Backend in a separate terminal:
 
 ```bash
 python3 -m venv .venv
@@ -29,60 +58,32 @@ pip install -r requirements.txt
 uvicorn backend.api.index:app --reload --port 8000
 ```
 
-Vite proxies `/api` to port 8000 in local development.
+The frontend runs at http://localhost:5173, with Vite proxying /api to FastAPI.
 
-## Deploy
+## Vercel configuration
 
-The **existing Vercel project** builds the Vite frontend and now includes a
-root `api/index.py` Python Function that exports the FastAPI app from
-`backend/api/index.py`. Both share one hostname, so `/api/*` routes no longer
-need a separate project. This still requires deployment verification.
-
-Configure the *same Vercel project* with:
-
-| Environment variable | Where used |
+| Setting | Scope |
 | --- | --- |
-| `MONGODB_URI` | Python only. Never expose to Vite |
-| `MONGODB_DATABASE` | Python only |
-| `JWT_SECRET_KEY` | Python only; random high-entropy secret |
-| `GOOGLE_CLIENT_ID` | Python token verification |
-| `VITE_GOOGLE_CLIENT_ID` | Public OAuth web client ID bundled at build time |
-| `FRONTEND_ORIGINS` | Python CORS origins, exact HTTPS hostnames |
+| MONGODB_URI | Python only; Atlas driver connection string |
+| MONGODB_DATABASE | Python database name |
+| JWT_SECRET_KEY | Python only; strong signing key |
+| GOOGLE_CLIENT_ID | Python verified Google client |
+| VITE_GOOGLE_CLIENT_ID | Public Google OAuth web client identifier |
+| FRONTEND_ORIGINS | Approved frontend origins |
 
-Do **not** set `VITE_API_BASE_URL` for the same-origin deployment, or set
-it to the frontend origin without an `/api` suffix. A stale API URL will keep
-sending requests to the wrong host. Rebuild and redeploy when changing Vite
-variables.
+Use same-origin /api deployment, without a stale VITE_API_BASE_URL. Never commit .env files.
 
-Check `https://<your-host>/api/health` before testing login. A JSON health
-response proves routing, but not MongoDB connectivity. Configure Atlas network
-access and provision indexes using `backend.api.database.ensure_indexes()`
-once during setup, after making sure indexes do not conflict with old data.
+## Data and security
 
-## Login, database and troubleshooting
+Signed-in tasks, calendar events, notes, chapters, subscriptions and challenge progress are stored per account in MongoDB. Secure HttpOnly cookies are used for signed-in sessions. Google-only credentials remain managed by Google.
 
-The Python backend shares the Vercel hostname with React. After setting a valid
-MongoDB Atlas connection string, verify `/api/health/database` returns JSON
-`{"status":"connected"}`. A 503 means registration and Google sign-in cannot
-persist accounts. The Vercel production logs on 24 October 2026 showed DNS
-NXDOMAIN for `cluster.mongodb.net`: a placeholder Atlas hostname was configured.
+Calendar .ics import copies events into the user's MongoDB account. It does not continuously synchronize Google, Outlook or Apple calendars.
 
-Signed-in sessions use a Secure, HttpOnly, SameSite cookie. Tokens are not stored
-in browser sessionStorage. The guest mode still keeps non-account demo data in
-localStorage. Configure a fresh actual MONGODB_URI privately in Vercel and redeploy.
+The shared leaderboard is not yet implemented. Until real consenting accounts and server-authoritative scores exist, only personal progress is displayed.
 
-## What works
+Email changes for local password accounts currently require the existing password, but new-email verification is not yet implemented. Do not open that feature for unrestricted public production use until verification, rate limiting, account recovery and session revocation have been reviewed.
 
-React and TypeScript pages, themes, tasks, week calendar, notebook-style notes,
-recurring-subscription projections and challenges. Python implements Google
-login, password login/registration and owner-scoped task and calendar endpoints.
-
-**Persistence:** For signed-in users, tasks, calendar events, notes, notebook chapters,
-subscriptions and personal challenge progress use MongoDB. Guest data remains local
-in the browser. Shared leaderboard scores are still fictional examples. Password recovery, email verification, account deletion and production session
-revocation remain to be implemented. Do not use for sensitive personal data yet.
-
-## Quality gates
+## Verify
 
 ```bash
 npm run typecheck
@@ -92,16 +93,10 @@ python -m compileall -q backend api
 pip-audit -r backend/requirements.txt
 ```
 
-GitHub Actions runs security checks on pull requests and weekly. See
-[security findings](docs/SECURITY_AUDIT.md),
-[backend integration](docs/BACKEND_INTEGRATION.md),
-[frontend guide](docs/FRONTEND_GUIDE.md),
-[contributing](CONTRIBUTING.md), and [changelog](CHANGELOG.md).
+Check /api/health and /api/health/database after deployment.
 
-## Collaboration
+See [Deployment](docs/DEPLOYMENT.md), [Security Audit](docs/SECURITY_AUDIT.md), [Architecture](docs/ARCHITECTURE.md), [Design System](docs/DESIGN_SYSTEM.md) and [Team Workflow](docs/TEAM_WORKFLOW.md).
 
-Developers work on separate page modules in `src/react/pages`; changes
-to shared layout, API types and global CSS require review. Document
-user-facing changes under **Unreleased** before merging.
+## License
 
-Licensed under [MIT](LICENSE).
+[MIT](LICENSE).

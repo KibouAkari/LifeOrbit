@@ -25,7 +25,7 @@ export async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   }
   return response.json() as Promise<T>;
 }
-export interface SignedInUser{id:string;name:string;email:string;picture?:string|null}
+export interface SignedInUser{id:string;name:string;email:string;picture?:string|null;has_password:boolean}
 export interface AuthResponse{user:SignedInUser;expires_in:number}
 export const exchangeGoogleCredential=(token:string)=>request<AuthResponse>("/auth/google",{method:"POST",body:JSON.stringify({token})});
 export const registerAccount=(name:string,email:string,password:string)=>request<AuthResponse>("/auth/register",{method:"POST",body:JSON.stringify({name,email,password})});

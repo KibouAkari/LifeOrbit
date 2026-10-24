@@ -57,6 +57,7 @@ def public_user(user):
     return {
         "id": str(user["_id"]), "name": user.get("name", ""),
         "email": user.get("email", ""), "picture": user.get("picture"),
+        "has_password": bool(user.get("password_hash")),
     }
 
 
@@ -147,7 +148,6 @@ def google_login(payload: GoogleAuthRequest, response: Response):
     else:
         profile = {
             "email": email,
-            "name": info.get("name", user.get("name", "User")),
             "picture": info.get("picture"),
         }
         if db.users.find_one({"email": email, "_id": {"$ne": user["_id"]}}):
@@ -204,3 +204,50 @@ def export_user_data(user_id: str = Depends(get_current_user)):
             {"user_id": user_id}, {"_id": 0, "user_id": 0}
         ) or {},
     }
+
+class EmailChange(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1)
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=12, max_length=72)
+
+
+@router.patch("/email")
+def change_email(payload: EmailChange, user_id: str = Depends(get_current_user)):
+    """Require the existing password before changing a password account's email."""
+    user = find_user(user_id)
+    hashed = user.get("password_hash")
+    if not hashed:
+        raise HTTPException(400, "Google-only accounts manage email through Google")
+    if not passwords.verify(payload.password, hashed):
+        raise HTTPException(403, "Incorrect password")
+    new_email = payload.email.strip().lower()
+    try:
+        updated = get_db().users.find_one_and_update(
+            {"_id": user["_id"]},
+            {"$set": {"email": new_email, "updated_at": datetime.now(timezone.utc)}},
+            return_document=ReturnDocument.AFTER,
+        )
+    except DuplicateKeyError:
+        raise HTTPException(409, "Email already in use")
+    return public_user(updated)
+
+
+@router.patch("/password")
+def change_password(payload: PasswordChange, user_id: str = Depends(get_current_user)):
+    """Password changes are only available to accounts with an existing password."""
+    user = find_user(user_id)
+    hashed = user.get("password_hash")
+    if not hashed:
+        raise HTTPException(400, "This Google account does not have a password")
+    if not passwords.verify(payload.current_password, hashed):
+        raise HTTPException(403, "Incorrect password")
+    get_db().users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password_hash": passwords.hash(payload.new_password),
+                  "updated_at": datetime.now(timezone.utc)}},
+    )
+    return {"updated": True}

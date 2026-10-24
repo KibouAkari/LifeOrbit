@@ -34,4 +34,10 @@ def ensure_indexes():
     db.users.create_index("google_id", unique=True, sparse=True)
     db.tasks.create_index([("user_id", 1), ("order", 1)])
     db.events.create_index([("user_id", 1), ("date", 1)])
+    db.events.create_index(
+        [("user_id", 1), ("source_key", 1)],
+        unique=True,
+        partialFilterExpression={"source": "ical_import"},
+        name="unique_ical_import_per_user",
+    )
     db.workspaces.create_index("user_id", unique=True)

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Crown, Plus, RotateCcw, Trophy, RefreshCw, CheckCircle2, Sparkles } from "lucide-react";
+import { Plus, RotateCcw, Trophy, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { Heading } from "../components/UI";
 import type { Challenge } from "../types";
@@ -41,7 +41,7 @@ export default function Challenges(){
  };
  const accepted=state.challenges;
  const points=accepted.reduce((total,c)=>total+Math.min(c.value,c.target)*10,0);
- const scores=[{id:"alex",name:"Alex",points:180},{id:"taylor",name:"Taylor",points:140},{id:"you",name:state.account||"You",points}].sort((a,b)=>b.points-a.points);
+
  const finished=accepted.filter(c=>c.value>=c.target).length;
  function add(s:Suggestion){
    const id=idFor(s);
@@ -69,10 +69,11 @@ export default function Challenges(){
        <div className="challenge-discover">{available.map(s=><button key={s.title} className="challenge-suggestion" onClick={()=>add(s)}><span><strong>{s.title}</strong><small>{s.period} · {s.target} {s.unit}</small></span><Plus size={18}/></button>)}</div>
        <p className="feedback-line" role="status" aria-live="polite">{message}</p>
      </section>
-     <aside className="ranking"><div className="ranking-heading"><h2>Leaderboard</h2><span className="tag">Preview</span></div><p>Sample people for the design. Shared rankings will be optional.</p>
-       <div className="leaderboard-podium">{[scores[1],scores[0],scores[2]].filter((p):p is typeof scores[number]=>Boolean(p)).map(p=>{const i=scores.findIndex(x=>x.id===p.id);return <div className={`leaderboard-place place-${i+1}`} key={p.id}><div className="leaderboard-profile">{p.name.slice(0,1).toUpperCase()}</div><strong>{p.name}</strong><small>{p.points} pts</small><div className="leaderboard-step">{i===0&&<Crown size={17}/>}#{i+1}</div></div>})}</div>
-       {scores.map((p,i)=><div className="ranking-row" key={p.id}><span className="ranking-position">{i+1}</span><strong>{p.name}</strong><span>{p.points} pts</span></div>)}
-       <p className="ranking-disclaimer"><Sparkles size={14}/> Your progress is real. The other scores are examples.</p>
+     <aside className="ranking">
+       <div className="ranking-heading"><h2>Your progress</h2></div>
+       <div className="personal-ranking"><div className="leaderboard-profile">{(state.account||"U").slice(0,1).toUpperCase()}</div>
+         <div><strong>{state.account||"You"}</strong><p>{points} points earned</p></div></div>
+       <p className="muted">A shared leaderboard will appear when real, opted-in players are available. No fictional accounts are shown.</p>
      </aside>
    </div>
  </div>;
