@@ -1,42 +1,78 @@
-import { useEffect,useState,type FormEvent } from "react";
-import { LogOut,UserRound,Palette,ShieldCheck } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Download, LogOut, Palette, ShieldCheck, UserRound } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { currentUser,hasSession,type SignedInUser } from "../data/api";
+import { currentUser, hasSession, request, type SignedInUser } from "../data/api";
 import { Heading } from "../components/UI";
 import type { Theme } from "../types";
 
 export default function Settings(){
  const {state,patch,reset}=useApp();
  const [user,setUser]=useState<SignedInUser|null>(null);
- const [message,setMessage]=useState("");
  const [name,setName]=useState(state.account);
- const signedIn=hasSession();
- useEffect(()=>{if(signedIn)void currentUser().then(setUser).catch(()=>setMessage("Could not load your profile."));},[signedIn]);
- function save(e:FormEvent){e.preventDefault();if(!name.trim())return;
-   if(signedIn){setMessage("Profile editing is not yet supported by the server.");return;}
-   patch("account",name.trim());setMessage("Name updated");
+ const [message,setMessage]=useState("");
+ const [busy,setBusy]=useState(false);
+ const authenticated=hasSession();
+
+ useEffect(()=>{
+   if(authenticated)void currentUser().then(data=>{setUser(data);setName(data.name)}).catch(()=>setMessage("Unable to load profile."));
+ },[authenticated]);
+
+ async function save(e:FormEvent){
+   e.preventDefault();
+   if(name.trim().length<2)return;
+   setBusy(true);setMessage("");
+   try{
+     if(authenticated){
+       const result=await request<SignedInUser>("/auth/me",{method:"PATCH",body:JSON.stringify({name:name.trim()})});
+       setUser(result);patch("account",result.name);
+     }else patch("account",name.trim());
+     setMessage("Profile saved");
+   }catch(err){setMessage(err instanceof Error?err.message:"Could not save profile");}
+   finally{setBusy(false);}
  }
- return <div className="work-page"><Heading title="Settings" description="Your account and preferences."/>
+
+ async function exportData(){
+   setBusy(true);setMessage("");
+   try{
+     const data=await request<unknown>("/auth/export");
+     const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+     const url=URL.createObjectURL(blob);
+     const link=document.createElement("a");
+     link.href=url;link.download="lifeorbital-account-data.json";
+     document.body.appendChild(link);link.click();link.remove();
+     URL.revokeObjectURL(url);
+     setMessage("Account export prepared");
+   }catch(err){setMessage(err instanceof Error?err.message:"Export unavailable");}
+   finally{setBusy(false);}
+ }
+
+ return <div className="work-page"><Heading title="Settings" description="Your account, your way."/>
   <div className="settings-clean">
    <section className="surface-card settings-profile">
-     <div className="settings-portrait">{(user?.name||state.account||"G")[0].toUpperCase()}</div>
-     <div><h2>{user?.name||state.account||"Guest"}</h2><p>{user?.email||(signedIn?"Account connected":"Guest workspace")}</p></div>
-     <span className="settings-status">{signedIn?"Signed in":"Guest"}</span>
+     <div className="settings-portrait">{(user?.name||state.account||"G").slice(0,1).toUpperCase()}</div>
+     <div><h2>{user?.name||state.account||"Guest"}</h2><p>{user?.email||(authenticated?"Account":"Guest workspace")}</p></div>
+     <span className="settings-status">{authenticated?"Signed in":"Guest"}</span>
    </section>
    <section className="surface-card settings-section"><h2><UserRound size={19}/> Profile</h2>
-     <form onSubmit={save} className="form"><label className="form-label">Display name<input className="input" value={name} maxLength={70} onChange={e=>setName(e.target.value)} required/></label>
-     <button className="button" type="submit" disabled={signedIn}>Save name</button></form>
-     {signedIn&&<p className="muted tiny">Your registered profile is managed on the server. Editing will be available after the account API is implemented.</p>}
+     <form className="form" onSubmit={save}>
+       <label className="form-label">Display name<input className="input" required minLength={2} maxLength={70} value={name} onChange={e=>setName(e.target.value)}/></label>
+       <button className="button primary" disabled={busy||name.trim().length<2}>Save changes</button>
+     </form>
    </section>
    <section className="surface-card settings-section"><h2><Palette size={19}/> Appearance</h2>
-    <label className="form-label">Theme<select className="select" value={state.theme} onChange={e=>{patch("theme",e.target.value as Theme);setMessage("Theme updated");}}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+     <label className="form-label">Theme<select className="select" value={state.theme} onChange={e=>{patch("theme",e.target.value as Theme);setMessage("Appearance updated");}}>
+       <option value="system">Match device</option><option value="light">Light</option><option value="dark">Dark</option>
+     </select></label>
    </section>
-   <section className="surface-card settings-section settings-access"><h2><ShieldCheck size={19}/> Privacy & access</h2>
-    <p className="muted">{signedIn?"Account access is protected by a short-lived HttpOnly cookie.":"Guest data stays in this browser."}</p>
-    <div className="settings-links"><a href="#/privacy">Privacy policy</a><a href="#/terms">Terms of service</a></div>
-    {!signedIn&&<button className="button" onClick={()=>{if(confirm("Reset your local guest workspace?")){reset();setName("");setMessage("Guest workspace reset");}}}>Reset guest data</button>}
-    <button className="button" onClick={()=>window.dispatchEvent(new Event("lifeorbit:logout"))}><LogOut size={16}/> Sign out</button>
+   <section className="surface-card settings-section settings-access">
+     <h2><ShieldCheck size={19}/> Account & privacy</h2>
+     <div className="settings-links"><a href="#/privacy">Privacy policy</a><a href="#/terms">Terms of service</a></div>
+     <div className="actions">
+       {authenticated&&<button className="button" disabled={busy} onClick={()=>void exportData()}><Download size={16}/> Export my data</button>}
+       {!authenticated&&<button className="button" onClick={()=>{if(confirm("Reset all guest data on this device?")){reset();setName("");setMessage("Guest workspace reset");}}}>Reset guest data</button>}
+       <button className="button" onClick={()=>window.dispatchEvent(new Event("lifeorbit:logout"))}><LogOut size={16}/> Sign out</button>
+     </div>
    </section>
-  </div><p className="feedback-line" role="status">{message}</p>
+  </div><p className="feedback-line" role="status" aria-live="polite">{message}</p>
  </div>;
 }
