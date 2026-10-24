@@ -25,7 +25,7 @@ def create_task(data: TaskInput, user: str = Depends(get_current_user)):
 def edit_task(task_id: str, data: TaskPatch, user: str = Depends(get_current_user)):
     if not ObjectId.is_valid(task_id):
         raise HTTPException(400, "Invalid task ID")
-    fields = data.model_dump(exclude_none=True)
+    fields = data.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(400, "No changes")
     doc = get_db().tasks.find_one_and_update(
