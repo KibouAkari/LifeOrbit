@@ -10,8 +10,8 @@ This is a **draft**, not a claim that the hackathon progress has happened. Repla
 | --- | --- | --- |
 | 0:00–0:25 | Problem | “Between school, work and personal projects, dates, tasks and notes end up in different places. Keeping track of the important things takes effort.” |
 | 0:25–0:50 | Idea | “LifeOrbit gives you a calm overview of tasks, calendars, shared notes, subscriptions and small challenges in one place. It is designed for young people managing busy everyday schedules.” |
-| 0:50–1:50 | Live demo | Open the app and demonstrate **one complete, reliable scenario**, ideally a new hackathon feature. State which parts already existed. |
-| 1:50–2:20 | Verifiable progress | “Before the hackathon, [verified baseline]. In the 24 hours we implemented [specific change], validated by [commit/test/demo]. The result was [observed outcome].” |
+| 0:50–1:50 | Live demo | Open the app and demonstrate **one complete, reliable scenario**, focusing on a complete workflow that the team built during the hackathon. |
+| 1:50–2:20 | Verifiable progress | “We started by collecting our ideas and features in Miro. Then we split up the work, clarified requirements, chose our database, languages and frameworks, and built LifeOrbit from scratch. [Mention actual completed functionality and one test or commit.]” |
 | 2:20–2:45 | Value / next steps | “Our test users [actual feedback, if available]. Next we would prioritise [one concrete limitation] and [one justified product step].” |
 | 2:45–3:00 | Close | “LifeOrbit is not a finished commercial product. It is a working step toward simpler planning. Here is the repository and what we learned.” |
 
@@ -22,12 +22,12 @@ Suggested talk speed and demo time require rehearsal. Cut features rather than e
 - Keep at most 3–4 clear visual beats. Do not scroll through every LifeOrbit page.
 - Use fake demo data and two dedicated accounts, never real credentials.
 - Use a visible cursor, readable browser zoom and prepared target pages.
-- Name **the exact 24-hour improvement**. Do not attribute earlier repository work to the event.
+- Name **the exact 24-hour improvement**. Use the real Miro planning material and repository history to explain what happened; do not invent timings or individual contributions.
 - Keep one short pre-recorded fallback only if necessary, clearly marked as a recording.
 
 ## Likely jury questions
 
-**What is new?** Show pre-event baseline, event commits and a side-by-side behaviour change.
+**What is new?** Show the original Miro plan, technology decisions, initial commits, team contributions and final working prototype.
 
 **Why not just Google Calendar / Apple Notes / Microsoft To Do?** Those are capable established tools; LifeOrbit tests a single approachable personal dashboard with small-group collaboration and challenges. Avoid claims of objective superiority without evidence.
 
