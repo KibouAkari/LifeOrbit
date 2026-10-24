@@ -1,5 +1,5 @@
 export type Theme = "light" | "dark" | "system";
-export type Task = { id: string; title: string; done: boolean; order?: number };
+export type Task = { id: string; title: string; done: boolean; order?: number; due_at?: string | null };
 export type Note = { id: string; title: string; body: string; chapter_id: string };
 export type Chapter = { id: string; name: string };
 export type Event = { id: string; title: string; date: string; start_time?: string | null; end_time?: string | null; source?: string; source_id?: string | null; source_name?: string | null };
