@@ -93,13 +93,11 @@ npm run build
 python -m compileall -q backend api
 ```
 
-## Zentral Hack documentation
+## Zentral Hack project documentation
 
-The challenge-specific documentation is kept **in the repository, not on the website**. It includes the exact MUST/SHOULD requirement mapping, the original problem, a dated 24-hour development log, demo plan, three-minute pitch, feedback template, business hypotheses and disclosures of third-party/AI tools.
+LifeOrbit entstand während des Zentral Hacks: Wir entschieden uns zu Beginn für die Idee, sammelten Funktionen in Miro, strukturierten und verteilten die Aufgaben, legten die Technologien fest und entwickelten den Prototyp von Grund auf.
 
-**[Read the Zentral Hack dossier](docs/hackathon/README.md)** · [Requirements](docs/hackathon/REQUIREMENTS.md) · [Pitch](docs/hackathon/PITCH.md) · [Evidence](docs/hackathon/EVIDENCE.md)
-
-The project predates the hackathon; event-specific results will be entered only after they actually occur.
+Der Projektverlauf, die technischen Entscheidungen und das Ergebnis sind in der [Zentral-Hack-Projektdokumentation](docs/hackathon/README.md) beschrieben.
 
 ## Documentation
 
