@@ -64,3 +64,13 @@ Calendar gestures need manual regression tests with mouse, touch, narrow-screen 
 Events are styled by stable calendar-source colors derived from their source identifiers. Incoming friend event invitations and note shares are included in the account's unread notifications. An account-scoped read record is persisted in MongoDB; the frontend refreshes unread counts while the app is open.
 
 Tasks support an optional timezone-aware ISO deadline stored as a MongoDB datetime. They appear as reminders when due within one hour. This is a polling in-app reminder, not a guaranteed push at exactly one hour before the deadline and not a background message if the app is closed.
+
+## Follow-up: shared pages, calendar refresh and mobile
+
+Personal notes can be moved into an owner-controlled Shared notebook. The API copies the page to the shared collection before removing it from the private workspace. Shared pages now have their own delete endpoint and editor action distinct from owner-only notebook deletion. Shared notebook invitations contribute to the notification bell. The old Received notes tab is retired.
+
+A MongoDB timestamp read without tzinfo was previously compared with a timezone-aware timestamp during feed refresh; this is now normalized to UTC. An invalid stored encryption token returns a controlled error telling the user to reconnect the feed. The endpoint still uses manual refresh and a minimum refresh interval.
+
+Calendar drag and resize uses window-level pointermove/pointerup handling rather than relying solely on browser pointer capture. This is intended to improve Firefox/Zen and touch handling; interactive regression testing remains required. Mobile subscription cards and the notification overlay now fit narrow viewports.
+
+New workspaces opt into the ranking by default. This changes default account discoverability and should be reviewed as part of the app privacy policy and launch consent design.
