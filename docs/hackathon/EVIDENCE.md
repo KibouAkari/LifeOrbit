@@ -1,6 +1,6 @@
 # Evidence index and final deliverables
 
-Use this table to make the 24-hour contribution independently verifiable. **No new hackathon results have been entered yet.**
+Use this table to make the 24-hour contribution independently verifiable. The team has described the project's start in Miro and subsequent development from scratch. Links and detailed outcomes still need to be supplied.
 
 ## Project identifiers
 
@@ -9,10 +9,10 @@ Use this table to make the 24-hour contribution independently verifiable. **No n
 | Repository | https://github.com/KibouAkari/LifeOrbit | Repository visibility at submission: verify |
 | Live application | https://www.lifeorbit.dev/ | Availability during demo: verify |
 | Original problem and audience | [Problem & solution](PROBLEM_AND_SOLUTION.md) | Written hypothesis |
-| Existing product background | [README](../../README.md), [Product](../PRODUCT.md) | Existing code and documentation |
-| Pre-event baseline SHA/tag | **Pending** | Must be frozen before the event |
+| Original ideation | Miro board link or exported planning screenshots: **Pending** | Ideas and feature collection from the beginning of the hackathon |
+| First implementation commit | **Pending link** | First code written following ideation and architecture choices |
 | Final event SHA/tag | **Pending** | Must reference the event's final result |
-| Event change comparison | **Pending** | Compare exact commits from baseline to final |
+| Planning-to-prototype progression | **Pending evidence** | Miro → task split → technology choices → code → running demo |
 | 3-minute pitch/rehearsal | [Pitch](PITCH.md) | Recording/timing pending |
 | User testing | [Validation](VALIDATION.md) | Actual participant observations pending |
 | License/AI disclosures | [Technology & AI](TECHNOLOGIES_AND_AI.md) | Team sign-off pending |
@@ -21,7 +21,8 @@ Use this table to make the 24-hour contribution independently verifiable. **No n
 
 | Evidence | Filename/link | Date | Actual result | Owner |
 | --- | --- | --- | --- | --- |
-| Before screenshots | Pending | Pending | Pending | Pending |
+| Miro ideation and feature board | Pending | Pending | Pending | Pending |
+| Architecture and task division | Pending | Pending | Pending | Pending |
 | After screenshots | Pending | Pending | Pending | Pending |
 | Functional video | Pending | Pending | Pending | Pending |
 | Test account invitation and RSVP | Pending | Pending | Pending | Pending |
@@ -45,7 +46,7 @@ Screenshots and videos must show the **actual tested app**, not AI-generated moc
 
 ## Honesty checklist
 
-- [ ] Old features are not labelled as developed during the 24-hour event
+- [ ] Project creation and feature delivery are backed by the real Miro and commit chronology
 - [ ] Failed tests and limitations remain visible
 - [ ] Sample sizes and feedback numbers are genuine
 - [ ] No customer, employer or personal secrets are disclosed
