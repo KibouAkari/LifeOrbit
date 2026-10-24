@@ -126,6 +126,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           method: "PUT",
           body: JSON.stringify(workspace),
         });
+        window.dispatchEvent(new Event("lifeorbit:workspace-saved"));
       }).catch(error => console.error("Workspace save failed", error));
     }, 900);
     return () => clearTimeout(handle);
