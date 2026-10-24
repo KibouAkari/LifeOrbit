@@ -41,3 +41,5 @@ def ensure_indexes():
         name="unique_ical_import_per_user",
     )
     db.workspaces.create_index("user_id", unique=True)
+    db.friendships.create_index("pair", unique=True)
+    db.friendships.create_index([("recipient",1),("status",1)])
