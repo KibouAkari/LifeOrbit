@@ -28,7 +28,11 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 
 Tasks can have a due date and time. The application polls for unread event invitations, shared notes and tasks due within the next hour, showing a badge in the top bar. Read state is persisted in MongoDB. **Notifications currently work inside the running app only.** Background push reminders while the browser is closed require a scheduled backend job and Web Push registration.
 
-Each calendar source gets its own stable accent color, including imported calendars and invited events.\n\n## Friends and sharing
+Each calendar source gets its own stable accent color, including imported calendars and invited events.\n\n## Notes and shared notebooks
+
+The Notes workspace has **My notes** and **Shared notebooks** only. A personal note can be moved into a new shared notebook; its original content is transferred before the personal entry is removed. Confirmed friends can be invited. Shared notebook pages can be saved or deleted individually. Deleting an entire notebook is a separate, owner-only action.
+
+## Friends and sharing
 
 Friend requests refresh periodically and when the browser returns to focus. Private notes can be shared read-only with friends. Shared notebooks can also be created under Notes, with confirmed friends invited and pages saved into MongoDB.
 

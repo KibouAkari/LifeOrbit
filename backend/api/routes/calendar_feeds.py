@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 import requests
 from bson import ObjectId
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, Depends, HTTPException
 from icalendar import Calendar
 from pydantic import BaseModel, Field
@@ -157,9 +157,14 @@ def refresh_feed(feed_id:str,user:str=Depends(get_current_user)):
     db=get_db();feed=db.calendar_feeds.find_one({"_id":ObjectId(feed_id),"user_id":user})
     if not feed:raise HTTPException(404,"Subscribed calendar not found")
     previous=feed.get("last_synced")
+    if previous and previous.tzinfo is None:
+        previous=previous.replace(tzinfo=timezone.utc)
     if previous and (datetime.now(timezone.utc)-previous).total_seconds()<300:
         raise HTTPException(429,"Calendar was updated recently. Try again in five minutes.")
-    raw=cipher().decrypt(feed["url_encrypted"].encode()).decode()
+    try:
+        raw=cipher().decrypt(feed["url_encrypted"].encode()).decode()
+    except (InvalidToken, ValueError):
+        raise HTTPException(422,"Calendar link cannot be decrypted. Remove and reconnect this calendar.")
     events=fetch_events(raw)
     apply_events(db,user,feed,events)
     return output(feed)

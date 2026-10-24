@@ -56,7 +56,7 @@ class Workspace(BaseModel):
     subscriptions: list[Subscription] = Field(default_factory=list, max_length=300)
     challenges: list[Challenge] = Field(default_factory=list, max_length=100)
     templates: list[Template] = Field(default_factory=list,max_length=100)
-    leaderboard_opt_in: bool = False
+    leaderboard_opt_in: bool = True
 
 @router.get("", response_model=Workspace)
 def read_workspace(user: str = Depends(get_current_user)):

@@ -9,6 +9,9 @@ from backend.api.routes.auth import get_current_user
 router=APIRouter()
 class NotebookInput(BaseModel):
     title:str=Field(min_length=1,max_length=80)
+class MoveNoteInput(BaseModel):
+    note_id:str=Field(min_length=1,max_length=80)
+
 class MemberInput(BaseModel):
     user_id:str=Field(min_length=24,max_length=24)
 class PageInput(BaseModel):
@@ -47,6 +50,22 @@ def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user)):
     doc["_id"]=db.shared_notebooks.insert_one(doc).inserted_id
     return serialize(db,doc,user)
 
+@router.post("/from-note",status_code=201)
+def move_personal_note(data:MoveNoteInput,user:str=Depends(get_current_user)):
+    """Copy first, then remove the personal source. Never delete source on failed copy."""
+    db=get_db()
+    existing=db.shared_notebooks.find_one({"owner":user,"origin_note_id":data.note_id})
+    if existing:return serialize(db,existing,user)
+    workspace=db.workspaces.find_one({"user_id":user},{"notes":1}) or {}
+    note=next((n for n in workspace.get("notes",[]) if n.get("id")==data.note_id),None)
+    if not note:raise HTTPException(404,"Personal note not found")
+    page={"id":data.note_id,"title":note.get("title") or "Untitled note","body":note.get("body") or ""}
+    doc={"owner":user,"origin_note_id":data.note_id,"title":page["title"],
+         "members":[],"pages":[page],"updated_at":datetime.now(timezone.utc)}
+    result=db.shared_notebooks.insert_one(doc);doc["_id"]=result.inserted_id
+    db.workspaces.update_one({"user_id":user},{"$pull":{"notes":{"id":data.note_id}}})
+    return serialize(db,doc,user)
+
 @router.post("/{id}/members")
 def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user)):
     db=get_db();book=locate(db,id,user)
@@ -76,6 +95,15 @@ def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_
                 {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
             if not updated.matched_count:raise HTTPException(400,"Notebook is full")
     return {"saved":True}
+
+@router.delete("/{id}/pages/{page_id}")
+def delete_page(id:str,page_id:str,user:str=Depends(get_current_user)):
+    book=locate(get_db(),id,user)
+    result=get_db().shared_notebooks.update_one(
+        {"_id":book["_id"],"pages.id":page_id},
+        {"$pull":{"pages":{"id":page_id}},"$set":{"updated_at":datetime.now(timezone.utc)}})
+    if not result.modified_count:raise HTTPException(404,"Page not found")
+    return {"removed":True}
 
 @router.delete("/{id}")
 def delete_notebook(id:str,user:str=Depends(get_current_user)):

@@ -4,6 +4,17 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Notes, iCal, cross-browser calendar and mobile fixes
+- Redesigned Notes with two clear modes, refined chapter rows, and removed legacy Received notes.
+- Added owner-controlled individual shared page deletion; deleting a page no longer deletes its notebook.
+- Added Move to Shared for personal notes, creating a shared notebook without losing the original content before confirmation.
+- Fixed calendar refresh failures involving timezone-naive MongoDB timestamps; invalid feed encryption now produces a clear user-facing error.
+- Rebuilt calendar move/resize gestures with window-level pointer listeners for Firefox/Zen and cross-day dragging.
+- Consolidated notification counters into the bell; shared notebook invitations appear as unread notifications.
+- Improved small-screen subscriptions, Notes, calendar toolbar and notification popover.
+- Enable leaderboard participation by default for new users while retaining existing users' explicit opt-outs.
+
+
 ### 2026-10-24 · Calendar colors, invitations and task deadlines
 - Each calendar source has a stable distinct accent color across week and month views.
 - Added task due date and time editing persisted in MongoDB.

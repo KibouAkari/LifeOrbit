@@ -336,3 +336,46 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .orbit-alert-panel{position:absolute;right:0;top:calc(100% + 9px);background:var(--surface);border:1px solid var(--line);border-radius:15px;width:min(340px,90vw);padding:16px;z-index:100;box-shadow:var(--shadow)}
 .orbit-alert-panel>div{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.orbit-alert-panel a{color:var(--text);font-size:13px;flex:1}.orbit-alert-panel button{background:none;border:0;color:var(--muted);cursor:pointer}
 @media(max-width:650px){.inline-add{flex-wrap:wrap}.task-datetime{flex:1;max-width:none;min-width:160px}.task-item{flex-wrap:wrap;gap:8px}.task-item .text-button{margin-left:auto}}
+
+/* Notes: one clear navigation hierarchy, unobtrusive chapter actions. */
+.notes-refined{grid-template-columns:minmax(160px,205px) minmax(190px,245px) minmax(0,1fr);min-height:590px}
+.notes-refined .notebook-chapters{padding:17px 12px}
+.notes-refined .chapter-row{border:0;border-radius:10px;padding:2px 4px;align-items:center;gap:3px;margin:3px 0}
+.notes-refined .chapter-row.chapter-active{background:var(--accent-soft)}
+.notes-refined .chapter-row .chapter-select{display:flex;align-items:center;gap:10px;min-width:0;flex:1;width:auto;padding:10px 7px;border:0;outline:0;background:transparent;color:var(--text);font-size:13px;font-weight:550;border-radius:7px;box-shadow:none;text-align:left}
+.notes-refined .chapter-select span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notes-refined .chapter-active .chapter-select{color:var(--accent-text);font-weight:650}
+.notes-refined .chapter-remove{height:34px;min-height:34px;flex-basis:30px;opacity:0}
+.notes-refined .chapter-row:hover .chapter-remove,.notes-refined .chapter-remove:focus-visible{opacity:.8}
+.notes-refined .notebook-editor-actions{flex-wrap:wrap;gap:10px}
+.notes-refined .notebook-editor-actions .button{margin-left:auto}
+.shared-note-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.shared-note-actions .button:not(.primary){color:var(--muted)}
+/* Keep all subscription controls inside the viewport on compact screens. */
+@media(max-width:800px){
+ .subscription-overview{display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+ .subscription-overview>div{flex:1 1 135px;min-width:0}
+ .subscription-overview>.button{width:100%;justify-content:center}
+ .subscription-list{width:100%;min-width:0}
+ .subscription-item{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:10px;padding:15px}
+ .subscription-item>div:nth-child(2){grid-column:2/-1;min-width:0}
+ .subscription-item>strong{grid-column:2;min-width:0;overflow-wrap:anywhere}
+ .subscription-item>button{justify-self:end}
+ .subscription-item small{white-space:normal;overflow-wrap:anywhere}
+ .subscription-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .subscription-form label{min-width:0}
+ .subscription-form .input,.subscription-form .select{min-width:0;width:100%;max-width:100%}
+}
+@media(max-width:600px){
+ .subscription-form{grid-template-columns:minmax(0,1fr)}
+ .notes-refined{display:flex;flex-direction:column;min-height:0}
+ .notes-refined .notebook-chapters{max-height:200px}
+ .notes-refined .chapter-remove{opacity:.75}
+ .calendar-rework .calendar-toolbar{display:flex;flex-direction:column;align-items:stretch}
+ .calendar-rework .calendar-toolbar .actions{width:100%;display:flex;flex-wrap:wrap}
+ .calendar-rework .calendar-period-label{order:-1;width:100%;text-align:left}
+ .calendar-rework .calendar-feed-form,.calendar-rework .calendar-editor{max-width:100%;min-width:0}
+ .orbit-timeline-shell{max-width:calc(100vw - 32px);overflow-x:auto}
+ .orbit-alert-panel{position:fixed;top:65px;left:12px;right:12px;width:auto;max-width:none;max-height:calc(100dvh - 90px);overflow-y:auto;z-index:1000}
+}
+@media(prefers-reduced-motion:reduce){.notes-refined .chapter-row,.orbit-timed-event{transition:none!important}}
