@@ -4,6 +4,26 @@ All changes remain under Unreleased until a verified release.
 
 ## [Unreleased]
 
+### 24 October 2026 · Deployment and security repairs
+- Located production 404 root cause: the Vercel project deployed only Vite and had no live Python API.
+- Added an in-project FastAPI function entrypoint, explicit Python requirements and /api routing configuration.
+- Fixed Vercel Python requirements parser rejecting the -r inclusion directive.
+- Fixed runtime import failure caused by missing requests dependency for Google token validation.
+- Normalized Python backend imports for the monorepo.
+- Added scheduled npm and Python dependency vulnerability checks.
+- Added a severity-based security audit and a release-blocker list.
+- Confirmed existing auth, MongoDB indexes and JWT lifecycle still need public production hardening.
+
+### Earlier changes (unreleased)
+- Initial GitHub documentation, contribution guide, license, issue templates and release rules.
+- React and TypeScript migration with Vite, page modules and shared design system.
+- Dashboard, light/dark themes, navigation and animated logo entrance.
+- Tasks with feedback and drag/drop; calendar week view; notebook chapters and local notes.
+- Subscriptions with monthly/yearly renewals; challenges with sample leaderboard.
+- Google identity integration and basic MongoDB-backed calendar and task endpoints.
+- Email/password registration, login, settings, privacy and terms drafts.
+
+
 ### Added
 - MongoDB email/password registration and login alongside Google OAuth, with bcrypt password hashing.
 - Account form with login/register tabs, password visibility control and actionable OAuth environment guidance.

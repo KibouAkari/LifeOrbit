@@ -1,19 +1,18 @@
-# Release checklist
+# Releases
 
-LifeOrbit uses a manual changelog-first release process until automation
-is validated.
+LifeOrbital uses Keep a Changelog style and separates planned changes from
+verified releases.
 
-1. Confirm changes have been reviewed and tested.
-2. Audit `CHANGELOG.md` > Unreleased for accurate Added, Changed, Fixed
-   and Security items. Remove empty categories if appropriate.
-3. Decide the next SemVer version. No version is implied by a planned badge.
-4. Move released items under `## [X.Y.Z] - YYYY-MM-DD`.
-5. Leave a fresh `## [Unreleased]` section above the release.
-6. Open and merge a release PR.
-7. Tag the merge commit `vX.Y.Z` and publish GitHub release notes based
-   on the changelog.
-8. Check documentation links and the release artifact/demo.
-9. Record regressions as new issues and Unreleased changelog entries.
+## Merge checklist
 
-Never claim the app is deployed or production-ready without verification.
-A feature is not released merely because it appears in a roadmap.
+1. Review code and check TypeScript/build CI.
+2. Check `npm audit` and `pip-audit` results, and resolve blocking findings.
+3. Verify the deployed `/api/health` endpoint.
+4. Verify Google OAuth and email/password login against real backend.
+5. Test MongoDB ownership isolation and actual account persistence.
+6. Review mobile views, keyboard accessibility and reduced-motion behaviour.
+7. Update CHANGELOG.md under Unreleased for user-visible changes.
+8. Review privacy/terms content with the real operator information.
+
+Only move items into a dated SemVer release after every required gate passes.
+Do not claim production readiness from a frontend-only Vercel build.

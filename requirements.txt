@@ -1,0 +1,11 @@
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
+pymongo>=4.9,<5
+pydantic>=2.10,<3
+email-validator>=2.2,<3
+google-auth>=2.35,<3
+PyJWT>=2.9,<3
+python-dotenv>=1.0,<2
+passlib[bcrypt]>=1.7.4,<2
+bcrypt>=4.0,<4.1
+requests>=2.32,<3
