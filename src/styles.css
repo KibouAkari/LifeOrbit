@@ -379,3 +379,23 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
  .orbit-alert-panel{position:fixed;top:65px;left:12px;right:12px;width:auto;max-width:none;max-height:calc(100dvh - 90px);overflow-y:auto;z-index:1000}
 }
 @media(prefers-reduced-motion:reduce){.notes-refined .chapter-row,.orbit-timed-event{transition:none!important}}
+
+/* Event actions work with mouse context menus and touch-friendly buttons. */
+.orbit-event-more{position:absolute;top:2px;right:3px;z-index:4;display:grid;place-items:center;border:0;border-radius:5px;width:24px;height:23px;background:color-mix(in srgb,var(--surface) 60%,transparent);color:inherit;cursor:pointer}
+.orbit-event-label{padding-right:22px}
+.orbit-menu-dismiss{position:fixed;inset:0;background:transparent;border:0;z-index:1100;cursor:default}
+.orbit-event-menu{position:fixed;z-index:1101;width:196px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:0 14px 38px rgba(0,0,0,.24);animation:orbit-pop .16s ease both}
+.orbit-event-menu button{width:100%;display:flex;align-items:center;gap:12px;padding:12px 11px;background:transparent;color:var(--text);border:0;border-radius:8px;text-align:left;cursor:pointer}
+.orbit-event-menu button:hover,.orbit-event-menu button:focus-visible{background:var(--surface-alt)}
+.orbit-event-menu .danger{color:#e47777}
+.orbit-event-backdrop{position:fixed;inset:0;z-index:1150;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.58);backdrop-filter:blur(5px);animation:orbit-fade .18s ease both}
+.orbit-event-dialog{position:relative;display:flex;flex-wrap:wrap;gap:13px;width:min(490px,100%);max-height:min(90dvh,800px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:21px;padding:25px;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:orbit-pop .2s ease both}
+.orbit-event-dialog h2{width:100%;margin:0 0 8px;font-size:22px}
+.orbit-event-dialog>.input:first-of-type{width:100%}
+.orbit-event-dialog .button{min-height:40px}
+.orbit-live-toast{position:fixed;right:24px;top:78px;z-index:1200;display:flex;align-items:center;gap:12px;max-width:min(370px,calc(100vw - 24px));padding:15px 16px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface);color:var(--text);border-radius:13px;box-shadow:0 16px 45px rgba(0,0,0,.25);animation:orbit-pop .25s cubic-bezier(.2,.8,.2,1) both}
+.orbit-live-toast button{border:0;background:none;color:var(--muted);margin-left:auto;cursor:pointer}
+@keyframes orbit-pop{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes orbit-fade{from{opacity:0}to{opacity:1}}
+@media(max-width:600px){.orbit-live-toast{top:72px;left:12px;right:12px;max-width:none}.orbit-event-dialog{padding:18px;border-radius:17px}.orbit-event-dialog .input,.orbit-event-dialog .select{width:100%;min-width:0}.orbit-event-dialog .button{flex:1 1 auto}.orbit-event-more{width:29px;height:29px}}
+@media(prefers-reduced-motion:reduce){.orbit-live-toast,.orbit-event-dialog,.orbit-event-backdrop,.orbit-event-menu{animation:none!important}}
