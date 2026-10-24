@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -136,10 +137,17 @@ export default function Calendar(){
   window.addEventListener("focus",refresh);
   return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("focus",refresh)};
  },[online]);
- function showMenu(e:React.MouseEvent,item:CalendarEvent){
+ function showMenu(e:React.MouseEvent<HTMLElement>,item:CalendarEvent){
   e.preventDefault();e.stopPropagation();
-  const width=Math.min(220,window.innerWidth-24);
-  setMenu({item,x:Math.min(e.clientX,window.innerWidth-width-12),y:Math.min(e.clientY,window.innerHeight-190)});
+  // A right-click uses the pointer location; the touch/keyboard action button
+  // anchors beneath itself. Render the menu in document.body to avoid
+  // transformed calendar panes becoming the containing block for fixed CSS.
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pointer=e.type==="contextmenu"&&e.clientX>0&&e.clientY>0;
+  const rawX=pointer?e.clientX:rect.left;
+  const rawY=pointer?e.clientY:rect.bottom+6;
+  setMenu({item,x:Math.max(8,Math.min(rawX,window.innerWidth-204)),
+    y:Math.max(8,Math.min(rawY,window.innerHeight-170))});
  }
  function chooseAction(action:"edit"|"share"|"delete"){
   const item=menu?.item;if(!item)return;
@@ -285,7 +293,7 @@ export default function Calendar(){
     {days.map(day=>{const events=visible(day);const positions=layoutEvents(events);return <div key={iso(day)} data-day={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
       <button className="orbit-day-heading" onClick={()=>open(iso(day))}>{day.toLocaleDateString("en",{weekday:"short"})}<strong>{day.getDate()}</strong></button>
       <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(23*60+45,Math.round((e.clientY-bounds.top)/16)*15));const h=Math.floor(minutes/60);const m=minutes%60;const endMinutes=Math.min(23*60+59,minutes+60);open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.floor(endMinutes/60)).padStart(2,"0")}:${String(endMinutes%60).padStart(2,"0")}`)}}>
-        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(35,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div onContextMenu={e=>item.source!=="invited"&&showMenu(e,item)} className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>{if((e.target as HTMLElement).closest("button"))return;beginGesture(e,item,"move")}} onClick={e=>e.stopPropagation()} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`,top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
+        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(35,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div onContextMenuCapture={e=>item.source!=="invited"&&showMenu(e,item)} className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>{if((e.target as HTMLElement).closest("button"))return;beginGesture(e,item,"move")}} onClick={e=>e.stopPropagation()} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`,top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
           {item.source!=="invited"&&<button type="button" className="orbit-event-move-handle" aria-label={`Move ${item.title}`} title="Drag to move" onPointerDown={e=>{e.stopPropagation();beginGesture(e,item,"move")}} onClick={e=>e.stopPropagation()}>⋮⋮</button>}
           {item.source!=="invited"&&<button type="button" className="orbit-event-more" title="Event actions" aria-label={`Actions for ${item.title}`} onClick={e=>{e.stopPropagation();showMenu(e,item)}}><MoreHorizontal size={15}/></button>}
           <button className="orbit-event-label" onClick={e=>{e.stopPropagation();item.source==="invited"?void openInvite(item):open(item.date,item)}}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
@@ -294,14 +302,14 @@ export default function Calendar(){
       </div>
     </div>})}
    </div></div>:<div className="weekly-grid calendar-month-grid">{days.map(day=><section key={iso(day)} className={`week-day ${iso(day)===iso(new Date())?"is-today":""} ${day.getMonth()!==base.getMonth()?"out-of-month":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
-     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><div key={item.id} className="orbit-month-event" onContextMenu={e=>item.source!=="invited"&&showMenu(e,item)}><button className={`week-event ${item.source==="invited"?"invited-event":""}`} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`}} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={()=>item.source==="invited"?void openInvite(item):open(item.date,item)}>{caption(item)}</button>{item.source!=="invited"&&<button className="orbit-month-more" aria-label={`Actions for ${item.title}`} onClick={e=>showMenu(e,item)}><MoreHorizontal size={15}/></button>}</div>)}
+     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><div key={item.id} className="orbit-month-event" onContextMenuCapture={e=>item.source!=="invited"&&showMenu(e,item)}><button className={`week-event ${item.source==="invited"?"invited-event":""}`} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`}} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={()=>item.source==="invited"?void openInvite(item):open(item.date,item)}>{caption(item)}</button>{item.source!=="invited"&&<button className="orbit-month-more" aria-label={`Actions for ${item.title}`} onClick={e=>showMenu(e,item)}><MoreHorizontal size={15}/></button>}</div>)}
      <button className="week-add" onClick={()=>open(iso(day))}>+</button>
    </section>)}</div>}
-   {menu&&<><button className="orbit-menu-dismiss" aria-label="Close event actions" onClick={()=>setMenu(null)}/><div className="orbit-event-menu" role="menu" style={{left:menu.x,top:Math.max(12,menu.y)}}>
+   {menu&&createPortal(<><button className="orbit-menu-dismiss" aria-label="Close event actions" onClick={()=>setMenu(null)}/><div className="orbit-event-menu" role="menu" style={{left:menu.x,top:Math.max(12,menu.y)}}>
       <button role="menuitem" onClick={()=>chooseAction("edit")}><Pencil size={16}/> Edit</button>
       <button role="menuitem" onClick={()=>chooseAction("share")}><Share2 size={16}/> Share</button>
       <button role="menuitem" className="danger" onClick={()=>chooseAction("delete")}><Trash2 size={16}/> Delete</button>
-    </div></>}
+    </div></>,document.body)}
    {selectedInvite&&<div className="orbit-event-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedInvite(null)}}>
     <section className="orbit-event-dialog" role="dialog" aria-modal="true" aria-label="Event invitation">
      <h2>{selectedInvite.title}</h2>

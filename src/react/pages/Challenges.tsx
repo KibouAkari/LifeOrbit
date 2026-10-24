@@ -45,10 +45,26 @@ export default function Challenges(){
  const [rank,setRank]=useState<Ranked[]>([]);
  const [now]=useState(()=>new Date());
  const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
- const [received,setReceived]=useState<{id:string;title:string;target:number;unit:string;period?:"daily"|"weekly";shared_by:string}[]>([]);
+ const [received,setReceived]=useState<{id:string;title:string;target:number;unit:string;period?:"daily"|"weekly";shared_by:string;share_id?:string}[]>([]);
  useEffect(()=>{if(!hasSession())return;void Promise.all([request<{friends:typeof friends}>("/friends"),request<typeof received>("/sharing/challenges")]).then(([f,c])=>{setFriends(f.friends);setReceived(c)}).catch(()=>undefined)},[]);
  async function shareChallenge(c:Challenge){if(!friends.length){setMessage("Add a friend in Settings first.");return;}const index=window.prompt("Share with: "+friends.map((p,i)=>`${i+1}. ${p.name}`).join(", ")+"\nEnter number");if(!index)return;const target=friends[Number(index)-1];if(!target){setMessage("Choose a valid friend.");return;}try{await request("/sharing/challenges",{method:"POST",body:JSON.stringify({resource_id:c.id,recipient_id:target.id})});setMessage("Challenge shared with "+target.name)}catch(e){setMessage(e instanceof Error?e.message:"Sharing failed")}}
- function acceptChallenge(c:typeof received[number]){choose({id:newId(),title:c.title,target:c.target,unit:c.unit,period:c.period||"daily"});setMessage("Challenge from "+c.shared_by+" added")}
+ function acceptChallenge(c:typeof received[number]){
+  const origin=c.share_id||`${c.shared_by}:${c.id}`;
+  const date_key=key(c.period||"daily");
+  const id=`shared-${origin}-${date_key}`;
+  const sharedActive=state.challenges.filter(item=>item.value<item.target&&Boolean(item.shared_source)).length;
+  if(state.challenges.some(item=>item.id===id||item.shared_source===origin||
+    (!item.shared_source&&item.value<item.target&&item.title===c.title&&item.target===c.target&&item.unit===c.unit))){
+    setMessage("This shared challenge is already on your list.");return;
+  }
+  if(sharedActive>=2){setMessage("You can have up to 2 shared challenges. Remove one first.");return;}
+  patch("challenges",rows=>[...rows,{id,title:c.title,value:0,target:c.target,unit:c.unit,period:c.period||"daily",date_key,custom:false,shared_source:origin}]);
+  setMessage(`Challenge from ${c.shared_by} added.`);
+ }
+ function removeChallenge(id:string){
+  patch("challenges",rows=>rows.filter(c=>c.id!==id));
+  setMessage("Challenge removed. You can add another.");
+ }
 
  const points=state.challenges.reduce((sum,c)=>sum+Math.min(c.value,c.target)*10,0);
  const completed=state.challenges.filter(c=>c.value>=c.target);
@@ -66,14 +82,6 @@ export default function Challenges(){
   catch{setMessage("Leaderboard could not be refreshed.");}
  }
  useEffect(()=>{
-  if(!state.templates.length)return;
-  patch("challenges",rows=>{
-    const missing=state.templates.filter(t=>!rows.some(c=>c.id===`${t.id}-${t.period}-${key(t.period)}`));
-    if(!missing.length)return rows;
-    return [...rows,...missing.map(t=>({id:`${t.id}-${t.period}-${key(t.period)}`,title:t.title,target:t.target,value:0,unit:t.unit,period:t.period,date_key:key(t.period),custom:true}))];
-  });
- },[state.templates,patch]);
- useEffect(()=>{
    const refresh=()=>void loadRanking();
    window.addEventListener("lifeorbit:workspace-saved",refresh);window.addEventListener("lifeorbit:profile-updated",refresh);
    void loadRanking();
@@ -83,11 +91,13 @@ export default function Challenges(){
   const date_key=key(item.period);
   const id=`${item.id}-${item.period}-${date_key}`;
   if(state.challenges.some(c=>c.id===id)){setMessage("Already added for this period.");return;}
+  if(state.challenges.filter(c=>c.value<c.target&&!c.shared_source).length>=3){setMessage("You can have up to 3 personal challenges. Remove one first.");return;}
   patch("challenges",rows=>[...rows,{id,title:item.title,value:0,target:item.target,unit:item.unit,date_key,period:item.period,custom:state.templates.some(t=>t.id===item.id)}]);
   setMessage("Challenge added.");
  }
  function makeCustom(e:FormEvent){
   e.preventDefault();if(!name.trim()||target<1)return;
+  if(state.challenges.filter(c=>c.value<c.target&&!c.shared_source).length>=3){setMessage("Your 3 personal challenge slots are full.");return;}
   const template={id:newId(),title:name.trim(),target,unit:unit.trim()||"times",period};
   patch("templates",rows=>[...rows,template]);
   choose(template);setName("");setMessage("Your recurring challenge has been saved.");
@@ -106,16 +116,16 @@ export default function Challenges(){
  return <div className="work-page"><Heading title="Challenges" description="One small win at a time."/>
   <div className="challenge-summary"><div><span>Total points</span><strong>{points}</strong><p>{completed.length} completed challenges</p></div><Trophy size={42}/></div>
   <div className="challenge-layout"><section className="challenge-collection">
-   <div className="challenge-section-top"><h2>Active challenges</h2><span>{active.length}</span></div>
+   <div className="challenge-section-top"><h2>Active challenges</h2><span>{active.filter(c=>!c.shared_source).length}/3 personal · {active.filter(c=>c.shared_source).length}/2 shared</span></div>
    {active.length?active.map(c=><article className="challenge-item" key={c.id}>
     <div className="challenge-row"><div><h3>{c.title}</h3><p>{c.value} / {c.target} {c.unit}</p></div><span>{Math.round(c.value/c.target*100)}%</span></div>
     <div className="challenge-meter" role="progressbar" aria-label={c.title} aria-valuenow={c.value} aria-valuemax={c.target} aria-valuemin={0}><span style={{width:`${Math.round(c.value/c.target*100)}%`}}/></div>
-    <div className="actions"><button className="button primary" onClick={()=>increment(c)}><Plus size={16}/> Add progress</button>{friends.length>0&&<button className="button" onClick={()=>void shareChallenge(c)}>Share</button>}</div>
+    <div className="actions"><button className="button primary" onClick={()=>increment(c)}><Plus size={16}/> Add progress</button>{friends.length>0&&<button className="button" onClick={()=>void shareChallenge(c)}>Share</button>}<button className="text-button challenge-remove" onClick={()=>removeChallenge(c.id)}>Remove</button></div>
    </article>):<div className="quiet-empty"><CheckCircle2 size={20}/> All clear. Pick something new below.</div>}
-   {received.length>0&&<div className="saved-challenge-templates"><h3>From friends</h3>{received.map((c,i)=><div key={c.id+i}><strong>{c.title}</strong><span>From {c.shared_by} · {c.target} {c.unit}</span><button className="button" onClick={()=>acceptChallenge(c)}>Add</button></div>)}</div>}
+   {received.length>0&&<div className="saved-challenge-templates"><h3>From friends</h3>{received.map((c,i)=><div key={c.id+i}><strong>{c.title}</strong><span>From {c.shared_by} · {c.target} {c.unit}</span><button className="button" disabled={active.filter(x=>Boolean(x.shared_source)).length>=2||state.challenges.some(x=>x.shared_source===(c.share_id||`${c.shared_by}:${c.id}`))} onClick={()=>acceptChallenge(c)}>Add</button></div>)}</div>}
    {state.templates.length>0&&<div className="saved-challenge-templates"><h3>Your recurring challenges</h3>{state.templates.map(t=><div key={t.id}><strong>{t.title}</strong><span>{t.period} · {t.target} {t.unit}</span><button className="text-button" onClick={()=>patch("templates",rows=>rows.filter(x=>x.id!==t.id))}>Remove</button></div>)}</div>}
    <div className="challenge-section-top challenge-discover-title"><h2>Something new</h2><button className="text-button" onClick={()=>setRefresh(x=>x+1)}><RefreshCw size={16}/> Surprise me</button></div>
-   <div className="challenge-discover">{suggestions.map((c,i)=><button className="challenge-suggestion" key={c.title+i} onClick={()=>choose(c)}><span><strong>{c.title}</strong><small>{c.period==="daily"?"Daily":"Weekly"} · {c.target} {c.unit}</small></span><Plus size={16}/></button>)}</div>
+   <div className="challenge-discover">{suggestions.map((c,i)=><button className="challenge-suggestion" key={c.title+i} disabled={active.filter(x=>!x.shared_source).length>=3} onClick={()=>choose(c)}><span><strong>{c.title}</strong><small>{c.period==="daily"?"Daily":"Weekly"} · {c.target} {c.unit}</small></span><Plus size={16}/></button>)}</div>
    <form className="challenge-custom" onSubmit={makeCustom}><h3>Create a recurring challenge</h3><input className="input" placeholder="Challenge name" aria-label="Challenge name" required maxLength={120} value={name} onChange={e=>setName(e.target.value)}/><div className="challenge-custom-fields"><input className="input" aria-label="Target" type="number" min={1} max={100000} value={target} onChange={e=>setTarget(Number(e.target.value))}/><input className="input" aria-label="Unit" value={unit} maxLength={30} onChange={e=>setUnit(e.target.value)}/><select className="select" aria-label="Recurrence" value={period} onChange={e=>setPeriod(e.target.value as "daily"|"weekly")}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div><button className="button">Add challenge</button></form>
    <p role="status" aria-live="polite" className="feedback-line">{message}</p>
   </section>

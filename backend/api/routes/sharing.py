@@ -143,5 +143,5 @@ def shared_challenges(user:str=Depends(get_current_user)):
         try:require_friend(db,row["owner"],user)
         except HTTPException:continue
         owner=db.users.find_one({"_id":ObjectId(row["owner"])},{"name":1})
-        results.append({**row.get("snapshot",{}),"id":row["resource_id"],"shared_by":(owner or {}).get("name","Member")})
+        results.append({**row.get("snapshot",{}),"id":row["resource_id"],"share_id":str(row["_id"]),"shared_by":(owner or {}).get("name","Member")})
     return results

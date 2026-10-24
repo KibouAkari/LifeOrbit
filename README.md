@@ -24,6 +24,10 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 | Challenges | Rotating daily and weekly goals, personal progress |
 | Settings | Profile, account credentials, theme and export |
 
+## Challenge slots and event menu
+
+LifeOrbit allows up to **3 active personal challenges** and **2 active shared challenges**. A challenge can be removed to free its slot. Shared invitations have stable IDs so they cannot be added multiple times concurrently. Completed challenges no longer occupy active slots. Right-click an owned calendar event to open Edit, Share and Delete at the pointer location; touch and keyboard users can use the event Actions control.
+
 ## Event invitations and account preferences
 
 Invited calendar events can be accepted, declined or removed by the recipient but cannot be edited. The event's participant list shows invitation statuses. Shared notebooks display all members. Unfinished tasks past their deadline appear in Overdue and trigger a red Dashboard warning. Account themes are stored in MongoDB and restored on login across devices; guest theme stays local.
