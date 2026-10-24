@@ -40,7 +40,7 @@ Do not publish invented CHF figures, conversion rates, retention metrics or proj
 
 ## Next development milestones
 
-**Near-term:** complete a verifiable hackathon increment, improve cross-browser reliability, run user testing and close high-priority security gaps.
+**Near-term:** demonstrate the newly built prototype and document the full hackathon development, improve cross-browser reliability, run user testing and close high-priority security gaps.
 
 **Mid-term:** account recovery and verification, concurrency-safe shared pages, reliable scheduled reminders and calendar feed reconciliation.
 
