@@ -4,6 +4,12 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-10-24 · Zentral Hack project documentation
+- Replaced the previous submission-oriented dossier with a cohesive German project narrative about Miro ideation, feature planning, role distribution, architecture, development and results.
+- Removed internal submission checklists, pending tables and jury-optimization framing from the project documentation.
+- Kept transparent descriptions of technical limitations, real source materials, open-source dependencies and ChatGPT assistance.
+
+
 ### 2026-10-24 · Zentral Hack challenge documentation
 - Added a dedicated hackathon dossier mapping all MUST/SHOULD criteria, technical restrictions, resources and judging weights to evidence.
 - Documented the problem hypothesis, target audience, solution, business considerations and responsible project limitations.
