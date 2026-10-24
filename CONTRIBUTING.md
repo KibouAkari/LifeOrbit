@@ -1,51 +1,39 @@
 # Contributing to LifeOrbit
 
-Thanks for helping LifeOrbit feel useful, calm and welcoming.
+Thanks for helping build a calmer everyday planner. We welcome bug reports, small focused improvements, documentation and accessibility work.
 
-## Before you start
+## Before contributing
 
-1. Read [the product brief](docs/PRODUCT.md) and [roadmap](docs/ROADMAP.md).
-2. Check existing issues to avoid duplicate work.
-3. Open an issue before large scope or architecture changes.
-4. Keep changes focused and reviewable.
+Read the [README](README.md), [product brief](docs/PRODUCT.md), [design system](docs/DESIGN_SYSTEM.md) and [architecture](docs/ARCHITECTURE.md). Search existing [issues](https://github.com/KibouAkari/LifeOrbit/issues) and open one before major API or architectural changes.
 
-## Development workflow
+## Development setup
 
-1. Create a short-lived branch from `main`, e.g. `feat/calendar-month-view`.
-2. Make the smallest useful change.
-3. Test functionality and keyboard/mobile behaviour where relevant.
-4. Update `CHANGELOG.md` under **Unreleased** when behaviour or documentation meaningfully changes.
-5. Open a pull request using the template. Link the issue if there is one.
-6. Seek a teammate review before merging.
+Use **Node.js 22** and **Python 3.12**. Follow the exact [local installation steps](README.md#get-started). Do not copy credentials into source files. Run `npm run typecheck`, `npm run build` and `python -m compileall -q backend api` before requesting review.
 
-Use descriptive commits such as `feat: add task completion toggle`,
-`fix: correct timezone conversion` or `docs: clarify setup`.
+## Branches and changes
 
-## Quality expectations
+1. Branch from the latest `main` as `feat/<topic>`, `fix/<topic>` or `docs/<topic>`.
+2. Make focused commits with descriptive messages, for example `fix: handle cancelled calendar move`.
+3. Keep shared React components and design tokens consistent; test desktop, mobile, keyboard and reduced-motion behaviour.
+4. Enforce authorization and validation in FastAPI; do not assume frontend checks secure data.
+5. Add tests for changing behaviour, especially ownership, calendar URLs, sessions and shared access.
+6. Update [CHANGELOG.md](CHANGELOG.md) under Unreleased and update affected docs.
+7. Open a PR using the template and describe testing, risks, screenshots and migrations.
 
-- Simple, accessible UI beats unnecessary complexity.
-- Empty, loading, error and success states matter.
-- Validate data and access on the server, not only in the browser.
-- Keep credentials and personal information out of commits, screenshots and logs.
-- Do not commit `.env` secrets or production datasets.
-- Do not mark incomplete functionality as released.
-- Add tests for business logic when implementation begins.
+Never claim a feature is implemented because it is merely planned or shown in a mockup. Do not use real user data in screenshots or tests.
 
-## Setup
+## Review checklist
 
-The app framework and executable setup commands are **not yet chosen**.
-When code is introduced, this guide will specify exact tested commands.
-For now, documentation and planning changes can be contributed directly.
+- TypeScript build and Python compile pass.
+- Backend changes are owner-scoped and reject unauthorized users.
+- Empty, loading, error and success states are accessible.
+- Calendar operations behave in Chromium and Firefox-based browsers where relevant.
+- Sensitive data, API keys, tokens and private calendar URLs stay out of commits/logs.
+- README and detailed docs match actual implementation.
+- At least one teammate reviews before merging to `main`.
 
-## PR checklist
+## Community and security
 
-Use the pull request template, describe the impact, include screenshots for
-visual changes, note how you tested it, and explicitly say whether a
-changelog entry is required.
+Treat contributors respectfully according to [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report vulnerabilities privately using [SECURITY.md](SECURITY.md), never in public issues.
 
-## Community
-
-Read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and report security concerns
-privately following [SECURITY.md](SECURITY.md).
-
-All contributions are subject to the [MIT License](LICENSE).
+By contributing, you agree your contributions are distributed under this project's [MIT License](LICENSE).
