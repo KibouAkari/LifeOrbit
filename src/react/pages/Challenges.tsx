@@ -109,6 +109,7 @@ export default function Challenges(){
   </section>
   <aside className="ranking"><div className="ranking-heading"><h2>Leaderboard</h2><Sparkles size={18}/></div>
    <label className="leaderboard-optin"><input type="checkbox" checked={state.leaderboard_opt_in} onChange={()=>void optIn()} disabled={saving}/> Show me in the community ranking</label>
+   {rank.length>0&&<div className="leaderboard-podium">{[rank[1],rank[0],rank[2]].map((person,i)=>person?<div className={`leaderboard-place place-${person===rank[0]?1:person===rank[1]?2:3}`} key={person.id||person.name+i}><div className="leaderboard-profile">{person.name[0]?.toUpperCase()}</div><strong>{person.name}</strong><small>{person.points} pts</small><div className="leaderboard-step">#{rank.indexOf(person)+1}</div></div>:<div key={i} aria-hidden="true"/>)}</div>}
    {rank.length?rank.map((person,i)=><div className="ranking-row" key={person.id||person.name+i}><span className="ranking-position">{i+1}</span><div className="leaderboard-profile">{person.name[0]?.toUpperCase()}</div><strong>{person.name}{person.me?" · You":""}</strong><span>{person.points} pts</span></div>):<div className="quiet-empty">Your ranking is being loaded.</div>}
   </aside></div>
  </div>;
