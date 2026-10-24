@@ -55,10 +55,8 @@ export default function Calendar(){
  const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
  const gesture=useRef<{id:string;mode:"move"|"resize";startX:number;startY:number;pointerId:number;original:CalendarEvent;captureTarget:HTMLElement;target:HTMLElement;dragging:boolean}|null>(null);
- const completedMoveGesture=useRef<HTMLElement|null>(null);
  const [dragging,setDragging]=useState(false);
  function beginGesture(e:React.PointerEvent<HTMLElement>,event:CalendarEvent,mode:"move"|"resize"){
-   completedMoveGesture.current=null;
    if(gesture.current||e.button!==0||event.source==="invited")return;
    e.preventDefault();e.stopPropagation();
    const captureTarget=e.currentTarget;
@@ -86,7 +84,6 @@ export default function Calendar(){
    g.target.style.transform="";g.target.style.height="";g.target.style.zIndex="";
    if(g.captureTarget.hasPointerCapture(g.pointerId))g.captureTarget.releasePointerCapture(g.pointerId);
    if(e.type==="pointercancel"||!g.dragging)return;
-   if(g.mode==="move"&&g.captureTarget.classList.contains("orbit-event-label"))completedMoveGesture.current=g.captureTarget;
    const delta=Math.round((e.clientY-g.startY)/16)*15;
    if(g.mode==="resize"){if(delta)void resizeEvent(g.original,delta);return;}
    const columns=Array.from(document.querySelectorAll<HTMLElement>(".orbit-day-column[data-day]"));
@@ -229,8 +226,9 @@ export default function Calendar(){
     {days.map(day=>{const events=visible(day);const positions=layoutEvents(events);return <div key={iso(day)} data-day={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
       <button className="orbit-day-heading" onClick={()=>open(iso(day))}>{day.toLocaleDateString("en",{weekday:"short"})}<strong>{day.getDate()}</strong></button>
       <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(23*60+45,Math.round((e.clientY-bounds.top)/16)*15));const h=Math.floor(minutes/60);const m=minutes%60;const endMinutes=Math.min(23*60+59,minutes+60);open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.floor(endMinutes/60)).padStart(2,"0")}:${String(endMinutes%60).padStart(2,"0")}`)}}>
-        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(24,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>{if((e.target as HTMLElement).closest(".orbit-event-grip,.orbit-event-label"))return;beginGesture(e,item,"move")}} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
-          <button className="orbit-event-label" onPointerDown={e=>{if(item.source!=="invited")beginGesture(e,item,"move")}} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture} onClick={e=>{const wasDragged=completedMoveGesture.current===e.currentTarget;if(wasDragged)completedMoveGesture.current=null;if(wasDragged&&e.detail!==0)return;if(!dragging)item.source==="invited"?setMessage("Invited events are read only."):open(item.date,item)}}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
+        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(35,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>{if((e.target as HTMLElement).closest("button"))return;beginGesture(e,item,"move")}} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
+          {item.source!=="invited"&&<button type="button" className="orbit-event-move-handle" aria-label={`Move ${item.title}`} title="Drag to move" onPointerDown={e=>{e.stopPropagation();beginGesture(e,item,"move")}} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture} onClick={e=>e.stopPropagation()}>⋮⋮</button>}
+          <button className="orbit-event-label" onClick={e=>{e.stopPropagation();item.source==="invited"?setMessage("Invited events are read only."):open(item.date,item)}}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
           {item.source!=="invited"&&<button className="orbit-event-grip" aria-label="Resize event" title="Drag to change duration" onPointerDown={e=>{e.stopPropagation();beginGesture(e,item,"resize")}} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}/>}
         </div>})}
       </div>
