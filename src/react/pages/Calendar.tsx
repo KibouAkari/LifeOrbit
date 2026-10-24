@@ -116,7 +116,15 @@ export default function Calendar(){
    e.preventDefault();
    const id=e.dataTransfer.getData("text/plain");
    const item=state.events.find(x=>x.id===id);
-   if(item)void shiftEvent(item,day);
+   if(!item)return;
+   const column=e.currentTarget.querySelector(".orbit-time-slots");
+   if(column && item.start_time){
+     const bounds=column.getBoundingClientRect();
+     const minutes=Math.max(0,Math.min(17*60,Math.round((e.clientY-bounds.top)/16)*15));
+     const [hour,minute]=item.start_time.split(":").map(Number);
+     const delta=(6*60+minutes)-(hour*60+minute);
+     void shiftEvent(item,day,delta);
+   }else void shiftEvent(item,day);
  }
  const caption=(item:CalendarEvent)=>[format(item.start_time),item.title].filter(Boolean).join(" · ");
  return <div className="work-page calendar-rework">
