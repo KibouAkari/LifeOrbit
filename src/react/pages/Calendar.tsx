@@ -54,28 +54,36 @@ export default function Calendar(){
  const [feedForm,setFeedForm]=useState(false),[feedUrl,setFeedUrl]=useState(""),[feedName,setFeedName]=useState("");
  const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
- const gesture=useRef<{id:string;mode:"move"|"resize";startX:number;startY:number;original:CalendarEvent;target:HTMLElement}|null>(null);
+ const gesture=useRef<{id:string;mode:"move"|"resize";startX:number;startY:number;pointerId:number;original:CalendarEvent;captureTarget:HTMLElement;target:HTMLElement;dragging:boolean}|null>(null);
  const [dragging,setDragging]=useState(false);
  function beginGesture(e:React.PointerEvent<HTMLElement>,event:CalendarEvent,mode:"move"|"resize"){
-   if(e.button!==0||event.source==="invited")return;
-   e.preventDefault();e.stopPropagation();
-   gesture.current={id:event.id,mode,startX:e.clientX,startY:e.clientY,original:event,target:e.currentTarget};
-   e.currentTarget.setPointerCapture(e.pointerId);
-   setDragging(true);
+   if(gesture.current||e.button!==0||event.source==="invited")return;
+   e.stopPropagation();
+   gesture.current={id:event.id,mode,startX:e.clientX,startY:e.clientY,pointerId:e.pointerId,original:event,captureTarget:e.currentTarget,target:e.currentTarget.closest<HTMLElement>(".orbit-timed-event")||e.currentTarget,dragging:false};
  }
  function moveGesture(e:React.PointerEvent<HTMLElement>){
    const g=gesture.current;if(!g)return;
-   const steps=Math.round((e.clientY-g.startY)/16);
+   if(e.pointerId!==g.pointerId)return;
    const horizontal=e.clientX-g.startX;
-   g.target.style.transform=`translate(${horizontal}px,${steps*16}px)`;
+   const vertical=e.clientY-g.startY;
+   if(!g.dragging&&horizontal*horizontal+vertical*vertical<=25)return;
+   if(!g.dragging){g.dragging=true;g.captureTarget.setPointerCapture(g.pointerId);setDragging(true);}
+   e.preventDefault();
+   const steps=Math.round((e.clientY-g.startY)/16);
+   if(g.mode==="resize"){
+     const height=Math.max(24,(timeMinutes(g.original.end_time,"10:00")-timeMinutes(g.original.start_time))*64/60);
+     g.target.style.height=`${Math.max(16,height+steps*16)}px`;
+   }else g.target.style.transform=`translate(${horizontal}px,${steps*16}px)`;
    g.target.style.zIndex="10";
  }
  function endGesture(e:React.PointerEvent<HTMLElement>){
    const g=gesture.current;if(!g)return;
+   if(e.pointerId!==g.pointerId)return;
    e.stopPropagation();
    gesture.current=null;setDragging(false);
-   g.target.style.transform="";g.target.style.zIndex="";
-   if(g.target.hasPointerCapture(e.pointerId))g.target.releasePointerCapture(e.pointerId);
+   g.target.style.transform="";g.target.style.height="";g.target.style.zIndex="";
+   if(g.captureTarget.hasPointerCapture(g.pointerId))g.captureTarget.releasePointerCapture(g.pointerId);
+   if(e.type==="pointercancel"||!g.dragging)return;
    const delta=Math.round((e.clientY-g.startY)/16)*15;
    if(g.mode==="resize"){if(delta!==0)void resizeEvent(g.original,delta);return;}
    const columns=Array.from(document.querySelectorAll<HTMLElement>(".orbit-day-column[data-day]"));
