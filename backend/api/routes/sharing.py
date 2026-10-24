@@ -9,6 +9,9 @@ from backend.api.routes.auth import get_current_user
 
 router=APIRouter()
 
+class RSVPRequest(BaseModel):
+    status: str = Field(pattern="^(accepted|declined)$")
+
 class ShareRequest(BaseModel):
     recipient_id:str=Field(min_length=24,max_length=24)
     resource_id:str=Field(min_length=1,max_length=80)
@@ -69,8 +72,42 @@ def invite_event(data:ShareRequest,user:str=Depends(get_current_user)):
     item=db.events.find_one({"_id":ObjectId(data.resource_id),"user_id":user})
     if not item:raise HTTPException(404,"Event not found")
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"event","resource_id":data.resource_id},
-                        {"$setOnInsert":{"created_at":datetime.now(timezone.utc)}},upsert=True)
+                        {"$setOnInsert":{"created_at":datetime.now(timezone.utc),"status":"pending"}},upsert=True)
     return {"invited":True}
+
+@router.patch("/events/{share_id}/response")
+def respond_event(share_id:str,data:RSVPRequest,user:str=Depends(get_current_user)):
+    if not ObjectId.is_valid(share_id):raise HTTPException(400,"Invalid invitation")
+    db=get_db()
+    row=db.shares.find_one_and_update(
+        {"_id":ObjectId(share_id),"recipient":user,"kind":"event"},
+        {"$set":{"status":data.status,"responded_at":datetime.now(timezone.utc)}},
+        return_document=ReturnDocument.AFTER)
+    if not row:raise HTTPException(404,"Invitation not found")
+    return {"status":row["status"]}
+
+@router.delete("/events/{share_id}")
+def remove_event_invitation(share_id:str,user:str=Depends(get_current_user)):
+    if not ObjectId.is_valid(share_id):raise HTTPException(400,"Invalid invitation")
+    if not get_db().shares.delete_one({"_id":ObjectId(share_id),"recipient":user,"kind":"event"}).deleted_count:
+        raise HTTPException(404,"Invitation not found")
+    return {"removed":True}
+
+@router.get("/events/{event_id}/participants")
+def participants(event_id:str,user:str=Depends(get_current_user)):
+    db=get_db()
+    if not ObjectId.is_valid(event_id):raise HTTPException(400,"Invalid event")
+    ev=db.events.find_one({"_id":ObjectId(event_id)})
+    if not ev:raise HTTPException(404,"Event not found")
+    shares=list(db.shares.find({"kind":"event","resource_id":event_id}))
+    if user!=ev["user_id"] and not any(row["recipient"]==user for row in shares):
+        raise HTTPException(403,"You cannot view the participants")
+    ids=[ev["user_id"]]+[row["recipient"] for row in shares]
+    names={str(p["_id"]):p.get("name","Member") for p in db.users.find(
+        {"_id":{"$in":[ObjectId(i) for i in ids if ObjectId.is_valid(i)]}},{"name":1})}
+    return [{"id":ev["user_id"],"name":names.get(ev["user_id"],"Member"),"status":"organizer"}]+[
+        {"id":row["recipient"],"name":names.get(row["recipient"],"Member"),
+         "status":row.get("status","pending")} for row in shares]
 
 @router.get("/events")
 def invited_events(user:str=Depends(get_current_user)):
@@ -82,7 +119,7 @@ def invited_events(user:str=Depends(get_current_user)):
         event=db.events.find_one({"_id":ObjectId(row["resource_id"]),"user_id":row["owner"]})
         if not event:continue
         owner=db.users.find_one({"_id":ObjectId(row["owner"])},{"name":1})
-        result.append({"id":str(event["_id"]),"title":event["title"],"date":event["date"],
+        result.append({"invitation_id":str(row["_id"]),"rsvp_status":row.get("status","pending"),"id":str(event["_id"]),"title":event["title"],"date":event["date"],
                        "start_time":event.get("start_time"),"end_time":event.get("end_time"),
                        "source":"invited","source_id":"invited","owner_name":(owner or {}).get("name","Member"),
                        "read_only":True})
