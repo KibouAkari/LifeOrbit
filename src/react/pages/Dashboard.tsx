@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import { ArrowUpRight, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards } from "lucide-react";
+import { ArrowUpRight, Plus, CalendarDays, ChevronRight, Target, NotebookPen, WalletCards, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { hasSession, request } from "../data/api";
 import { newId } from "../data/storage";
@@ -13,6 +13,7 @@ export default function Dashboard(){
   const [message,setMessage]=useState("");
   const pending=state.tasks.filter(t=>!t.done),complete=state.tasks.filter(t=>t.done);
   const upcoming=useMemo(()=>state.events.filter(e=>e.date>=new Date().toLocaleDateString("sv-SE")).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,4),[state.events]);
+  const overdue=pending.filter(t=>t.due_at&&new Date(t.due_at).getTime()<Date.now());
   const total=state.tasks.length;
   const percent=total?Math.round(complete.length/total*100):0;
   const points=state.challenges.reduce((sum,c)=>sum+Math.min(c.value,c.target)*10,0);
@@ -26,7 +27,7 @@ export default function Dashboard(){
       patch("tasks",current=>[...current,task]);setInput("");setMessage("Added to your tasks");
     }catch(err){setMessage(err instanceof Error?err.message:"Could not save task");}
   }
-  return <div className="dashboard"><header className="welcome"><div><p className="today-line">{dateLabel()}</p><h1>{greeting(new Date().getHours())}{state.account?`, ${state.account}`:""}<span className="welcome-period">.</span></h1><p>Make the most of your day.</p></div><a href="#/tasks" className="button primary"><Plus size={17}/> New task</a></header><div className="dashboard-grid">
+  return <div className="dashboard"><header className="welcome"><div><p className="today-line">{dateLabel()}</p><h1>{greeting(new Date().getHours())}{state.account?`, ${state.account}`:""}<span className="welcome-period">.</span></h1><p>Make the most of your day.</p></div><a href="#/tasks" className="button primary"><Plus size={17}/> New task</a></header>{overdue.length>0&&<a className="dashboard-overdue" href="#/tasks"><AlertCircle size={21}/><strong>{overdue.length} overdue {overdue.length===1?"task":"tasks"}</strong><span>Review overdue tasks</span></a>}<div className="dashboard-grid">
     <section className="surface-card focus-card"><div className="surface-header"><span>Today's progress</span><a href="#/tasks" aria-label="Open tasks"><ArrowUpRight size={18}/></a></div><div className="focus-bottom"><div><div className="focus-number">{pending.length}</div><h2>{pending.length===1?"task remaining":"tasks remaining"}</h2><p>{total?`${complete.length} of ${total} completed`:"Your day is yours to plan."}</p></div>
     <div className="progress-donut" role="img" aria-label={`${percent}% of tasks completed`} style={{"--progress":`${percent}%`} as CSSProperties}><div><strong>{percent}%</strong><span>done</span></div></div></div></section>
     <section className="surface-card quick-card"><div className="surface-header"><span>Quick add</span></div><h2>What's on your mind?</h2><p>Capture it before you forget.</p><form className="quick-form" onSubmit={add}><input value={input} maxLength={120} onChange={e=>setInput(e.target.value)} aria-label="New task" placeholder="Add something to do"/><button type="submit" aria-label="Add task"><Plus size={18}/></button></form><span className="feedback-line" role="status">{message}</span></section>
