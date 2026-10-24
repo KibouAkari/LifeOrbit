@@ -45,7 +45,7 @@ export default function Login(){
    script.onerror=()=>setError("Google sign-in could not load. Check browser privacy settings or allowed origins.");
    document.head.appendChild(script);
    return()=>{cancelled=true;script.remove();};
- },[clientId,patch]);
+ },[clientId,patch,emailVisible]);
 
  async function submit(e:FormEvent){
    e.preventDefault();setError("");setBusy(true);
