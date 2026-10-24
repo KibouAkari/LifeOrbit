@@ -399,3 +399,5 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 @keyframes orbit-fade{from{opacity:0}to{opacity:1}}
 @media(max-width:600px){.orbit-live-toast{top:72px;left:12px;right:12px;max-width:none}.orbit-event-dialog{padding:18px;border-radius:17px}.orbit-event-dialog .input,.orbit-event-dialog .select{width:100%;min-width:0}.orbit-event-dialog .button{flex:1 1 auto}.orbit-event-more{width:29px;height:29px}}
 @media(prefers-reduced-motion:reduce){.orbit-live-toast,.orbit-event-dialog,.orbit-event-backdrop,.orbit-event-menu{animation:none!important}}
+
+.orbit-month-event{display:flex;align-items:stretch;gap:3px;min-width:0}.orbit-month-event .week-event{min-width:0;flex:1}.orbit-month-more{display:grid;place-items:center;flex:0 0 30px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted);cursor:pointer}
