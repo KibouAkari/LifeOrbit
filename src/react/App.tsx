@@ -14,14 +14,16 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { WelcomeIntro } from "./components/WelcomeIntro";
+import Legal from "./pages/Legal";
 
 const pages: Record<Section, ComponentType> = {
   dashboard: Dashboard, notes: Notes, tasks: Tasks, calendar: Calendar,
   subscriptions: Subscriptions, challenges: Challenges, settings: Settings, login: Login,
 };
-type Route = Section | "not-found";
+type Route = Section | "not-found" | "privacy" | "terms";
 const routeFromHash = (): Route => {
   const route = location.hash.replace(/^#\/?/, "").split("/")[0] || "login";
+  if (route === "privacy" || route === "terms") return route;
   return Object.prototype.hasOwnProperty.call(pages, route) ? route as Section : "not-found";
 };
 const guestMode = () => sessionStorage.getItem("lifeorbit_guest") === "true";
@@ -73,6 +75,7 @@ export default function App() {
   }, [dark]);
   if (!ready) return <div className="boot-screen" role="status">Opening LifeOrbital…</div>;
   if (intro) return <WelcomeIntro onComplete={() => setIntro(false)} />;
+  if (route === "privacy" || route === "terms") return <Legal kind={route}/>;
   if (!signedIn && !guestMode()) return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "login") return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "not-found") return <NotFound />;

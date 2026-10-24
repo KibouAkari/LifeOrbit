@@ -32,3 +32,17 @@ Backend environment variables: `MONGODB_URI`, `MONGODB_DATABASE`,
 - Replace demo ranking with real opt-in scoring and enforce points server-side.
 
 Do not remove the sample ranking disclaimer until an authenticated leaderboard exists.
+
+## Google configuration troubleshooting
+
+Frontend Vercel build variable: `VITE_GOOGLE_CLIENT_ID` (public OAuth Web client ID).
+Backend Vercel variable: `GOOGLE_CLIENT_ID` (same client ID).
+The frontend `VITE_API_BASE_URL` is the backend HTTPS origin without `/api`.
+Configure `FRONTEND_ORIGINS` with the exact frontend origins separated by commas,
+and list every relevant frontend origin as an authorized JavaScript origin in
+Google Cloud. Vercel environment changes require a new deployment.
+
+Registration uses `/api/auth/register`; passwords are bcrypt-hashed.
+Google accounts with an email already registered via password are not automatically
+linked. Before a public launch, configure rate limiting, email verification,
+account recovery, indexes and robust session lifecycle handling.

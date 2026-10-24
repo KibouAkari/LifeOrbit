@@ -29,6 +29,12 @@ Copy `backend/.env.example` to `backend/.env` and supply `MONGODB_URI`, `MONGODB
 
 For the frontend set `VITE_GOOGLE_CLIENT_ID` to the Google OAuth web client ID; optionally set `VITE_API_BASE_URL` to the Python API origin (without /api). During local development, Vite proxies /api to localhost:8000.
 
+## Account setup and OAuth
+
+The frontend uses **VITE_GOOGLE_CLIENT_ID**, not GOOGLE_CLIENT_ID. Set that public client ID in the **frontend Vercel project** for Production and Preview as needed, then redeploy. The backend separately requires GOOGLE_CLIENT_ID, JWT_SECRET_KEY, MONGODB_URI and FRONTEND_ORIGINS. Google Cloud must list the exact HTTPS frontend origin under Authorized JavaScript origins.
+
+Email/password accounts use bcrypt-hashed passwords and MongoDB. Register and sign-in endpoints: POST /api/auth/register and POST /api/auth/login. Run the index creation helper before accepting public registration. Session tokens still require security review and operational testing.
+
 ## Current integration status
 
 | Feature | State |
