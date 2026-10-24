@@ -35,10 +35,17 @@ export function AppProvider({children}:{children:ReactNode}){
       }catch(err){console.error("Workspace load failed",err);}
     }
     const onAuth=()=>{void restore();};
+    const onLogout=()=>{
+      hydrated.current=false;
+      setReadyToSync(false);
+      // Clear cloud records from React memory before guest persistence can run.
+      setState(readDemo());
+    };
+    window.addEventListener("lifeorbit:logout",onLogout);
     window.addEventListener("lifeorbit:auth",onAuth);
     window.addEventListener("lifeorbit:restore",onAuth);
     void restore();
-    return()=>{active=false;window.removeEventListener("lifeorbit:auth",onAuth);window.removeEventListener("lifeorbit:restore",onAuth)};
+    return()=>{active=false;window.removeEventListener("lifeorbit:logout",onLogout);window.removeEventListener("lifeorbit:auth",onAuth);window.removeEventListener("lifeorbit:restore",onAuth)};
   },[]);
 
   useEffect(()=>{
