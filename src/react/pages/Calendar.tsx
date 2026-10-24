@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, Upload } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { request, hasSession } from "../data/api";
 import { newId } from "../data/storage";
@@ -16,6 +16,7 @@ export default function Calendar() {
   const [date,setDate]=useState(iso(new Date()));
   const [creating,setCreating]=useState(false);
   const [message,setMessage]=useState("");
+  const [importing,setImporting]=useState(false);
   const online=hasSession();
   useEffect(()=>{
     if(online)request<CalendarEvent[]>("/calendar/events").then(events=>patch("events",events)).catch(err=>setMessage(String(err)));
@@ -35,9 +36,24 @@ export default function Calendar() {
       patch("events",current=>current.filter(e=>e.id!==id));setMessage("Event removed");
     }catch(err){setMessage(err instanceof Error?err.message:"Could not remove event");}
   }
+  async function importCalendar(file:File|undefined){
+    if(!file)return;
+    if(file.size>1000000){setMessage("Choose an .ics file smaller than 1 MB.");return;}
+    setImporting(true);setMessage("");
+    try{
+      if(!online)throw new Error("Sign in to import and save a calendar.");
+      const content=await file.text();
+      const result=await request<{imported:number;total:number}>("/calendar/ical-import",{method:"POST",body:JSON.stringify({content})});
+      const events=await request<CalendarEvent[]>("/calendar/events");
+      patch("events",events);
+      setMessage(`Imported ${result.imported} events (${result.total} in file).`);
+    }catch(err){setMessage(err instanceof Error?err.message:"Import failed");}
+    finally{setImporting(false);}
+  }
   return <div className="work-page"><Heading title="Calendar" description="Your plans for the week."/>
     <div className="calendar-toolbar"><div className="actions"><button className="icon-button" aria-label="Previous week" onClick={()=>setWeek(week-1)}><ChevronLeft size={18}/></button><button className="icon-button" aria-label="Next week" onClick={()=>setWeek(week+1)}><ChevronRight size={18}/></button><button className="text-button" onClick={()=>setWeek(0)}>Today</button></div>
     <strong>{days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – {days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}</strong>
+    <label className="button calendar-import"><Upload size={16}/> {importing?"Importing…":"Import .ics"}<input type="file" accept=".ics,text/calendar" disabled={importing} hidden onChange={e=>{void importCalendar(e.target.files?.[0]);e.target.value="";}}/></label>
     <button className="button primary" onClick={()=>setCreating(!creating)}><Plus size={17}/> Event</button></div>
     {creating&&<form className="calendar-add" onSubmit={add}><input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Event title" required maxLength={120}/><input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} required/><button className="button primary">Save</button></form>}
     <p className="feedback-line" role="status">{message}</p>
