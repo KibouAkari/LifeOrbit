@@ -1,51 +1,27 @@
-# Business, value and future development
+# Mehrwert und Weiterentwicklung
 
-## Intended user value
+## Nutzen der Anwendung
 
-LifeOrbit aims to reduce fragmented planning and make small-group commitments easier to manage. The business and impact hypotheses below are **not validated customer demand or financial forecasts**.
+LifeOrbit bündelt unterschiedliche Aufgaben der persönlichen Organisation in einer Webanwendung. Die Idee dahinter ist, die tägliche Planung übersichtlicher zu machen und kleine Gruppen bei gemeinsamen Vorhaben zu unterstützen.
 
-## Alternatives
+Die Plattform richtet sich zunächst besonders an Lernende, Studierende und junge Berufsleute. Diese Zielgruppe muss häufig Schule oder Ausbildung, Arbeit, Freizeit und eigene Projekte koordinieren.
 
-A user may already combine Google Calendar, Apple Notes, Microsoft To Do, Notion or other tools. Those products provide mature ecosystems. LifeOrbit's hypothesis is that its integrated daily overview, lightweight sharing and approachable UI can be attractive to a narrower audience who values simplicity.
+## Positionierung
 
-## Possible development model
+Es gibt bereits etablierte Anwendungen für Kalender, Notizen und Aufgaben. LifeOrbit soll diese Lösungen nicht einfach ersetzen, sondern eine andere Kombination anbieten: eine ruhige, zusammenhängende Oberfläche mit persönlichen Funktionen und unkomplizierter Zusammenarbeit.
 
-| Option | Potential benefit | Open questions |
-| --- | --- | --- |
-| Free open-source self-hosting | Transparency and developer contributions | Installation/support complexity |
-| Hosted free tier | Low adoption friction | Infrastructure, spam and abuse costs |
-| Optional paid personal features | Sustainable hosting | Willingness to pay, customer support, feature differentiation |
-| Small-group/team tier | Shared planning for communities | Privacy, permissions, multiuser consistency |
-| Sponsorship / partnerships | Community support | Independence and data-use expectations |
+Ob Benutzer diese Kombination langfristig bevorzugen würden, müsste mit weiterem Feedback untersucht werden.
 
-**Recommendation to validate:** keep the open-source core easy to try, estimate actual per-user infrastructure cost, and ask potential users which workflows justify a hosted service. Do not introduce paywalls or subscriptions solely for hackathon judging.
+## Mögliche Weiterentwicklung
 
-## Cost and operating assumptions to collect
+Da LifeOrbit als Prototyp entstanden ist, stehen vor einem öffentlichen Produktbetrieb zunächst Qualität und Sicherheit im Vordergrund. Dazu gehören zuverlässiges Synchronisieren, robustere Benutzerrechte, verbesserte mobile Bedienbarkeit und der Umgang mit gleichzeitigen Änderungen.
 
-- Vercel usage and bandwidth
-- MongoDB Atlas storage/operation tier
-- Authentication and outbound mail/push infrastructure, if later added
-- Monitoring, backups, incident response and support time
-- Domain and any paid external API charges
+Anschliessend wäre ein frei nutzbares Open-Source-Angebot mit einer optional gehosteten Version denkbar. Auch zusätzliche Funktionen für kleine Gruppen könnten interessant sein. Ein solches Geschäftsmodell ist derzeit eine Überlegung und keine nachgewiesene Nachfrage.
 
-Do not publish invented CHF figures, conversion rates, retention metrics or projected revenue.
+## Wirtschaftliche Aspekte
 
-## Risks and responsible expansion
+Für einen dauerhaften Betrieb fallen beispielsweise Kosten für Hosting, Datenbank, Domain, Überwachung, Backups und Support an. Diese müssten anhand der tatsächlichen Nutzung ermittelt werden, bevor sich ein nachhaltiges Angebot beurteilen lässt.
 
-- Data protection, account deletion and security requirements before public onboarding
-- Mobile UX and calendar correctness across browsers and time zones
-- API/rate-limit abuse and external calendar-link handling
-- Multiuser editing conflicts and notifications at scale
-- Accessible UI and low-cognitive-load product design
+## Fazit
 
-## Next development milestones
-
-**Near-term:** complete a verifiable hackathon increment, improve cross-browser reliability, run user testing and close high-priority security gaps.
-
-**Mid-term:** account recovery and verification, concurrency-safe shared pages, reliable scheduled reminders and calendar feed reconciliation.
-
-**Long-term:** carefully scoped direct Google/Microsoft calendar integrations, optional host plans and validated collaboration features.
-
-## Jury connection
-
-The provided rubric gives **25%** to Business-Potenzial, but its description also expressly considers development during the hackathon, individual contribution and achieved results. Demonstrate all of these with evidence rather than treating the category as a sales forecast exercise.
+LifeOrbit zeigt in erster Linie das technische und gestalterische Potenzial unserer Idee. Für den Hackathon war entscheidend, dass wir diese Idee im Team geplant und praktisch umgesetzt haben. Eine kommerzielle Einführung ist dafür nicht erforderlich.

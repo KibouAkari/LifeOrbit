@@ -1,42 +1,25 @@
-# Zentral Hack · LifeOrbit
+# LifeOrbit – Projektdokumentation Zentral Hack
 
-**Challenge:** Young Talents, Zentral Hack · 24-hour project development  
-**Project:** LifeOrbit · collaborative life manager  
-**Status:** Preparation and evidence framework; event outcomes have not yet been recorded.
+LifeOrbit entstand während des Zentral Hacks aus einer gemeinsamen Idee unseres dreiköpfigen Teams. Unser Ziel war es, eine übersichtliche Webanwendung zu entwickeln, mit der sich verschiedene Bereiche des Alltags an einem Ort organisieren lassen.
 
-LifeOrbit combines tasks, calendars, notebooks, subscriptions and challenges in a calm interface. This folder documents **why the project matters**, **what existed before the event**, **what the team develops within the 24 hours**, and **how the result can be demonstrated and assessed**.
+Am Anfang stand noch kein fertiger Prototyp. Wir begannen mit einer Ideensammlung in Miro, strukturierten die gewünschten Funktionen, teilten die Arbeit auf und legten die technischen Grundlagen fest. Darauf aufbauend entwickelten wir LifeOrbit von Grund auf.
 
-## Start here
+## Inhalt
 
-| File | Why it matters |
+| Kapitel | Schwerpunkt |
 | --- | --- |
-| [Problem and solution](PROBLEM_AND_SOLUTION.md) | Context, target groups, problem hypothesis, solution and user value |
-| [Requirements and evidence](REQUIREMENTS.md) | Every MUST and SHOULD criterion, proof and gap |
-| [24-hour development log](DEVELOPMENT_LOG.md) | Baseline, planned increments, time-stamped progress and contributions |
-| [Demo and acceptance tests](DEMO.md) | Reproducible demonstration without personal user data |
-| [Three-minute pitch](PITCH.md) | Timed script, demo sequence and jury question preparation |
-| [Validation and feedback](VALIDATION.md) | Short moderated tests, survey template and observations |
-| [Business and impact](BUSINESS_AND_IMPACT.md) | Value proposition, alternatives, business hypotheses and next steps |
-| [Open source and AI disclosure](TECHNOLOGIES_AND_AI.md) | Libraries, external services, AI use, rights and verification |
-| [Evidence index](EVIDENCE.md) | Where to find commits, screenshots, logs and final delivery materials |
+| [Projektidee und Ausgangslage](PROBLEM_AND_SOLUTION.md) | Problem, Zielgruppe, Ziele und Lösungsidee |
+| [Planung und Entwicklung](DEVELOPMENT_LOG.md) | Miro-Board, Funktionsplanung, Aufgabenverteilung und Entwicklung |
+| [Technische Umsetzung](REQUIREMENTS.md) | Aufbau, Funktionalität und technische Anforderungen |
+| [Ergebnis und Demonstration](DEMO.md) | Funktionsumfang, Demonstrationsbeispiel und Grenzen |
+| [Präsentation](PITCH.md) | Kurzfassung für die mündliche Vorstellung |
+| [Benutzerperspektive](VALIDATION.md) | Bedienbarkeit, Beobachtungen und mögliche Weiterentwicklung |
+| [Potenzial und Ausblick](BUSINESS_AND_IMPACT.md) | Mehrwert, Einsatzgebiete und mögliche nächste Schritte |
+| [Technologien und Hilfsmittel](TECHNOLOGIES_AND_AI.md) | Frameworks, Dienste, Open Source und KI-Unterstützung |
+| [Quellen und Projektmaterial](EVIDENCE.md) | Code, Projektmaterial und ergänzende Nachweise |
 
-## Important distinction
+## Das Projekt
 
-This project already had a working application and substantial development **before the hackathon**. That is acceptable under the supplied challenge, but a credible submission must clearly isolate and show **substantial new work completed during the event**. Existing features are not hackathon achievements simply because they appear in the demo.
+Die Webanwendung verbindet Aufgaben, Kalender, Notizen, Abonnements und Challenges in einem gemeinsamen Arbeitsbereich. Ergänzend entwickelten wir Funktionen zur Zusammenarbeit, beispielsweise gemeinsame Notizbücher und Kalendereinladungen.
 
-Do not invent usage numbers, interviews, AI workflows, commits, hours, test outcomes, or jury feedback. Mark missing evidence as **pending** until the team records it.
-
-## Submission checklist
-
-- [ ] Verify repository code and README remain accessible to the jury
-- [ ] Document the pre-event baseline with a tag or immutable commit SHA
-- [ ] Record at least one substantial hackathon increment with commits and evidence
-- [ ] Run and record the end-to-end demonstration with dedicated test accounts
-- [ ] Capture real, redacted screenshots or a short video of the actual build
-- [ ] Conduct feedback / usability checks and record both positive and negative observations
-- [ ] Declare third-party libraries, external APIs and AI assistance
-- [ ] Rehearse the pitch within 3 minutes, keeping time for questions
-- [ ] Complete the evidence index and list outstanding limitations
-- [ ] Complete security, privacy and release checks before exposing real user data
-
-> The challenge does **not** require a commercially finished product. A verifiable prototype, honest learning and measurable progress are more convincing than unverified claims of production readiness.
+Im Mittelpunkt dieser Dokumentation steht der Entstehungsprozess: wie aus einer zunächst offenen Idee durch gemeinsames Planen, technische Entscheidungen und praktische Umsetzung eine nutzbare Anwendung wurde. Einzelheiten zu Installation, Schnittstellen und Architektur stehen in der allgemeinen [Projekt-README](../../README.md) und den technischen Unterlagen im Verzeichnis [docs](../).

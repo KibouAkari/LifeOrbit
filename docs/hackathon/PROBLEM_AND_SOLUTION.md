@@ -1,51 +1,38 @@
-# Problem, audience and solution
+# Projektidee und Ausgangslage
 
-## Challenge context
+## Ausgangssituation
 
-Young Talents' Zentral Hack is a 24-hour opportunity for learners and young professionals to develop an original project, put ICT/design/business skills into practice and demonstrate substantial progress. Teams are responsible for their equipment, accounts and compliant use of external resources.
+Im Alltag kommen Termine, Aufgaben, Notizen und regelmässige Ausgaben zusammen. Häufig werden diese Informationen in verschiedenen Anwendungen verwaltet. Wir wollten untersuchen, wie sich diese Bereiche in einer übersichtlichen Oberfläche verbinden lassen, ohne dass die Anwendung kompliziert wird.
 
-## Problem hypothesis
+Daraus entstand unsere Idee für **LifeOrbit**: eine zentrale Plattform, mit der man seinen Alltag planen und bestimmte Inhalte unkompliziert mit anderen teilen kann.
 
-Daily commitments are often spread across separate calendars, task lists, note apps, recurring-payment trackers and messaging channels. Finding what matters today and coordinating with other people can require switching between several interfaces. This increases friction and makes deadlines, invitations or renewals easier to overlook.
+## Entstehung der Idee
 
-This is a **project hypothesis**, not an independently validated market finding. The team should test it using the questions in [VALIDATION.md](VALIDATION.md).
+Wir entschieden uns zu Beginn des Zentral Hacks gemeinsam für dieses Thema. Anschliessend sammelten wir auf einem Miro-Board mögliche Funktionen und Ansätze. Das gab uns zunächst Raum für verschiedene Vorstellungen, bevor wir die Idee genauer eingrenzten.
 
-## Target users
+Nach der Sammlung ordneten wir die Funktionen, beschrieben die einzelnen Bereiche ausführlicher und überlegten, wie sie miteinander zusammenspielen sollen. Aus dieser Planung entstand die Grundlage für den Aufbau der Anwendung.
 
-**Primary:** learners, students and young professionals who balance school, work, private appointments, side projects and commitments.
+## Zielgruppe
 
-**Secondary:** small friend groups or teams who want to coordinate an event, challenge or notebook without adopting an enterprise planning suite.
+LifeOrbit richtet sich vor allem an Lernende, Studierende und junge Berufsleute, die Schule, Arbeit, Freizeit und eigene Projekte organisieren möchten. Auch für kleinere Freundesgruppen bietet die Anwendung Ansätze zur gemeinsamen Planung.
 
-## Solution
+Die Zielgruppe beschreibt unsere ursprüngliche Ausrichtung. Eine repräsentative Markt- oder Nutzerstudie wurde damit nicht durchgeführt.
 
-LifeOrbit provides an approachable dashboard backed by account-owned data and an interface for:
+## Unsere Lösung
 
-- Tasks with deadlines and overdue visibility
-- Week/month calendar, event invitations and read-only guest RSVP
-- Notes organised into chapters and shared notebooks for friends
-- Manual and subscription-link iCalendar imports
-- Subscription tracking, challenges and an account leaderboard
-- In-app activity notifications and account preferences
+LifeOrbit vereint mehrere Funktionen in einer Webanwendung:
 
-The design aim is to reduce unnecessary steps, preserve visual consistency and make actions understandable. This is not a claim that LifeOrbit already performs better than competing products.
+- **Dashboard:** Übersicht über Aufgaben, Termine und persönliche Fortschritte
+- **Tasks:** Aufgaben verwalten, Deadlines setzen und überfällige Aufgaben erkennen
+- **Calendar:** Termine planen, externe Kalender einbinden und Personen einladen
+- **Notes:** Notizen in Kapiteln organisieren und gemeinsam an Notizbüchern arbeiten
+- **Subscriptions:** wiederkehrende Kosten im Blick behalten
+- **Challenges:** persönliche Ziele verfolgen und Challenges mit Freunden teilen
 
-## One-sentence value proposition
+Eine ruhige, konsistente Gestaltung war uns dabei wichtig. Die Funktionen sollten zusammenpassen und sich nicht wie einzelne, lose verbundene Anwendungen anfühlen.
 
-**LifeOrbit makes personal planning and small-group coordination easier to see and act on from one calm workspace.**
+## Projektziel
 
-## Differentiation to test
+Unser Ziel während des Hackathons war es, aus dieser Idee einen funktionierenden Webprototypen zu entwickeln und dabei sowohl technische als auch gestalterische Entscheidungen selbst zu treffen. Dazu gehörten die Planung der Benutzeroberfläche, die Entwicklung des Frontends, der Aufbau einer API, die Speicherung der Daten und die Verbindung der einzelnen Funktionen.
 
-- Unified daily overview instead of navigating multiple separate tools
-- Simple friend invitations and shared notebooks inside the same planner
-- Visible task deadlines and small motivational challenges
-- Deliberately minimal interface with gentle feedback and mobile support
-
-These are positioning hypotheses. Do not claim unique functionality without comparative research and user evidence.
-
-## Scope and boundaries
-
-LifeOrbit is a working prototype under active development. It is **not** a payment platform, bank-integrated financial adviser, emergency notification service or fully verified real-time collaborative editor. Calendar-link subscriptions are manually refreshed. Google sign-in does not automatically grant Google Calendar access. Background push delivery and conflict-free multiuser editing are not implemented.
-
-## What successful progress looks like
-
-A jury member can understand the user problem, reproduce a meaningful workflow, inspect a dated before/after change and see clearly what the team learned during the 24 hours. Record actual results separately; do not turn these success criteria into unverified achievement statements.
+LifeOrbit ist ein Prototyp und keine vollständig ausgereifte kommerzielle Anwendung. Beispielsweise erfordern gleichzeitige Änderungen an gemeinsamen Inhalten noch eine robustere Konfliktbehandlung.

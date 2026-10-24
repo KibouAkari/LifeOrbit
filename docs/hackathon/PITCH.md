@@ -1,49 +1,29 @@
-# Three-minute Zentral Hack pitch
+# LifeOrbit – Projektvorstellung
 
-**Format requirement:** Maximum **3 minutes** of presentation, followed by jury questions according to the event schedule.
+Die folgende Kurzfassung kann als Grundlage für die mündliche Vorstellung während des Zentral Hacks dienen. Sie beschreibt unseren tatsächlichen Projektansatz und ist nicht als Bericht über bereits gehaltene Präsentationen formuliert.
 
-This is a **draft**, not a claim that the hackathon progress has happened. Replace every bracketed placeholder with real, verified results.
+## Ausgangslage
 
-## Speaker script and timing
+Wir kennen alle das Problem: Termine, Aufgaben, Notizen und andere wichtige Informationen liegen oft an unterschiedlichen Orten. Deshalb wollten wir eine Anwendung entwickeln, die diese Bereiche übersichtlich zusammenbringt.
 
-| Time | Speaker focus | Suggested spoken content and cue |
-| --- | --- | --- |
-| 0:00–0:25 | Problem | “Between school, work and personal projects, dates, tasks and notes end up in different places. Keeping track of the important things takes effort.” |
-| 0:25–0:50 | Idea | “LifeOrbit gives you a calm overview of tasks, calendars, shared notes, subscriptions and small challenges in one place. It is designed for young people managing busy everyday schedules.” |
-| 0:50–1:50 | Live demo | Open the app and demonstrate **one complete, reliable scenario**, ideally a new hackathon feature. State which parts already existed. |
-| 1:50–2:20 | Verifiable progress | “Before the hackathon, [verified baseline]. In the 24 hours we implemented [specific change], validated by [commit/test/demo]. The result was [observed outcome].” |
-| 2:20–2:45 | Value / next steps | “Our test users [actual feedback, if available]. Next we would prioritise [one concrete limitation] and [one justified product step].” |
-| 2:45–3:00 | Close | “LifeOrbit is not a finished commercial product. It is a working step toward simpler planning. Here is the repository and what we learned.” |
+## Von der Idee zum Projekt
 
-Suggested talk speed and demo time require rehearsal. Cut features rather than exceed 3 minutes.
+Am Anfang des Hackathons entschieden wir uns für LifeOrbit. Unsere ersten Schritte fanden in Miro statt: Wir sammelten Funktionen und Ideen, ordneten diese und beschrieben die Bereiche genauer.
 
-## Demonstration discipline
+Danach teilten wir die Arbeit auf und entschieden, wie die Anwendung technisch aufgebaut werden soll. Dazu gehörten die Auswahl der Datenbank, der Programmiersprachen und der Frameworks.
 
-- Keep at most 3–4 clear visual beats. Do not scroll through every LifeOrbit page.
-- Use fake demo data and two dedicated accounts, never real credentials.
-- Use a visible cursor, readable browser zoom and prepared target pages.
-- Name **the exact 24-hour improvement**. Do not attribute earlier repository work to the event.
-- Keep one short pre-recorded fallback only if necessary, clearly marked as a recording.
+## Umsetzung
 
-## Likely jury questions
+Auf dieser Grundlage entwickelten wir LifeOrbit von Grund auf. Entstanden ist eine Webanwendung mit Aufgabenverwaltung, Kalender, Notizen, Abonnementübersicht und Challenges.
 
-**What is new?** Show pre-event baseline, event commits and a side-by-side behaviour change.
+Ein weiterer Bestandteil ist die Zusammenarbeit: Man kann Freunden Termineinladungen schicken oder Notizbücher gemeinsam verwenden. Im Hintergrund verbindet eine API die Benutzeroberfläche mit der Datenbank.
 
-**Why not just Google Calendar / Apple Notes / Microsoft To Do?** Those are capable established tools; LifeOrbit tests a single approachable personal dashboard with small-group collaboration and challenges. Avoid claims of objective superiority without evidence.
+## Ergebnis und Ausblick
 
-**Does it work securely?** Explain owner-scoped APIs, shared permissions, encrypted URLs, and openly discuss missing rate limits, concurrency controls and further audits.
+LifeOrbit zeigt, wie aus einer gemeinsamen Idee, einer strukturierten Planung und klaren technischen Entscheidungen ein funktionierender Prototyp entstehen kann.
 
-**How could it pay for itself?** Describe a freemium or sponsorship hypothesis, plus hosting/support costs; do not invent willingness-to-pay findings.
+Die nächsten Verbesserungen betreffen vor allem die Bedienbarkeit auf unterschiedlichen Geräten, die zuverlässige Synchronisation und die weitere Absicherung gemeinsamer Daten.
 
-**Where did AI contribute?** Disclose real AI-assisted drafting/coding/documentation and the team's own review. Do not misrepresent AI output as autonomous production verification.
+---
 
-**What would you do next?** Give one prioritised improvement based on feedback and the remaining risk register.
-
-## Rehearsal log
-
-| Rehearsal | Duration | Main issue | Improvement |
-| --- | --- | --- | --- |
-| #1 | Pending | Pending | Pending |
-| #2 | Pending | Pending | Pending |
-
-**Pitch readiness:** Pending live validation, baseline and measurable results.
+Für eine Vorstellung von maximal drei Minuten bietet es sich an, diese Geschichte knapp zu erzählen und einen einzigen konkreten Ablauf direkt in der Anwendung vorzuführen. Die tatsächlichen Formulierungen und der Zeitbedarf sollten vom Team anhand der finalen Demo abgestimmt werden.

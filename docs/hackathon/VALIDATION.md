@@ -1,53 +1,36 @@
-# User feedback and validation plan
+# Bedienbarkeit und Erfahrungen
 
-This supports the SHOULD requirement for user feedback or a short usage analysis. **No interviews, participants, results or metrics are claimed here.**
+## Unser Ansatz
 
-## Research questions
+Bei LifeOrbit war uns wichtig, dass die Anwendung nicht nur viele Funktionen bietet, sondern sich trotz ihres Umfangs verständlich anfühlt. Die einzelnen Bereiche sollen visuell zusammengehören und ohne lange Einarbeitung nutzbar sein.
 
-- Does a combined life manager reduce the perceived effort of planning the day?
-- Can first-time users find the most important task or next calendar event?
-- Can two friends understand and complete an event invitation without explanation?
-- Are calendar interactions usable with mouse and touch?
-- Which workflow feels more complicated than the corresponding familiar tools?
+Daraus ergaben sich für die Entwicklung mehrere Fragen:
 
-## Lightweight test protocol (suggested)
+- Findet man wichtige Aufgaben und Termine schnell?
+- Lassen sich neue Einträge ohne unnötige Schritte erstellen?
+- Sind Einladungen und gemeinsame Notizbücher verständlich?
+- Funktioniert die Bedienung auch auf kleineren Bildschirmen?
+- Bleiben Inhalte nach einem erneuten Laden verfügbar?
 
-Conduct 3–5 brief, consent-based tests if possible, with people outside the development team. A small sample is qualitative, not statistically representative.
+## Erkenntnisse aus der Umsetzung
 
-1. State clearly that LifeOrbit is a prototype and that feedback is voluntary.
-2. Use synthetic accounts and sample data; do not record personal content.
-3. Ask the participant to find a deadline, create a task and respond to an invitation.
-4. Observe completion, number of prompts needed, confusion and approximate time.
-5. Ask what was clear, what was frustrating and what feature matters most.
-6. Ask permission before capturing identifiable audio/video; default to anonymous notes.
-7. Immediately record a concrete change or reason for deferring it.
+Während der Entwicklung zeigte sich, dass die Benutzeroberfläche besonders beim Kalender anspruchsvoll ist. Das Verschieben von Terminen sowie das Anpassen ihrer Dauer müssen sowohl mit verschiedenen Browsern als auch mit unterschiedlichen Eingabegeräten funktionieren.
 
-## Participant sheet
+Ein weiterer wichtiger Bereich war das Zusammenspiel mehrerer Benutzerkonten. Bei Einladungen und gemeinsam genutzten Notizen muss klar sein, wer welche Rechte hat und wann neue Informationen sichtbar werden.
 
-| ID | Device/browser | Task | Completed unaided? | Time | Problem observed | Feedback quote (consented) |
-| --- | --- | --- | --- | --- | --- | --- |
-| P01 | Pending | Pending | Pending | Pending | Pending | Pending |
-| P02 | Pending | Pending | Pending | Pending | Pending | Pending |
-| P03 | Pending | Pending | Pending | Pending | Pending | Pending |
+Auch beim responsiven Design mussten wir berücksichtigen, dass sich komplexere Ansichten wie ein Wochenkalender nicht beliebig auf ein schmales Display verkleinern lassen.
 
-## Short anonymous post-test survey
+## Nutzerfeedback
 
-Rate 1 (very difficult) to 5 (very easy):
+Diese Dokumentation enthält bewusst keine erfundenen Interviewergebnisse oder Nutzungszahlen. Ein unabhängiger Nutzertest lässt sich mit wenigen typischen Aufgaben durchführen, beispielsweise:
 
-1. Finding my next important item was easy.
-2. Creating or updating a task was understandable.
-3. Responding to a shared invitation was understandable.
-4. I could tell what changed after pressing a button.
+- Eine neue Aufgabe mit Deadline erstellen
+- Einen Termin anlegen und eine Person einladen
+- Eine Einladung annehmen
+- Eine Notiz in einem gemeinsamen Notizbuch bearbeiten
 
-Free text: “What was most confusing?” and “What would make this useful in your daily life?”
+Beobachtungen daraus können ergänzt werden, sobald echte Rückmeldungen und Einverständnisse vorliegen.
 
-## Analysis template
+## Bedeutung für die Weiterentwicklung
 
-**Number of tested users:** Pending  
-**Completion counts by task:** Pending  
-**Median task time (only if measured consistently):** Pending  
-**Main friction:** Pending  
-**Changes made from feedback (commit links):** Pending  
-**Remaining limitations:** Pending
-
-Avoid extrapolating percentages or market validation from a tiny convenience sample. An honest negative result and a tested improvement are valuable evidence.
+Für die Weiterentwicklung sind verständliche Interaktionen, mobile Bedienbarkeit, zuverlässige Speicherung und klare Rückmeldungen besonders wichtig. Ein schlanker Aufbau hilft nur dann, wenn die häufigsten Aktionen tatsächlich einfach funktionieren.
