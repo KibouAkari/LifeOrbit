@@ -88,3 +88,9 @@ Calendar events support a context menu via right-click, or a visible Actions con
 Calendar invitations are individual share records with pending, accepted or declined response status. Only the invited recipient can respond or remove their invitation. Owners retain edit rights; invitees get read-only event details. Participant lists are visible to the event owner and existing invitees only. Deleting an invitation removes it for that recipient, not the organizer's event. Declined invitations remain in the database until removed and are hidden from the normal calendar grid.
 
 Theme preference is stored in the authenticated workspace and hydrated during account loading across devices; guests retain local settings. Task deadlines are stored in UTC. An incomplete task past its deadline is classified as Overdue, and the dashboard displays a red warning while any exist.
+
+## Challenge slots and context menu fix
+
+Each user may have up to three unfinished personal challenges and two unfinished shared challenges. Accepted shared challenges retain the MongoDB share ID as their origin to prevent duplicate acceptance. Unselecting an active challenge removes it from the account workspace and frees its slot. Recurring templates remain available for manual re-selection rather than instantly recreating removed challenges.
+
+The calendar's native context-menu handler now captures right-clicks before child controls, and the menu is portaled to the document root. This avoids offset errors from parent transforms, scroll containers and local stacking contexts. Positioning clamps to the screen edges, while Actions buttons continue to work for keyboard and mobile interactions.
