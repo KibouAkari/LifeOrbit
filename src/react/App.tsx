@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { Layout } from "./components/Layout";
 import { useApp } from "./context/AppContext";
-import { clearSession, hasSession, signOut, request } from "./data/api";
-import type { Task, Event as CalendarEvent } from "./types";
+import { clearSession, hasSession, signOut } from "./data/api";
 import { restoreSession } from "./services/session";
 import type { Section } from "./types";
 import Dashboard from "./pages/Dashboard";
@@ -35,21 +34,6 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [logoutError, setLogoutError] = useState("");
-  const [overviewStatus, setOverviewStatus] = useState<"loading"|"ready"|"error">("loading");
-  const [overviewError, setOverviewError] = useState("");
-  const loadOverview = async () => {
-    setOverviewStatus("loading"); setOverviewError("");
-    try {
-      const [tasks, events] = await Promise.all([
-        request<Task[]>("/tasks"), request<CalendarEvent[]>("/calendar/events")
-      ]);
-      patchRef.current("tasks", tasks); patchRef.current("events", events);
-      setOverviewStatus("ready");
-    } catch (error) {
-      setOverviewError(error instanceof Error ? error.message : "Unable to load your daily overview");
-      setOverviewStatus("error");
-    }
-  };
   const signingOut = useRef(false);
   const { state, patch, workspaceStatus, workspaceError, restoreWorkspace } = useApp();
   const patchRef = useRef(patch);
@@ -59,7 +43,7 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     const navigate = () => setRoute(routeFromHash());
-    const enter = () => { setSignedIn(hasSession()); setIntro(true); void loadOverview(); location.hash = "#/dashboard"; };
+    const enter = () => { setSignedIn(hasSession()); setIntro(true); location.hash = "#/dashboard"; };
     const logout = async () => {
       if (signingOut.current) return;
       signingOut.current = true;
@@ -88,7 +72,7 @@ export default function App() {
     restoreSession().then(user => {
       if (!alive) return;
       setSignedIn(Boolean(user));
-      if (user) { patchRef.current("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); void loadOverview(); }
+      if (user) { patchRef.current("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
       setReady(true);
     });
     return () => {
@@ -117,10 +101,10 @@ export default function App() {
   if (!signedIn && !guestMode()) return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "login") return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "not-found") return <NotFound />;
-  if (signedIn && (workspaceStatus !== "ready" || overviewStatus !== "ready")) return <Layout section={route} dark={dark}>
-    <section className="work-page" role={workspaceStatus === "error" || overviewStatus === "error" ? undefined : "status"}>
+  if (signedIn && (workspaceStatus !== "ready")) return <Layout section={route} dark={dark}>
+    <section className="work-page" role={workspaceStatus === "error" ? undefined : "status"}>
       <h1>{workspaceStatus === "error" || overviewStatus === "error" ? "Your data could not be loaded." : "Preparing your day…"}</h1>
-      {(workspaceStatus === "error" || overviewStatus === "error") && <><p className="auth-error" role="alert">{workspaceError || overviewError}</p><button className="button primary" onClick={() => {restoreWorkspace();void loadOverview();}}>Try again</button></>}
+      {(workspaceStatus === "error" || overviewStatus === "error") && <><p className="auth-error" role="alert">{workspaceError}</p><button className="button primary" onClick={() => {restoreWorkspace();}}>Try again</button></>}
     </section>
   </Layout>;
   const Page = pages[route];
