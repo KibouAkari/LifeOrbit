@@ -8,8 +8,9 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 - Load tasks, events and account workspace in parallel before the authenticated dashboard renders. Removed per-page-only initial loading.
 - Show today as the leftmost day in the default rolling seven-day calendar, while navigation uses Monday-based weeks.
 - Add month calendar overview, event start/end times, time edits and drag-to-move across days.
-- Retain one-time .ics import and make calendar sources visible and hideable. External Google, Outlook and Apple live synchronization remains future integration work.
-- Add randomized daily and weekly challenges, recurring custom challenge templates and animated completion with gentle sound.
+- Retain one-time .ics import, support multiple separately named imported calendar collections, and add show/hide and remove controls.
+- Allow event duration changes by dragging a resize grip; preserve times from imported .ics events. External Google, Outlook and Apple live synchronization remains future integration work.
+- Add randomized daily and weekly challenges, recurring custom challenge templates automatically renewed each period, and animated completion with gentle sound.
 - Hide completed challenges without deleting their points history or adding reset controls.
 - Replace example leaderboards with a MongoDB ranking of real accounts; other accounts appear only by opt-in, while your own score is always visible.
 - Remove the unnecessary security section for Google-only accounts from Settings and place Appearance alongside Profile.
