@@ -38,6 +38,15 @@ export default function Notes(){
   function change(field:"title"|"body",value:string){
     patch("notes",current=>current.map(n=>n.id===selected?{...n,[field]:value}:n));
   }
+  function deleteChapter(id:string){
+    const chapter=state.chapters.find(c=>c.id===id);
+    if(!chapter)return;
+    if(!window.confirm(`Delete "${chapter.name}"? Its notes will be moved to Personal.`))return;
+    patch("notes",current=>current.map(n=>n.chapter_id===id?{...n,chapter_id:"personal"}:n));
+    patch("chapters",current=>current.filter(c=>c.id!==id));
+    if(chapter.id===chapter)setChapter("personal");
+    setSelected(null);setNotice("Chapter removed. Its notes were kept.");
+  }
   function createChapter(){
     const name=chapterName.trim().slice(0,80);
     if(!name)return;
@@ -53,7 +62,7 @@ export default function Notes(){
         <input className="input" autoFocus aria-label="Chapter name" maxLength={80} placeholder="Chapter name" value={chapterName} onChange={e=>setChapterName(e.target.value)}/>
         <button className="button primary">Add</button>
       </form>}
-      {!sharedMode&&state.chapters.map(c=><button className={chapter===c.id?"selected":""} key={c.id} onClick={()=>{setChapter(c.id);setSelected(null);}}><BookOpen size={17}/>{c.name}</button>)}
+      {!sharedMode&&state.chapters.map(c=><div className="chapter-row" key={c.id}><button className={chapter===c.id?"selected":""} onClick={()=>{setChapter(c.id);setSelected(null);}}><BookOpen size={17}/>{c.name}</button>{c.id!=="personal"&&<button className="chapter-remove" title={`Delete ${c.name}`} aria-label={`Delete chapter ${c.name}`} onClick={()=>deleteChapter(c.id)}><Trash2 size={15}/></button>}</div>)}
     </aside><section className="notebook-list">
       <div className="notebook-section-heading">Pages {!sharedMode&&<button aria-label="New note" onClick={create}><Plus size={17}/></button>}</div>
       {sharedMode?shared.map(n=><button key={n.id} className={selected===n.id?"selected":""} onClick={()=>setSelected(n.id)}><strong>{n.title}</strong><small>From {n.shared_by}</small></button>):items.length?items.map(n=><button className={selected===n.id?"selected":""} key={n.id} onClick={()=>setSelected(n.id)}><strong>{n.title}</strong><small>{n.body.slice(0,64)||"Empty note"}</small></button>):<div className="quiet-empty">No pages here yet.</div>}
