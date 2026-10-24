@@ -8,6 +8,7 @@ app = FastAPI(
     title="LifeOrbital API",
     version="0.3.0",
     docs_url=None if os.getenv("VERCEL_ENV") == "production" else "/api/docs",
+    openapi_url="/api/openapi.json",
     redoc_url=None,
 )
 origins = [value.strip() for value in os.getenv(
