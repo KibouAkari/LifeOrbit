@@ -15,6 +15,7 @@ router = APIRouter()
 
 class IcalImport(BaseModel):
     content: str = Field(min_length=15, max_length=1000000)
+    name: str = Field(default="Imported calendar", min_length=1, max_length=80)
 
 def output(doc):
     return {
@@ -22,7 +23,8 @@ def output(doc):
         "title": doc["title"], 
         "date": doc["date"],
         "source": doc.get("source", "mongodb"),
-        "start_time": doc.get("start_time"), "end_time": doc.get("end_time")
+        "start_time": doc.get("start_time"), "end_time": doc.get("end_time"),
+        "source_id": doc.get("source_id"), "source_name": doc.get("source_name")
     }
 
 @router.get("/events")
@@ -73,6 +75,7 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
         calendar = ICalendar.from_ical(payload.content)
     except (ValueError, TypeError, AttributeError):
         raise HTTPException(400, "Invalid calendar file")
+    calendar_id = sha256(payload.content.encode()).hexdigest()[:20]
     entries = []
     for item in calendar.walk("VEVENT"):
         start = item.get("dtstart")
@@ -89,7 +92,8 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
         end_clock = end_prop.dt.strftime("%H:%M") if end_prop and isinstance(end_prop.dt, datetime) else None
         entries.append({"user_id": user, "title": title, "date": day.isoformat(),
                         "start_time": start_clock, "end_time": end_clock,
-                        "source": "ical_import", "source_key": source_key})
+                        "source": "ical_import", "source_key": source_key,
+                        "source_id": calendar_id, "source_name": payload.name})
         if len(entries) > 500:
             raise HTTPException(413, "Calendar contains more than 500 importable events")
     saved = 0
@@ -101,3 +105,23 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
         except DuplicateKeyError:
             pass
     return {"imported": saved, "total": len(entries)}
+
+@router.get("/imports")
+def list_imports(user: str = Depends(get_current_user)):
+    """Return just this user's imported calendar collections."""
+    from pymongo import ASCENDING
+    rows = get_db().events.aggregate([
+        {"$match": {"user_id": user, "source": "ical_import"}},
+        {"$group": {"_id": "$source_id", "name": {"$first": "$source_name"}, "count": {"$sum": 1}}},
+        {"$sort": {"name": ASCENDING}},
+    ])
+    return [{"id": row["_id"], "name": row.get("name") or "Imported calendar",
+             "events": row["count"]} for row in rows if row.get("_id")]
+
+@router.delete("/imports/{source_id}")
+def remove_import(source_id: str, user: str = Depends(get_current_user)):
+    """Delete only the selected import collection for the current account."""
+    if len(source_id) != 20 or not all(c in "0123456789abcdef" for c in source_id):
+        raise HTTPException(400, "Invalid calendar source")
+    removed = get_db().events.delete_many({"user_id": user, "source": "ical_import", "source_id": source_id})
+    return {"removed": removed.deleted_count}
