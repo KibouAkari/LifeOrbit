@@ -4,6 +4,15 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-10-24 · Zentral Hack challenge documentation
+- Added a dedicated hackathon dossier mapping all MUST/SHOULD criteria, technical restrictions, resources and judging weights to evidence.
+- Documented the problem hypothesis, target audience, solution, business considerations and responsible project limitations.
+- Prepared a time-boxed 24-hour change log, measurable before/after evidence table, user testing protocol and reproducible demo.
+- Added a three-minute pitch script, likely jury questions and final deliverables checklist.
+- Disclosed actual ChatGPT-assisted development and documented core open-source dependencies with pending team licensing verification.
+- Explicitly kept unperformed tests, event contributions and interview results marked as pending instead of fabricating outcomes.
+
+
 ### 2026-10-24 · Public repository documentation review
 - Rebuilt the README around the current product, architecture, verified setup, capabilities and limitations.
 - Replaced outdated contribution instructions and refreshed security disclosure, deployment and release checklists.
