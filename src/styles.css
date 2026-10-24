@@ -325,3 +325,13 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .orbit-event-move-handle:active{cursor:grabbing}
 .orbit-event-grip{height:16px!important;border-radius:0 0 7px 7px}
 @media(max-width:760px){.orbit-event-move-handle{width:24px}.orbit-timed-event{padding-left:26px!important}}
+
+/* Calendar identity is carried by the event border and pastel surface. */
+.calendar-source{transition:border-color .2s ease,background .2s ease}
+.orbit-timed-event{border-left-width:4px}
+.task-datetime{min-width:165px;max-width:200px;border:1px solid var(--line);color:var(--text);background:var(--surface);border-radius:9px;padding:8px}
+.task-due-label{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.orbit-alert-wrap{position:relative}.orbit-alert-count{position:absolute;right:-6px;top:-7px;background:var(--accent);color:var(--bg);border-radius:99px;padding:1px 5px;font-size:10px;font-weight:700}
+.orbit-alert-panel{position:absolute;right:0;top:calc(100% + 9px);background:var(--surface);border:1px solid var(--line);border-radius:15px;width:min(340px,90vw);padding:16px;z-index:100;box-shadow:var(--shadow)}
+.orbit-alert-panel>div{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.orbit-alert-panel a{color:var(--text);font-size:13px;flex:1}.orbit-alert-panel button{background:none;border:0;color:var(--muted);cursor:pointer}
+@media(max-width:650px){.inline-add{flex-wrap:wrap}.task-datetime{flex:1;max-width:none;min-width:160px}.task-item{flex-wrap:wrap;gap:8px}.task-item .text-button{margin-left:auto}}
