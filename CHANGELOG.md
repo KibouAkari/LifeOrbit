@@ -4,6 +4,15 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Calendar interaction and sharing improvements
+- Reworked calendar pointer capture to keep one reliable drag owner for move and resize interactions and increased resize grip size.
+- Added an inline friend selector for sharing notes instead of a numeric browser prompt.
+- Refreshed friend requests every five seconds and whenever the browser window regains focus.
+- Made Settings Account & privacy a normal-width card rather than a full-width row.
+- Accepted common additional Outlook and iCloud subscription hosts and normalized webcal links to HTTPS, while retaining a restricted hostname allowlist.
+- Documented that arbitrary third-party iCal links remain deliberately unsupported until a safe generic fetch proxy is designed.
+
+
 ### 2026-10-24 · Brand, calendar gestures and friends usability
 - Standardized visible branding to LifeOrbit while retaining existing authentication cookie and API identifiers for backward compatibility.
 - Replaced browser native HTML drag operations with pointer-captured calendar move and resize gestures supporting mouse, pen and touch.
