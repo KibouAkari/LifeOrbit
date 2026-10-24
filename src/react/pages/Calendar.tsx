@@ -152,7 +152,7 @@ export default function Calendar(){
   if(!item.invitation_id)return;
   try{await request(`/sharing/events/${item.invitation_id}/response`,{method:"PATCH",body:JSON.stringify({status})});
    setInvited(rows=>rows.map(x=>x.invitation_id===item.invitation_id?{...x,rsvp_status:status}:x));
-   setSelectedInvite(current=>current?.invitation_id===item.invitation_id?{...current,rsvp_status:status}:current);
+   setSelectedInvite(current=>current&&current.invitation_id===item.invitation_id?{...current,rsvp_status:status}:current);
    setMessage(status==="accepted"?"Invitation accepted":"Invitation declined");
   }catch(e){setMessage(e instanceof Error?e.message:"Could not respond")}
  }
