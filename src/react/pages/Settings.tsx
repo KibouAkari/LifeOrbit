@@ -13,6 +13,7 @@ export default function Settings(){
  const [busy,setBusy]=useState(false);
  const [newEmail,setNewEmail]=useState("");
  const [currentPassword,setCurrentPassword]=useState("");
+ const [passwordCurrentPassword,setPasswordCurrentPassword]=useState("");
  const [newPassword,setNewPassword]=useState("");
  const authenticated=hasSession();
 
@@ -63,16 +64,19 @@ export default function Settings(){
      </form>
    </section>
    {authenticated&&<section className="surface-card settings-section"><h2><ShieldCheck size={19}/> Login & security</h2>
+      {user?.has_password&&<>
       <form className="form" onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");try{const updated=await request<SignedInUser>("/auth/email",{method:"PATCH",body:JSON.stringify({email:newEmail,password:currentPassword})});setUser(updated);setMessage("Email updated");setCurrentPassword("");}catch(err){setMessage(err instanceof Error?err.message:"Email change failed");}finally{setBusy(false)}}}>
         <label className="form-label">Email<input className="input" type="email" required value={newEmail} onChange={e=>setNewEmail(e.target.value)}/></label>
         <label className="form-label">Current password<input className="input" type="password" autoComplete="current-password" required value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
         <button className="button" disabled={busy}>Update email</button>
       </form>
-      <form className="form" onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");try{await request("/auth/password",{method:"PATCH",body:JSON.stringify({current_password:currentPassword,new_password:newPassword})});setMessage("Password updated");setCurrentPassword("");setNewPassword("");}catch(err){setMessage(err instanceof Error?err.message:"Password change failed");}finally{setBusy(false)}}}>
-        <label className="form-label">New password<input className="input" type="password" minLength={12} maxLength={72} required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
-        <button className="button" disabled={busy}>Change password</button>
-      </form>
-      <p className="muted tiny">Google-only accounts manage their email and password through Google.</p>
+     <form className="form" onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");try{await request("/auth/password",{method:"PATCH",body:JSON.stringify({current_password:passwordCurrentPassword,new_password:newPassword})});setMessage("Password updated");setPasswordCurrentPassword("");setNewPassword("");}catch(err){setMessage(err instanceof Error?err.message:"Password change failed");}finally{setBusy(false)}}}>
+       <label className="form-label">Current password<input className="input" type="password" autoComplete="current-password" required value={passwordCurrentPassword} onChange={e=>setPasswordCurrentPassword(e.target.value)}/></label>
+       <label className="form-label">New password<input className="input" type="password" minLength={12} maxLength={72} required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
+       <button className="button" disabled={busy}>Change password</button>
+     </form>
+     </>}
+     {user&&!user.has_password&&<p className="muted tiny">Google-only accounts manage their email and password through Google.</p>}
    </section>}
    <section className="surface-card settings-section"><h2><Palette size={19}/> Appearance</h2>
      <label className="form-label">Theme<select className="select" value={state.theme} onChange={e=>{patch("theme",e.target.value as Theme);setMessage("Appearance updated");}}>

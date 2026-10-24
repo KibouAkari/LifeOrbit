@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, CalendarDays, Upload } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { request, hasSession } from "../data/api";
@@ -17,6 +17,7 @@ export default function Calendar() {
   const [creating,setCreating]=useState(false);
   const [message,setMessage]=useState("");
   const [importing,setImporting]=useState(false);
+  const fileInput=useRef<HTMLInputElement>(null);
   const online=hasSession();
   useEffect(()=>{
     if(online)request<CalendarEvent[]>("/calendar/events").then(events=>patch("events",events)).catch(err=>setMessage(String(err)));
@@ -53,7 +54,7 @@ export default function Calendar() {
   return <div className="work-page"><Heading title="Calendar" description="Your plans for the week."/>
     <div className="calendar-toolbar"><div className="actions"><button className="icon-button" aria-label="Previous week" onClick={()=>setWeek(week-1)}><ChevronLeft size={18}/></button><button className="icon-button" aria-label="Next week" onClick={()=>setWeek(week+1)}><ChevronRight size={18}/></button><button className="text-button" onClick={()=>setWeek(0)}>Today</button></div>
     <strong>{days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – {days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}</strong>
-    <label className="button calendar-import"><Upload size={16}/> {importing?"Importing…":"Import .ics"}<input type="file" accept=".ics,text/calendar" disabled={importing} hidden onChange={e=>{void importCalendar(e.target.files?.[0]);e.target.value="";}}/></label>
+    <button className="button calendar-import" type="button" disabled={importing} onClick={()=>fileInput.current?.click()}><Upload size={16}/> {importing?"Importing…":"Import .ics"}</button><input ref={fileInput} type="file" accept=".ics,text/calendar" disabled={importing} hidden onChange={e=>{void importCalendar(e.target.files?.[0]);e.target.value="";}}/>
     <button className="button primary" onClick={()=>setCreating(!creating)}><Plus size={17}/> Event</button></div>
     {creating&&<form className="calendar-add" onSubmit={add}><input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Event title" required maxLength={120}/><input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} required/><button className="button primary">Save</button></form>}
     <p className="feedback-line" role="status">{message}</p>
@@ -61,4 +62,3 @@ export default function Calendar() {
     <div className="weekly-grid">{days.map(day=><section className={`${iso(day)===iso(new Date())?"week-day is-today":"week-day"} ${iso(day)===selected?"week-day-selected":""}`} key={iso(day)}><div className="week-day-title"><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></div>{state.events.filter(e=>e.date===iso(day)).map(e=><div className="week-event" key={e.id}><span>{e.title}</span><button aria-label="Delete event" onClick={()=>void remove(e.id)}>×</button></div>)}<button className="week-add" onClick={()=>{setSelected(iso(day));setDate(iso(day));setCreating(true)}} aria-label={`Add event on ${iso(day)}`}>+</button></section>)}</div>
   </div>;
 }
-

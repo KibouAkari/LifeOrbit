@@ -57,6 +57,7 @@ def public_user(user):
     return {
         "id": str(user["_id"]), "name": user.get("name", ""),
         "email": user.get("email", ""), "picture": user.get("picture"),
+        "has_password": bool(user.get("password_hash")),
     }
 
 
@@ -222,7 +223,7 @@ def change_email(payload: EmailChange, user_id: str = Depends(get_current_user))
     if not hashed:
         raise HTTPException(400, "Google-only accounts manage email through Google")
     if not passwords.verify(payload.password, hashed):
-        raise HTTPException(401, "Incorrect password")
+        raise HTTPException(403, "Incorrect password")
     new_email = payload.email.strip().lower()
     try:
         updated = get_db().users.find_one_and_update(
@@ -243,7 +244,7 @@ def change_password(payload: PasswordChange, user_id: str = Depends(get_current_
     if not hashed:
         raise HTTPException(400, "This Google account does not have a password")
     if not passwords.verify(payload.current_password, hashed):
-        raise HTTPException(401, "Incorrect password")
+        raise HTTPException(403, "Incorrect password")
     get_db().users.update_one(
         {"_id": user["_id"]},
         {"$set": {"password_hash": passwords.hash(payload.new_password),

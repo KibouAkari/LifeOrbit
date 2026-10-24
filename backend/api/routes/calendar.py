@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 from icalendar import Calendar as ICalendar
 from datetime import datetime, date as Date
 
+from pymongo.errors import DuplicateKeyError
+
 from backend.api.database import get_db
 from backend.api.models import CalendarEventRequest
 from backend.api.routes.auth import get_current_user
@@ -81,11 +83,14 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
         source_key = sha256((uid + "|" + day.isoformat()).encode()).hexdigest()
         entries.append({"user_id": user, "title": title, "date": day.isoformat(),
                         "source": "ical_import", "source_key": source_key})
-        if len(entries) >= 500:
-            break
+        if len(entries) > 500:
+            raise HTTPException(413, "Calendar contains more than 500 importable events")
     saved = 0
     for entry in entries:
-        match = {"user_id": user, "source_key": entry["source_key"]}
-        result = get_db().events.update_one(match, {"$setOnInsert": entry}, upsert=True)
-        saved += int(result.upserted_id is not None)
+        match = {"user_id": user, "source": "ical_import", "source_key": entry["source_key"]}
+        try:
+            result = get_db().events.update_one(match, {"$setOnInsert": entry}, upsert=True)
+            saved += int(result.upserted_id is not None)
+        except DuplicateKeyError:
+            pass
     return {"imported": saved, "total": len(entries)}
