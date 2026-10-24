@@ -6,7 +6,8 @@ All changes remain under Unreleased until a verified release.
 
 ### 24 October 2026 · Deployment and security repairs
 - Located production 404 root cause: the Vercel project deployed only Vite and had no live Python API.
-- Added an in-project FastAPI function entrypoint, shared Python requirements and /api routing configuration.
+- Added an in-project FastAPI function entrypoint, explicit Python requirements and /api routing configuration.
+- Fixed Vercel Python requirements parser rejecting the -r inclusion directive.
 - Normalized Python backend imports for the monorepo.
 - Added scheduled npm and Python dependency vulnerability checks.
 - Added a severity-based security audit and a release-blocker list.
