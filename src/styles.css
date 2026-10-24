@@ -261,3 +261,11 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .orbit-event-label small{font-size:10px;opacity:.8}
 .orbit-event-grip{border:0;position:absolute;bottom:0;left:0;right:0;height:8px;background:color-mix(in srgb,var(--accent) 28%,transparent);cursor:ns-resize;touch-action:none}
 @media(prefers-reduced-motion:reduce){.surface-card,.subscription-item,.challenge-item,.button,.icon-button{transition:none!important;animation:none!important}}
+
+/* Calendar gestures use pointer capture, including touch and pen. */
+.orbit-timed-event{touch-action:none;user-select:none}
+.orbit-event-grip{touch-action:none;cursor:ns-resize;height:12px}
+.calendar-gesture-active{cursor:grabbing!important}
+.friend-tabs{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--surface-alt);margin:14px 0 22px}
+.friend-tabs button{flex:1;border:0;border-radius:9px;padding:10px 8px;background:transparent;color:var(--muted);font-weight:600;transition:background .15s,color .15s}
+.friend-tabs button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}

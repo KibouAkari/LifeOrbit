@@ -61,12 +61,12 @@ export default function Login(){
 
  return <main className="login-screen"><div className="login-layout">
    <section className="login-intro">
-     <a className="brand" href="#/login">LifeOrbital</a>
+     <a className="brand" href="#/login">LifeOrbit</a>
      <div><h1>A little more room<br/>for life.</h1><p>Keep the important things together, without the clutter.</p></div>
      
    </section>
    <section className="login-form-side"><div className="login-panel login-refined">
-     <img className="login-mark" src="/assets/icon.svg" alt="LifeOrbital planet icon"/>
+     <img className="login-mark" src="/assets/icon.svg" alt="LifeOrbit planet icon"/>
      <h2>{emailVisible?(mode==="register"?"Create your space.":"Welcome back."):"Everything in its place."}</h2>
      <p>{emailVisible?"A few details and you're in.":"Get organised, stay on track and enjoy the little wins."}</p>
      {!emailVisible?<div className="login-primary-choices">

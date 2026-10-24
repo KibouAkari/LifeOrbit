@@ -4,6 +4,14 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Brand, calendar gestures and friends usability
+- Standardized visible branding to LifeOrbit while retaining existing authentication cookie and API identifiers for backward compatibility.
+- Replaced browser native HTML drag operations with pointer-captured calendar move and resize gestures supporting mouse, pen and touch.
+- Corrected cross-day drop targeting while pointer capture is active.
+- Introduced Friends / Requests / Find people tabs and clearer request responses in account settings.
+- Removed outdated images from the README showcase to avoid misrepresenting them as current screenshots. Fresh captures remain a release task.
+
+
 ### 2026-10-24 · Social planning and calendar usability
 - Added editable subscriptions including billing interval, currency, amount, name and renewal date.
 - Implemented MongoDB friend requests, profile search, acceptance, rejection and removal, plus incoming-request badge.

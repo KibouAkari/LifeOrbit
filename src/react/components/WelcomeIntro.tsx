@@ -7,5 +7,5 @@ export function WelcomeIntro({ onComplete }: { onComplete: () => void }) {
     const id = window.setTimeout(onComplete, reduced ? 120 : 2200);
     return () => window.clearTimeout(id);
   }, [onComplete]);
-  return <main className="welcome-intro" aria-label="Entering LifeOrbit"><div className="intro-lockup"><img src="/assets/icon.svg" alt="" /><span>LifeOrbital</span></div></main>;
+  return <main className="welcome-intro" aria-label="Entering LifeOrbit"><div className="intro-lockup"><img src="/assets/icon.svg" alt="" /><span>LifeOrbit</span></div></main>;
 }

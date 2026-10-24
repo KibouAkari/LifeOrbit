@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="assets/icon.svg" width="96" alt="LifeOrbital planet icon" />
+<img src="assets/icon.svg" width="96" alt="LifeOrbit planet icon" />
 
-# LifeOrbital
+# LifeOrbit
 
 **Less organising. More living.**
 
 Tasks, calendars, notebooks, subscriptions and progress in one calm personal workspace.
 
-[Live App](https://lifeorbit-pearl.vercel.app/) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
+[Live App](https://www.lifeorbit.dev/) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -38,13 +38,7 @@ React + TypeScript + Vite on the frontend. Python FastAPI + Pydantic on the back
 
 ## Screenshots
 
-These are actual screenshots of an earlier development preview. The latest UI may differ slightly.
-
-| Dashboard | Login |
-| --- | --- |
-| ![Dashboard preview](docs/screenshots/dashboard.webp) | ![Login preview](docs/screenshots/login.webp) |
-
-See [UX Structure](docs/UX_STRUCTURE.md) for page layouts and interaction patterns.
+The existing screenshots are historical and have been removed from the landing README so they are not mistaken for the current interface. A new capture set requires a browser session against this PR preview, including authentication, and is tracked as a release requirement in `docs/UX_STRUCTURE.md`.
 
 ## Run locally
 
