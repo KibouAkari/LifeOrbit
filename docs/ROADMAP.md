@@ -1,6 +1,6 @@
 # LifeOrbit roadmap
 
-> Hackathon planning document. Every item below is **planned**, not implemented.
+> Historical hackathon plan. The original MVP priorities below are retained as planning context. For implemented functionality, see the [README](../README.md); for incomplete or blocked areas, use the status section below.
 
 ## MVP · seven priorities
 
@@ -54,3 +54,17 @@ on mobile, handles errors and empty states, respects account permissions,
 and has its changelog entry and basic validation documented.
 
 This roadmap is a team proposal, not a promise or shipped feature list.
+
+
+## Current status (October 2026)
+
+Implemented foundations include authenticated account workspaces, dashboard, task deadlines, calendar views and iCal feed imports, chapter-based notes, shared notebooks, subscriptions, challenge selection, friends and event invitations. Calendar providers are not connected by two-way OAuth synchronization, and notification delivery is currently foreground-only. Editing collaboration is polling-based without conflict-free multi-user writes.
+
+### Priority follow-ups
+
+- Complete two-account authorization and cross-browser interaction tests.
+- Improve password recovery, email verification, session revocation, account deletion and rate limiting.
+- Implement safe database concurrency/version checks for shared notebooks and multi-device settings.
+- Add automatic calendar feed scheduling and robust timezone/recurrence handling.
+- Introduce real background push only with explicit permission and reliable server scheduling.
+- Capture new, genuine, privacy-safe screenshots for the README.
