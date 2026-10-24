@@ -16,7 +16,7 @@ from api.database import get_db
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
-passwords = CryptContext(schemes=["bcrypt"], deprecated="auto")
+passwords = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 
 
 class RegisterRequest(BaseModel):
@@ -87,6 +87,7 @@ def find_user(user_id: str):
 
 @router.post("/register", status_code=201)
 def register(payload: RegisterRequest):
+    secret_key()
     db = get_db()
     email = payload.email.strip().lower()
     if db.users.find_one({"email": email}):
@@ -144,7 +145,18 @@ def google_login(payload: GoogleAuthRequest):
         record["_id"] = outcome.inserted_id
         user = record
     else:
-        db.users.update_one({"_id": user["_id"]}, {"$set": {"picture": info.get("picture")}})
+        profile = {
+            "email": email,
+            "name": info.get("name", user.get("name", "User")),
+            "picture": info.get("picture"),
+        }
+        if db.users.find_one({"email": email, "_id": {"$ne": user["_id"]}}):
+            raise HTTPException(status_code=409, detail="An account already uses this email.")
+        try:
+            db.users.update_one({"_id": user["_id"]}, {"$set": profile})
+        except DuplicateKeyError:
+            raise HTTPException(status_code=409, detail="An account already uses this email.")
+        user.update(profile)
     return issue_token(user)
 
 

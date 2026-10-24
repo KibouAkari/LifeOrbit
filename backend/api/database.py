@@ -15,7 +15,7 @@ def get_client():
 
 
 def get_db():
-    database = get_client()[os.getenv("MONGODB_DATABASE", "lifeorbital")]
+    database = get_client()[os.getenv("MONGODB_DATABASE", "lifeorbit")]
     return database
 
 
