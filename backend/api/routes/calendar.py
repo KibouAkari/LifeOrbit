@@ -1,9 +1,9 @@
 """Calendar data belongs only to the authenticated account."""
-import requests
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from icalendar import Calendar as ICalendar
+from datetime import datetime, date as Date
 
 from backend.api.database import get_db
 from backend.api.models import CalendarEventRequest
@@ -11,9 +11,8 @@ from backend.api.routes.auth import get_current_user
 
 router = APIRouter()
 
-# Schema for the iCal Sync Request
-class IcalSyncRequest(BaseModel):
-    urls: list[str]
+class IcalImport(BaseModel):
+    content: str = Field(min_length=15, max_length=1000000)
 
 def output(doc):
     return {
@@ -61,33 +60,32 @@ def delete_event(event_id: str, user: str = Depends(get_current_user)):
         
     return {"deleted": True}
 
-@router.post("/ical-sync")
-def sync_multiple_icals(request: IcalSyncRequest, user: str = Depends(get_current_user)):
-    """Lädt externe .ics Kalender (Google, Apple, Outlook) live herunter."""
-    imported_events = []
-    
-    for url in request.urls:
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code != 200:
-                continue
-                
-            cal = ICalendar.from_ical(response.content)
-            for component in cal.walk():
-                if component.name == "VEVENT":
-                    start = component.get('dtstart').dt
-                    title = str(component.get('summary', 'Ohne Titel'))
-                    date_str = start.isoformat() if hasattr(start, 'isoformat') else str(start)
-                    
-                    imported_events.append({
-                        # Eindeutige ID generieren, damit React nicht meckert (fehlender Key)
-                        "id": f"ical_{hash(url + title + date_str)}",
-                        "title": title,
-                        "date": date_str,
-                        "source": "ical_import"
-                    })
-        except Exception as e:
-            print(f"Fehler beim Import von {url}: {e}")
+@router.post("/ical-import")
+def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
+    """Import an uploaded iCalendar file, without fetching arbitrary external URLs."""
+    from hashlib import sha256
+    try:
+        calendar = ICalendar.from_ical(payload.content)
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "Invalid calendar file")
+    entries = []
+    for item in calendar.walk("VEVENT"):
+        start = item.get("dtstart")
+        if not start:
             continue
-            
-    return imported_events
+        day = start.dt.date() if isinstance(start.dt, datetime) else start.dt
+        if not isinstance(day, Date):
+            continue
+        title = str(item.get("summary") or "Untitled event")[:120]
+        uid = str(item.get("uid") or title + day.isoformat())
+        source_key = sha256((uid + "|" + day.isoformat()).encode()).hexdigest()
+        entries.append({"user_id": user, "title": title, "date": day.isoformat(),
+                        "source": "ical_import", "source_key": source_key})
+        if len(entries) >= 500:
+            break
+    saved = 0
+    for entry in entries:
+        match = {"user_id": user, "source_key": entry["source_key"]}
+        result = get_db().events.update_one(match, {"$setOnInsert": entry}, upsert=True)
+        saved += int(result.upserted_id is not None)
+    return {"imported": saved, "total": len(entries)}
