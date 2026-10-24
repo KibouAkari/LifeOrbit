@@ -39,6 +39,7 @@ def shared_notes(user:str=Depends(get_current_user)):
     result=[]
     for row in rows:
         try:
+            require_friend(db,row["owner"],user)
             note=note_from_owner(db,row["owner"],row["resource_id"])
             author=db.users.find_one({"_id":ObjectId(row["owner"])},{"name":1})
             note["shared_by"]=(author or {}).get("name","Member")
@@ -62,6 +63,8 @@ def invite_event(data:ShareRequest,user:str=Depends(get_current_user)):
 def invited_events(user:str=Depends(get_current_user)):
     db=get_db();result=[]
     for row in db.shares.find({"recipient":user,"kind":"event"}).limit(200):
+        try:require_friend(db,row["owner"],user)
+        except HTTPException:continue
         if not ObjectId.is_valid(row["resource_id"]):continue
         event=db.events.find_one({"_id":ObjectId(row["resource_id"]),"user_id":row["owner"]})
         if not event:continue
@@ -87,6 +90,8 @@ def share_challenge(data:ShareRequest,user:str=Depends(get_current_user)):
 def shared_challenges(user:str=Depends(get_current_user)):
     db=get_db();results=[]
     for row in db.shares.find({"recipient":user,"kind":"challenge"}).limit(100):
+        try:require_friend(db,row["owner"],user)
+        except HTTPException:continue
         owner=db.users.find_one({"_id":ObjectId(row["owner"])},{"name":1})
         results.append({**row.get("snapshot",{}),"id":row["resource_id"],"shared_by":(owner or {}).get("name","Member")})
     return results
