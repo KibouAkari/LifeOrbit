@@ -43,7 +43,7 @@ export default function Settings(){
      const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
      const url=URL.createObjectURL(blob);
      const link=document.createElement("a");
-     link.href=url;link.download="lifeorbital-account-data.json";
+     link.href=url;link.download="lifeorbit-account-data.json";
      document.body.appendChild(link);link.click();link.remove();
      URL.revokeObjectURL(url);
      setMessage("Account export prepared");
@@ -85,7 +85,7 @@ export default function Settings(){
      </select></label>
    </section>
    <FriendsPanel/>
-   <section className="surface-card settings-section settings-access">
+   <section className="surface-card settings-section settings-access settings-compact">
      <h2><ShieldCheck size={19}/> Account & privacy</h2>
      <div className="settings-links"><a href="#/privacy">Privacy policy</a><a href="#/terms">Terms of service</a></div>
      <div className="actions">
