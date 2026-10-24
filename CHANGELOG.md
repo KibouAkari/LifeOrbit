@@ -4,6 +4,14 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Live activity and event actions
+- Refresh incoming invitation notifications every four seconds while the app is visible, with an animated toast and gentle opt-in audio after user interaction.
+- Refresh shared notebook content every three seconds without manually reloading the page, and refresh calendar invitations every five seconds.
+- Add desktop right-click event actions: Edit, Share, Delete. Add a visible event action button for touch and keyboard users.
+- Move calendar editing into a responsive dialog rather than an inline form.
+- Document limits: live experience uses foreground polling, not background Web Push or server-sent events.
+
+
 ### 2026-10-24 · Notes, iCal, cross-browser calendar and mobile fixes
 - Redesigned Notes with two clear modes, refined chapter rows, and removed legacy Received notes.
 - Added owner-controlled individual shared page deletion; deleting a page no longer deletes its notebook.
