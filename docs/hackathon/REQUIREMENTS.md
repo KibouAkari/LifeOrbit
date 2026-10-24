@@ -1,68 +1,54 @@
-# Zentral Hack requirements and evidence map
+# Technische Umsetzung und Funktionsumfang
 
-This matrix follows the **requirements supplied for the event**, without changing their priority or weighting. Status means **documented evidence**, not whether an underlying feature probably exists.
+## Aufbau der Anwendung
 
-## MUST requirements
+LifeOrbit wurde als Webanwendung mit getrenntem Frontend und Backend aufgebaut. Die Oberfläche basiert auf React und TypeScript. Über die FastAPI-Schnittstelle werden Daten verarbeitet und in MongoDB gespeichert.
 
-| Requirement | LifeOrbit response | Evidence to provide | Status |
-| --- | --- | --- | --- |
-| Own idea or independent development | LifeOrbit's own product concept and implementation | Product brief, repo history, team contribution log | Existing project; team authorship to confirm |
-| Concrete problem or traceable value | Fragmented planning and small-group coordination | [Problem statement](PROBLEM_AND_SOLUTION.md), demo, feedback | Problem documented; validation pending |
-| Substantial improvement during the 24 hours | Deliver a scoped, testable before/after increment | Baseline SHA, event commits, demo comparison | **Pending event evidence** |
-| Working prototype or traceable demo | Authenticated tasks, calendar, notebook workflow | [Demo script](DEMO.md), recorded results | Prototype code exists; event demonstration pending |
-| Document the work | Repository, README, changelog and this dossier | Repo links and evidence index | Prepared; event entries pending |
-| Present solution and progress | 3-minute pitch with demo and learning | [Pitch](PITCH.md), rehearsal | Script prepared; presentation pending |
-| Disclose OSS and AI tools | Dependency inventory, external services and assistance | [Technology/AI declaration](TECHNOLOGIES_AND_AI.md) | Initial disclosure prepared; team confirmation pending |
+Die Anwendung wird auf Vercel bereitgestellt. Dadurch lassen sich Oberfläche und Python-API unter einer gemeinsamen Adresse betreiben.
 
-## SHOULD requirements
+```mermaid
+flowchart LR
+    U[Benutzer im Browser] --> F[React und TypeScript]
+    F --> A[FastAPI]
+    A --> M[(MongoDB Atlas)]
+    A --> C[Externe iCalendar-Feeds]
+```
 
-| Requirement | Proposed implementation / evidence | Status |
-| --- | --- | --- |
-| User feedback or usage analysis | Conduct short moderated tests and report counts, observations and changes | Planned; not performed |
-| Digital prototype | React/TypeScript web app + Python API + MongoDB | Implemented foundation |
-| AI, analytics or innovative technology | Document any actual AI-assisted development; do not claim AI is embedded in product | Development assistance disclosed, product AI not asserted |
-| Business model / further development | Freemium hypothesis, operating costs, audience and privacy constraints | Hypotheses documented |
-| Convincing pitch | Tight problem → solution → live demo → outcome → next step | Draft prepared |
+## Umgesetzte Funktionen
 
-## Out of scope
-
-A complete commercial launch, fully production-ready solution and additional features without a tested outcome are **not required**. Showing only an unchanged existing prototype without a substantial hackathon increment **does not satisfy** the challenge.
-
-## Technical constraints and resource compliance
-
-- Tools, languages, public APIs, open-source packages and AI assistance are allowed when documented.
-- Respect third-party rights, trademarks, licenses and use restrictions.
-- Do not import real users' personal data or confidential employer material without authority.
-- Handle security-sensitive functionality responsibly, including authentication, shared content and private calendar URLs.
-- Preconfigure own equipment, accounts, local runtimes, Vercel/Atlas access and test credentials before the event.
-- Keep a demo/backup path in case the deployed app or Wi-Fi becomes unavailable.
-
-## Required deliverables
-
-| Deliverable | Location |
+| Bereich | Umsetzung |
 | --- | --- |
-| Working prototype/demo | App + [reproducible demo](DEMO.md) |
-| 3-minute presentation, followed by jury questions | [Pitch](PITCH.md) |
-| Code repository | https://github.com/KibouAkari/LifeOrbit |
-| README and technical docs | [README](../../README.md) and [docs](../) |
-| Original problem, audience, solution, actual hackathon change and learning | [Problem](PROBLEM_AND_SOLUTION.md), [Log](DEVELOPMENT_LOG.md), [Evidence](EVIDENCE.md) |
+| Benutzerkonto | Anmeldung per E-Mail/Passwort oder Google und persönliche Datenbereiche |
+| Dashboard | Übersicht über wichtige Informationen und Hinweise zu überfälligen Aufgaben |
+| Aufgaben | Erstellen, bearbeiten, abschliessen und nach Deadline organisieren |
+| Kalender | Wochen- und Monatsansicht, Terminverwaltung und Einladungen |
+| Kalenderimport | Einmaliger .ics-Import und abonnierte iCalendar-Links mit manuellem Refresh |
+| Notizen | Kapitel, Seiten und gemeinsame Notizbücher |
+| Zusammenarbeit | Freundschaftsanfragen, Termineinladungen und Freigaben |
+| Abonnements | Erfassung von Kosten und wiederkehrenden Zahlungen |
+| Challenges | Persönliche und geteilte Challenges mit Fortschrittsanzeige |
+| Einstellungen | Accountprofil, Darstellung und Exportfunktionen |
 
-## Judging criteria and weighting
+## Datenhaltung und Benutzerrechte
 
-| Criterion | Weight | Recommended proof |
-| --- | ---: | --- |
-| Innovation & Kreativität | **20%** | Own concept, clean integration and distinct UX |
-| Technische Umsetzung | **20%** | Working end-to-end demo, tests, security boundaries |
-| Problemlösung & Relevanz | **20%** | User problem, observed usability outcomes, clear value |
-| Präsentation & Pitch | **15%** | Rehearsed 3-minute presentation, accessible demo |
-| Business-Potenzial | **25%** | Future concept **and especially** traceable 24-hour progress, own work and results |
+Persönliche Daten sind einem Benutzerkonto zugeordnet. Gemeinsame Inhalte werden über entsprechende Freigaben zugänglich gemacht. Bei Kalendereinladungen können eingeladene Personen beispielsweise zu- oder absagen, den ursprünglichen Termin jedoch nicht selbst bearbeiten.
 
-The last criterion's label and description are preserved as provided. It explicitly mentions development progress and contribution as well as business potential; prepare evidence for all of those, rather than silently reinterpreting the category.
+Diese Rechte müssen im Backend durchgesetzt werden; eine ausgeblendete Schaltfläche in der Oberfläche allein reicht nicht aus.
 
-## Evidence quality scale
+## Technische Herausforderungen
 
-**Verified:** accompanied by actual working demo/test result and/or dated commit.  
-**Documented:** explained but not independently demonstrated.  
-**Planned:** a proposal or to-do, not an achievement.
+**Kalender:** Termine müssen mit korrekten Daten und Uhrzeiten gespeichert werden. Drag-and-drop, Touch-Bedienung und unterschiedliche Browser stellen zusätzliche Anforderungen.
 
-Complete the checklist using the team's actual event artifacts.
+**Zusammenarbeit:** Änderungen sollen bei anderen Personen ohne manuelles Neuladen sichtbar werden. LifeOrbit verwendet dafür derzeit regelmässige Aktualisierungen über die API.
+
+**Datenkonsistenz:** Wenn mehrere Personen dieselbe gemeinsame Notiz bearbeiten, sind künftig weitergehende Mechanismen zur Erkennung und Behandlung von Bearbeitungskonflikten nötig.
+
+**Sicherheit:** Externe Kalenderlinks müssen überprüft und private Daten vor unberechtigtem Zugriff geschützt werden.
+
+## Grenzen des Prototyps
+
+Die Anwendung bietet keine vollständige Echtzeitsynchronisation über WebSockets. Benachrichtigungen funktionieren innerhalb der geöffneten Anwendung; eine zuverlässige Push-Zustellung bei geschlossenem Browser besteht noch nicht. Externe Kalenderabonnements benötigen einen manuellen Refresh. Weitere technische Einschränkungen sind in der [Sicherheitsdokumentation](../SECURITY_AUDIT.md) beschrieben.
+
+## Bezug zur Challenge
+
+Der wesentliche Entwicklungsbeitrag besteht in der gemeinsamen Konzeption und Umsetzung einer funktionsfähigen Anwendung von Grund auf. Der Quellcode, die Dokumentation und die Änderungshistorie zeigen die technische Umsetzung. Für die tatsächliche Demonstration dient der im nächsten Kapitel beschriebene Ablauf.

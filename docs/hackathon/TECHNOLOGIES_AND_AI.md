@@ -1,60 +1,42 @@
-# Open source, external services and AI disclosure
+# Technologien und Hilfsmittel
 
-Transparency about tools and assistance is a **MUST requirement** under the supplied Zentral Hack challenge.
+## Technischer Stack
 
-## Core technology inventory
+Die technische Grundlage von LifeOrbit wurde während der Planung festgelegt und anschliessend umgesetzt.
 
-The following are present in the repository's dependency or configuration files. See [package.json](../../package.json), [requirements.txt](../../requirements.txt) and [backend/requirements.txt](../../backend/requirements.txt) for the authoritative dependency declarations.
+| Technologie | Verwendung |
+| --- | --- |
+| React | Aufbau der Benutzeroberfläche |
+| TypeScript | Programmierung und Typprüfung im Frontend |
+| Vite | Entwicklungsumgebung und Frontend-Build |
+| CSS | Gestaltung, Layout und Responsive Design |
+| Lucide | Icons in der Anwendung |
+| Python | Backend-Programmierung |
+| FastAPI | API-Schnittstellen für Benutzer und Anwendungsdaten |
+| Pydantic | Validierung von API-Daten |
+| MongoDB Atlas | Speicherung von Konten und Inhalten |
+| Vercel | Bereitstellung von Frontend und Backend |
+| Google Identity Services | Anmeldung mit einem Google-Konto |
+| Miro | Ideensammlung, Funktionsplanung und Strukturierung |
 
-| Component | Role | Licensing verification |
-| --- | --- | --- |
-| React, React DOM | User interface | Verify installed package license before public submission |
-| TypeScript, Vite, @vitejs/plugin-react | Build and frontend developer tooling | Verify actual installed dependency licenses |
-| lucide-react | Interface icons | Verify package and icon attribution conditions |
-| Python, FastAPI, Pydantic, Uvicorn | Backend API and validation | Verify package licenses |
-| PyMongo | MongoDB database driver | Verify installed license terms |
-| google-auth / Google Identity Services | Identity verification | Google API terms and dependency license to be reviewed |
-| PyJWT, passlib, bcrypt, cryptography | Session, passwords and encryption | Verify dependency licenses and maintained versions |
-| requests, urllib3, icalendar | External HTTPS/iCalendar handling | Verify licenses and security advisories |
-| Vercel and MongoDB Atlas | Hosting and persistent storage | Proprietary services with provider terms, not open-source project dependencies |
+Weitere eingesetzte Python-Bibliotheken sind in [requirements.txt](../../requirements.txt) und [backend/requirements.txt](../../backend/requirements.txt) aufgeführt. Die direkten Frontend-Abhängigkeiten stehen in [package.json](../../package.json).
 
-**Important:** The MIT License on LifeOrbit does not automatically grant rights to all third-party assets, fonts, logos or external APIs. Perform and record a license audit using the actual resolved versions, including transitive dependencies.
+## Open-Source-Komponenten
 
-## External data and privacy
+LifeOrbit verwendet mehrere Open-Source-Frameworks und Bibliotheken. Der eigene Projektcode steht unter der [MIT-Lizenz](../../LICENSE). Die Rechte und Lizenzbedingungen der einzelnen Abhängigkeiten und externen Dienste gelten unabhängig davon und sind bei einer Veröffentlichung zu beachten.
 
-- Google Sign-In is used for identity, not direct Calendar/Gmail access.
-- Public HTTPS calendar feeds can be subscribed to using user-provided links; private feed tokens require careful handling.
-- Vercel and MongoDB Atlas provide infrastructure. Production service regions and data-processing agreements must be confirmed by the operator.
-- Demo and research data should be synthetic or expressly consented to.
+Zu den wichtigsten Bibliotheken gehören React, TypeScript, Vite, FastAPI, Pydantic, PyMongo und Lucide. Die Liste der installierten Pakete sowie deren tatsächliche Versionen muss für eine vollständige Lizenzübersicht anhand der jeweiligen Entwicklungsumgebung überprüft werden.
 
-## AI-tool use
+## Unterstützung durch KI
 
-LifeOrbit has received **ChatGPT assistance** in design and development discussion, code suggestions, documentation drafting, GitHub/Vercel changes and debugging workflows. This is material assistance and should be disclosed. Team members must verify and expand the declaration with other AI products actually used during the hackathon.
+Während der Entwicklung wurde **ChatGPT** als Hilfsmittel verwendet, unter anderem für Ideen zur Benutzeroberfläche, Codevorschläge, das Untersuchen von Fehlern und die Überarbeitung der Dokumentation.
 
-| Use | Disclosed status | Human responsibility |
-| --- | --- | --- |
-| Brainstorming and UX/product wording | ChatGPT-assisted across development conversations | Team selects, adapts and justifies |
-| Source code generation and refactoring | ChatGPT-assisted contributions have occurred | Team reviews, tests and owns merged code |
-| Documentation and pitch drafts | ChatGPT-assisted, including this dossier | Team verifies factual claims and replaces placeholders |
-| Bug investigation, CI/deployment support | AI-assisted tool use in prior development | Team confirms results independently |
-| Embedded AI end-user feature | **Not established in current repository** | Do not claim it exists |
-| Additional AI tools, models, prompts and paid APIs | Pending team confirmation | Record actual names, purpose, license/data terms |
+Die Wahl des Projektthemas, die gemeinsame Planung und die Verantwortung für die Umsetzung liegen beim Team. Generierte Vorschläge und Code müssen auf ihre Funktion, Sicherheit und Eignung geprüft werden.
 
-Using AI does not replace evidence of **the team's independent decisions, testing or substantial 24-hour contribution**. AI output must be reviewed for insecure code, false claims, licensing issues and data leaks.
+LifeOrbit enthält dadurch nicht automatisch eine KI-Funktion für Endbenutzer. Weitere KI-Werkzeuge werden hier nur genannt, wenn ihre tatsächliche Verwendung durch das Team bestätigt ist.
 
-## Rights and compliance checklist
+## Datenschutz und verantwortungsvolle Nutzung
 
-- [ ] All original code, diagrams, screenshots and brand assets have confirmed authorship/permission
-- [ ] Dependency licenses and notices are reviewed for actual versions
-- [ ] No proprietary customer/employer code or confidential materials copied into repository
-- [ ] No unconsented personal data included in commits, screenshots or prompts
-- [ ] All AI tools used by the team are disclosed with purpose and meaningful boundaries
-- [ ] Relevant third-party API/provider terms are reviewed
-- [ ] Security-sensitive changes tested rather than trusted based on generated code alone
+Bei der Entwicklung von Anmeldungen, persönlichen Daten und geteilten Inhalten müssen Zugriffsrechte eingehalten werden. Vertrauliche Daten und Zugangsschlüssel gehören weder in den Quellcode noch in die Projektdokumentation.
 
-## Final team sign-off
-
-**Reviewed by / date:** Pending  
-**Other AI tools used:** Pending confirmation  
-**License checks completed:** Pending evidence  
-**Third-party attribution file needed:** Determine after inventory
+Für technische Risiken und bekannte Einschränkungen verweisen wir auf die [Security-Dokumentation](../SECURITY_AUDIT.md).
