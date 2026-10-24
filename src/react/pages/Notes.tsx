@@ -40,9 +40,9 @@ export default function Notes(){
     patch("notes",current=>current.map(n=>n.id===selected?{...n,[field]:value}:n));
   }
   function deleteChapter(id:string){
-    const chapter=state.chapters.find(c=>c.id===id);
-    if(!chapter)return;
-    if(!window.confirm(`Delete "${chapter.name}"? Its notes will be moved to Personal.`))return;
+    const itemToDelete=state.chapters.find(c=>c.id===id);
+    if(!itemToDelete)return;
+    if(!window.confirm(`Delete "${itemToDelete.name}"? Its notes will be moved to Personal.`))return;
     patch("notes",current=>current.map(n=>n.chapter_id===id?{...n,chapter_id:"personal"}:n));
     patch("chapters",current=>current.filter(c=>c.id!==id));
     if(id===chapter)setChapter("personal");
