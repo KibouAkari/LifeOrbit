@@ -77,7 +77,7 @@ export default function Challenges(){
    const refresh=()=>void loadRanking();
    window.addEventListener("lifeorbit:workspace-saved",refresh);window.addEventListener("lifeorbit:profile-updated",refresh);
    void loadRanking();
-   return()=>window.removeEventListener("lifeorbit:workspace-saved",refresh);window.removeEventListener("lifeorbit:profile-updated",refresh);
+   return()=>{window.removeEventListener("lifeorbit:workspace-saved",refresh);window.removeEventListener("lifeorbit:profile-updated",refresh)};
  },[]);
  function choose(item:ChallengeTemplate){
   const date_key=key(item.period);

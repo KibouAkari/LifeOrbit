@@ -1,7 +1,7 @@
 """Shared notebooks are separate, owner-controlled workspaces."""
 from datetime import datetime,timezone
 from bson import ObjectId
-from fastapi import APIRouter,Depends,HTTPException
+from fastapi import APIRouter,Depends,HTTPException,Query
 from pydantic import BaseModel,Field
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
@@ -33,10 +33,12 @@ def serialize(db,book,viewer):
             "pages":book.get("pages",[]),"updated_at":book.get("updated_at").isoformat() if book.get("updated_at") else None}
 
 @router.get("")
-def list_notebooks(user:str=Depends(get_current_user)):
+def list_notebooks(user:str=Depends(get_current_user),offset:int=Query(0,ge=0),limit:int=Query(100,ge=1,le=100)):
     db=get_db()
-    books=db.shared_notebooks.find({"$or":[{"owner":user},{"members":user}]}).limit(100)
-    return [serialize(db,b,user) for b in books]
+    books=list(db.shared_notebooks.find({"$or":[{"owner":user},{"members":user}]})
+               .sort("_id",1).skip(offset).limit(limit+1))
+    next_offset=offset+limit if len(books)>limit else None
+    return {"items":[serialize(db,b,user) for b in books[:limit]],"next_offset":next_offset}
 
 @router.post("",status_code=201)
 def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user)):
@@ -64,9 +66,15 @@ def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_
     document=db.shared_notebooks.update_one({"_id":book["_id"],"pages.id":page_id},
        {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
     if not document.matched_count:
-        if len(book.get("pages",[]))>=100:raise HTTPException(400,"Notebook is full")
-        db.shared_notebooks.update_one({"_id":book["_id"]},{"$push":{"pages":{"id":page_id,"title":payload.title,"body":payload.body}},
-         "$set":{"updated_at":datetime.now(timezone.utc)}})
+        inserted=db.shared_notebooks.update_one(
+            {"_id":book["_id"],"pages.id":{"$ne":page_id},
+             "$expr":{"$lt":[{"$size":{"$ifNull":["$pages",[]]}},100]}},
+            {"$push":{"pages":{"id":page_id,"title":payload.title,"body":payload.body}},
+             "$set":{"updated_at":datetime.now(timezone.utc)}})
+        if not inserted.matched_count:
+            updated=db.shared_notebooks.update_one({"_id":book["_id"],"pages.id":page_id},
+                {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
+            if not updated.matched_count:raise HTTPException(400,"Notebook is full")
     return {"saved":True}
 
 @router.delete("/{id}")
