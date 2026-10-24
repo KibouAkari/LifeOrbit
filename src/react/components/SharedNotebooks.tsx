@@ -57,6 +57,13 @@ export default function SharedNotebooks(){
   try{await request(`/shared-notebooks/${book.id}/pages/${id}`,{method:"PUT",body:JSON.stringify({title:title.trim(),body})});if(editVersion.current===version)setDirty(false);await refresh();setNotice("Shared page saved")}
   catch(e){setNotice(e instanceof Error?e.message:"Save failed")}finally{setBusy(false)}
  }
+ async function removePage(){
+  if(!book||!page||!window.confirm("Delete this page?"))return;
+  setBusy(true);
+  try{await request(`/shared-notebooks/${book.id}/pages/${page}`,{method:"DELETE"});setPage("");setTitle("");setBody("");setDirty(false);await refresh();setNotice("Page deleted")}
+  catch(e){setNotice(e instanceof Error?e.message:"Unable to delete page")}
+  finally{setBusy(false)}
+ }
  async function removeBook(){
   if(!book||!window.confirm("Delete this shared notebook for everyone?"))return;
   try{await request(`/shared-notebooks/${book.id}`,{method:"DELETE"});setSelected("");setPage("");await refresh();setNotice("Notebook removed")}
@@ -69,10 +76,10 @@ export default function SharedNotebooks(){
    <form onSubmit={e=>{e.preventDefault();void createBook()}}><input className="input" placeholder="New shared notebook" maxLength={80} value={newTitle} onChange={e=>setNewTitle(e.target.value)}/><button className="button primary" disabled={busy||!newTitle.trim()}><Plus size={16}/> Create</button></form>
   </aside>
   <div className="shared-notebook-content">
-   {book?<><header><div><h2>{book.title}</h2><p className="muted">Shared by {book.owner_name}</p></div>{book.is_owner&&<button className="button" onClick={()=>void removeBook()} title="Delete notebook (owner only)"><Trash2 size={15}/></button>}</header>
+   {book?<><header><div><h2>{book.title}</h2><p className="muted">Shared by {book.owner_name}</p></div>{book.is_owner&&<button className="button" onClick={()=>void removeBook()} title="Delete entire notebook (owner only)" aria-label="Delete entire notebook"><Trash2 size={15}/></button>}</header>
     <div className="shared-notebook-invite"><select className="select" aria-label="Invite a friend" value={invite} onChange={e=>setInvite(e.target.value)}><option value="">Invite a friend</option>{friends.filter(f=>!book.members.some(m=>m.id===f.id)).map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><button className="button" disabled={busy||!invite} onClick={()=>void inviteFriend()}>Invite</button></div>
     <div className="shared-notebook-pages">{book.pages.map(item=><button key={item.id} className={page===item.id?"selected":""} onClick={()=>{setPage(item.id);setTitle(item.title);setBody(item.body);setDirty(false);editVersion.current+=1}}>{item.title}</button>)}<button onClick={()=>{setPage("");setTitle("Untitled page");setBody("");setDirty(false);editVersion.current+=1}}><Plus size={15}/> New page</button></div>
-    <input className="input" placeholder="Page title" maxLength={120} value={title} onChange={e=>{setTitle(e.target.value);setDirty(true);editVersion.current+=1}}/><textarea className="textarea" rows={12} maxLength={50000} placeholder="Write together..." value={body} onChange={e=>{setBody(e.target.value);setDirty(true);editVersion.current+=1}}/><button className="button primary" disabled={busy||!title.trim()} onClick={()=>void savePage()}>Save shared page</button>
+    <input className="input" placeholder="Page title" maxLength={120} value={title} onChange={e=>{setTitle(e.target.value);setDirty(true);editVersion.current+=1}}/><textarea className="textarea" rows={12} maxLength={50000} placeholder="Write together..." value={body} onChange={e=>{setBody(e.target.value);setDirty(true);editVersion.current+=1}}/><div className="shared-note-actions"><button className="button primary" disabled={busy||!title.trim()} onClick={()=>void savePage()}>Save page</button>{page&&<button className="button" disabled={busy} onClick={()=>void removePage()}><Trash2 size={15}/> Delete page</button>}</div>
    </>:<div className="quiet-empty"><BookOpen size={25}/><h2>Plan together</h2><p>Create a shared notebook and invite a friend.</p></div>}
    <p className="feedback-line" role="status">{notice}</p>
   </div>
