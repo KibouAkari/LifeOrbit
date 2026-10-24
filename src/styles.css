@@ -179,3 +179,6 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .personal-ranking{display:flex;align-items:center;gap:14px;padding:18px 0}
 .personal-ranking p{color:var(--muted);font-size:13px;margin:4px 0}
 .settings-clean .form+.form{border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
+
+.calendar-import{cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.google-button>div,.google-button iframe{border-radius:999px!important;overflow:hidden}
