@@ -111,7 +111,7 @@ export default function Calendar(){
    <div className="calendar-toolbar"><div className="actions">
     <button className="icon-button" aria-label="Previous period" onClick={()=>setShift(x=>x-1)}><ChevronLeft size={18}/></button>
     <button className="icon-button" aria-label="Next period" onClick={()=>setShift(x=>x+1)}><ChevronRight size={18}/></button>
-    <button className="text-button" onClick={()=>{setShift(0);setSelected(iso(new Date()))}}>Today</button>
+    <button className="text-button" onClick={()=>{setShift(0)}}>Today</button>
     <div className="calendar-view-switch"><button className={view==="week"?"active":""} onClick={()=>{setView("week");setShift(0)}}>Week</button><button className={view==="month"?"active":""} onClick={()=>{setView("month");setShift(0)}}>Month</button></div>
    </div><strong className="calendar-period-label">{heading}</strong><div className="actions">
     <button className="button calendar-import" disabled={importing} onClick={()=>input.current?.click()}><Upload size={17}/>{importing?"Importing…":"Import"}</button>
