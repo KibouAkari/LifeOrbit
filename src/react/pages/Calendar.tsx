@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { hasSession, request } from "../data/api";
 import { newId } from "../data/storage";
@@ -51,6 +51,8 @@ export default function Calendar(){
  const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
  const [invited,setInvited]=useState<CalendarEvent[]>([]);
  const [messageInvite,setMessageInvite]=useState("");
+ const [menu,setMenu]=useState<{item:CalendarEvent;x:number;y:number}|null>(null);
+ const [shareFor,setShareFor]=useState<string|null>(null);
  const [feedForm,setFeedForm]=useState(false),[feedUrl,setFeedUrl]=useState(""),[feedName,setFeedName]=useState("");
  const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
@@ -122,6 +124,28 @@ export default function Calendar(){
  async function removeFeed(id:string){if(!window.confirm("Remove this calendar link and imported events?"))return;try{await request(`/calendar/feeds/${id}`,{method:"DELETE"});await refreshCalendarData();setMessage("Calendar link removed")}catch(error){setMessage(error instanceof Error?error.message:"Could not remove calendar")}}
 
  useEffect(()=>{if(!online)return;void Promise.all([request<typeof imports>("/calendar/imports"),request<{friends:typeof friends}>("/friends"),request<CalendarEvent[]>("/sharing/events"),request<typeof feeds>("/calendar/feeds")]).then(([sources,data,events,subscriptions])=>{setImports(sources);setFriends(data.friends);setInvited(events);setFeeds(subscriptions)}).catch(()=>undefined);},[online]);
+ useEffect(()=>{
+  if(!online)return;
+  let alive=true;
+  const refresh=()=>{void Promise.all([request<CalendarEvent[]>("/sharing/events"),request<{friends:typeof friends}>("/friends")])
+   .then(([items,people])=>{if(alive){setInvited(items);setFriends(people.friends)}}).catch(()=>undefined)};
+  const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},5000);
+  window.addEventListener("lifeorbit:remote-updated",refresh);
+  window.addEventListener("focus",refresh);
+  return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("focus",refresh)};
+ },[online]);
+ function showMenu(e:React.MouseEvent,item:CalendarEvent){
+  e.preventDefault();e.stopPropagation();
+  const width=Math.min(220,window.innerWidth-24);
+  setMenu({item,x:Math.min(e.clientX,window.innerWidth-width-12),y:Math.min(e.clientY,window.innerHeight-190)});
+ }
+ function chooseAction(action:"edit"|"share"|"delete"){
+  const item=menu?.item;if(!item)return;
+  setMenu(null);
+  if(action==="edit")open(item.date,item);
+  if(action==="share"){setShareFor(item.id);setMessageInvite("");}
+  if(action==="delete"&&window.confirm("Delete this event?"))void remove(item);
+ }
  const origins=[...new Set([...state.events,...invited].map(source))];
  const palette=["#b7a7fb","#7dcac6","#f0b77b","#83b4ee","#e79fbf","#9bce86","#d2ac80","#97c5dc"];
  const calendarColor=(id:string)=>{
@@ -136,7 +160,7 @@ export default function Calendar(){
  const heading=view==="month"?base.toLocaleDateString("en",{month:"long",year:"numeric"}):`${days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – ${days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}`;
  async function invite(id:string,friendId:string){try{await request("/sharing/events",{method:"POST",body:JSON.stringify({resource_id:id,recipient_id:friendId})});setMessageInvite("Invitation sent")}catch(e){setMessageInvite(e instanceof Error?e.message:"Invitation failed")}}
  function open(day:string,item?:CalendarEvent){
-   setDate(day);setEditing(item?.id||null);setTitle(item?.title||"");setStart(format(item?.start_time)||"09:00");setEnd(format(item?.end_time)||"10:00");setCreating(true);
+   setMenu(null);setDate(day);setEditing(item?.id||null);setTitle(item?.title||"");setStart(format(item?.start_time)||"09:00");setEnd(format(item?.end_time)||"10:00");setCreating(true);
  }
  async function save(e:FormEvent){
    e.preventDefault();if(!title.trim()||end<=start){setMessage("Choose an end time after the start time.");return;}
@@ -222,7 +246,7 @@ export default function Calendar(){
    {feeds.length>0&&<div className="calendar-feed-list">{feeds.map(f=><div key={f.id}><strong>{f.name}</strong><span>{f.count} events · {f.last_synced?"Updated "+new Date(f.last_synced).toLocaleString():"Not updated"}</span><button className="text-button" onClick={()=>void refreshFeed(f.id)} disabled={importing}>Refresh</button><button className="text-button" onClick={()=>void removeFeed(f.id)}>Remove</button></div>)}</div>}
    <div className="calendar-sources"><strong>Calendars</strong>{origins.length?origins.map(origin=><div className="calendar-source-entry" key={origin}><button className={hidden.includes(origin)?"calendar-source muted":"calendar-source"} style={{borderLeft:`4px solid ${calendarColor(origin)}`}} onClick={()=>setHidden(rows=>rows.includes(origin)?rows.filter(x=>x!==origin):[...rows,origin])}>{hidden.includes(origin)?<EyeOff size={15}/>:<Eye size={15}/>} {imports.find(s=>s.id===origin)?.name||feeds.find(s=>s.id===origin)?.name|| (origin==="ical_import"?"Imported events":origin==="invited"?"Invitations":"My events")}</button>{imports.some(s=>s.id===origin)&&<button className="calendar-source-remove" title="Remove imported calendar" aria-label="Remove imported calendar" onClick={()=>void removeImport(origin)}>×</button>}</div>):<span>My events</span>}</div>
    <p role="status" aria-live="polite" className="feedback-line">{message}</p>
-   {creating&&<form className="calendar-add calendar-editor" onSubmit={save}>
+   {creating&&<div className="orbit-event-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setCreating(false)}}><form className="calendar-add calendar-editor orbit-event-dialog" role="dialog" aria-modal="true" aria-label={editing?"Edit event":"New event"} onSubmit={save}><h2>{editing?"Edit event":"New event"}</h2>
     <input className="input" required maxLength={120} placeholder="Event name" value={title} onChange={e=>setTitle(e.target.value)}/>
     <input className="input" type="date" required value={date} onChange={e=>setDate(e.target.value)}/>
     <label><Clock size={15}/> <input className="input" type="time" required aria-label="Start time" value={start} onChange={e=>setStart(e.target.value)}/></label>
@@ -232,24 +256,31 @@ export default function Calendar(){
     <button type="button" className="text-button" onClick={()=>setCreating(false)}>Cancel</button>
     {editing&&friends.length>0&&<label>Invite a friend <select className="select" defaultValue="" onChange={e=>{if(e.target.value)void invite(editing,e.target.value);e.target.value=""}}><option value="">Choose a friend</option>{friends.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>}
     <span role="status">{messageInvite}</span>
-   </form>}
+   </form></div>}
    {!state.events.length&&!creating&&<div className="calendar-first-event"><CalendarDays size={28}/><h2>Add your first event</h2><p>Make space for your next plan.</p><button className="button primary" onClick={()=>open(iso(new Date()))}>Create event</button></div>}
    {view==="week"?<div className="orbit-timeline-shell"><div className="orbit-timeline">
     <div className="orbit-times"><div className="orbit-time-heading">GMT</div>{Array.from({length:24},(_,i)=><div className="orbit-time-label" key={i}>{String(i).padStart(2,"0")}:00</div>)}</div>
     {days.map(day=>{const events=visible(day);const positions=layoutEvents(events);return <div key={iso(day)} data-day={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
       <button className="orbit-day-heading" onClick={()=>open(iso(day))}>{day.toLocaleDateString("en",{weekday:"short"})}<strong>{day.getDate()}</strong></button>
       <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(23*60+45,Math.round((e.clientY-bounds.top)/16)*15));const h=Math.floor(minutes/60);const m=minutes%60;const endMinutes=Math.min(23*60+59,minutes+60);open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.floor(endMinutes/60)).padStart(2,"0")}:${String(endMinutes%60).padStart(2,"0")}`)}}>
-        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(35,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>{if((e.target as HTMLElement).closest("button"))return;beginGesture(e,item,"move")}} onClick={e=>e.stopPropagation()} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`,top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
+        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(35,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div onContextMenu={e=>item.source!=="invited"&&showMenu(e,item)} className={`orbit-timed-event ${item.source==="invited"?"invited-event":""} ${dragging?"calendar-gesture-active":""}`} key={item.id} draggable={false} onPointerDown={e=>{if((e.target as HTMLElement).closest("button"))return;beginGesture(e,item,"move")}} onClick={e=>e.stopPropagation()} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`,top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
           {item.source!=="invited"&&<button type="button" className="orbit-event-move-handle" aria-label={`Move ${item.title}`} title="Drag to move" onPointerDown={e=>{e.stopPropagation();beginGesture(e,item,"move")}} onClick={e=>e.stopPropagation()}>⋮⋮</button>}
+          {item.source!=="invited"&&<button type="button" className="orbit-event-more" title="Event actions" aria-label={`Actions for ${item.title}`} onClick={e=>{e.stopPropagation();showMenu(e,item)}}><MoreHorizontal size={15}/></button>}
           <button className="orbit-event-label" onClick={e=>{e.stopPropagation();item.source==="invited"?setMessage("Invited events are read only."):open(item.date,item)}}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
           {item.source!=="invited"&&<button className="orbit-event-grip" aria-label="Resize event" title="Drag to change duration" onPointerDown={e=>{e.stopPropagation();beginGesture(e,item,"resize")}}/>}
         </div>})}
       </div>
     </div>})}
    </div></div>:<div className="weekly-grid calendar-month-grid">{days.map(day=><section key={iso(day)} className={`week-day ${iso(day)===iso(new Date())?"is-today":""} ${day.getMonth()!==base.getMonth()?"out-of-month":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
-     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><button key={item.id} className={`week-event ${item.source==="invited"?"invited-event":""}`} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`}} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={()=>item.source==="invited"?setMessage("This invitation is read only"):open(item.date,item)}>{caption(item)}</button>)}
+     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><button key={item.id} onContextMenu={e=>item.source!=="invited"&&showMenu(e,item)} className={`week-event ${item.source==="invited"?"invited-event":""}`} style={{borderLeftColor:calendarColor(source(item)),backgroundColor:`color-mix(in srgb, ${calendarColor(source(item))} 22%, var(--surface))`}} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={()=>item.source==="invited"?setMessage("This invitation is read only"):open(item.date,item)}>{caption(item)}</button>)}
      <button className="week-add" onClick={()=>open(iso(day))}>+</button>
    </section>)}</div>}
+   {menu&&<><button className="orbit-menu-dismiss" aria-label="Close event actions" onClick={()=>setMenu(null)}/><div className="orbit-event-menu" role="menu" style={{left:menu.x,top:Math.max(12,menu.y)}}>
+      <button role="menuitem" onClick={()=>chooseAction("edit")}><Pencil size={16}/> Edit</button>
+      <button role="menuitem" onClick={()=>chooseAction("share")}><Share2 size={16}/> Share</button>
+      <button role="menuitem" className="danger" onClick={()=>chooseAction("delete")}><Trash2 size={16}/> Delete</button>
+    </div></>}
+   {shareFor&&<div className="orbit-event-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShareFor(null)}}><section className="orbit-event-dialog" role="dialog" aria-modal="true" aria-label="Share event"><h2>Invite to event</h2><p>Choose a friend to invite.</p><select className="select" aria-label="Invite friend" defaultValue="" onChange={e=>{if(e.target.value)void invite(shareFor,e.target.value);e.target.value=""}}><option value="">Select a friend</option>{friends.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><p role="status">{messageInvite}</p><button className="button" onClick={()=>setShareFor(null)}>Done</button></section></div>}
    <p className="calendar-help">Drag an event to another day. Edit its start and end time to resize it. Importing .ics files creates a copy, not a live Google, Outlook or Apple connection.</p>
  </div>;
 }
