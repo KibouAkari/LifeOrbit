@@ -4,6 +4,15 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Calendar colors, invitations and task deadlines
+- Each calendar source has a stable distinct accent color across week and month views.
+- Added task due date and time editing persisted in MongoDB.
+- Added authenticated unread notifications for note shares, event invitations and tasks due within the next hour, with per-account read state.
+- Added a topbar notification badge and polling inbox; existing friend-request counts are included.
+- Removed duplicate My notes / Received notes navigation from the notebook sidebar.
+- Documented that task reminders currently work while the application is open, not as background push notifications.
+
+
 ### 2026-10-24 · Open calendar feeds, notes collaboration and mobile refinements
 - Accept arbitrary public HTTPS or webcal iCalendar feeds, with DNS validation and IP-pinned verified TLS to block internal-network requests.
 - Add responsive calendar, notebook, Settings and leaderboard layout refinements for small screens.
