@@ -14,7 +14,7 @@ type ContextValue = {
   };
   reset: () => void;
 };
-type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges">;
+type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges" | "templates" | "leaderboard_opt_in">;
 const Context = createContext<ContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -52,6 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       chapters: [],
       subscriptions: [],
       challenges: [],
+      templates: [], leaderboard_opt_in:false,
     }));
 
     void enqueue(async () => {
@@ -70,6 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         chapters,
         subscriptions: data.subscriptions,
         challenges: data.challenges,
+        templates: data.templates || [], leaderboard_opt_in: data.leaderboard_opt_in || false,
       }));
       workspaceWritable.current = true;
       setWorkspaceStatus("ready");
@@ -109,6 +111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       chapters: state.chapters,
       subscriptions: state.subscriptions,
       challenges: state.challenges,
+      templates: state.templates, leaderboard_opt_in: state.leaderboard_opt_in,
     };
     const handle = window.setTimeout(() => {
       void enqueue(async () => {
@@ -120,7 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }).catch(error => console.error("Workspace save failed", error));
     }, 900);
     return () => clearTimeout(handle);
-  }, [state.notes, state.chapters, state.subscriptions, state.challenges, workspaceStatus, enqueue]);
+  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, workspaceStatus, enqueue]);
 
   useEffect(() => {
     if (workspaceStatus === "guest" && !hasSession()) writeDemo(state);

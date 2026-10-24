@@ -63,7 +63,7 @@ export default function Settings(){
        <button className="button primary" disabled={busy||name.trim().length<2}>Save changes</button>
      </form>
    </section>
-   {authenticated&&<section className="surface-card settings-section"><h2><ShieldCheck size={19}/> Login & security</h2>
+   {authenticated&&Boolean(user?.has_password)&&<section className="surface-card settings-section"><h2><ShieldCheck size={19}/> Login & security</h2>
       {user?.has_password&&<>
       <form className="form" onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");try{const updated=await request<SignedInUser>("/auth/email",{method:"PATCH",body:JSON.stringify({email:newEmail,password:currentPassword})});setUser(updated);setMessage("Email updated");setCurrentPassword("");}catch(err){setMessage(err instanceof Error?err.message:"Email change failed");}finally{setBusy(false)}}}>
         <label className="form-label">Email<input className="input" type="email" required value={newEmail} onChange={e=>setNewEmail(e.target.value)}/></label>
@@ -76,7 +76,7 @@ export default function Settings(){
        <button className="button" disabled={busy}>Change password</button>
      </form>
      </>}
-     {user&&!user.has_password&&<p className="muted tiny">Google-only accounts manage their email and password through Google.</p>}
+
    </section>}
    <section className="surface-card settings-section"><h2><Palette size={19}/> Appearance</h2>
      <label className="form-label">Theme<select className="select" value={state.theme} onChange={e=>{patch("theme",e.target.value as Theme);setMessage("Appearance updated");}}>

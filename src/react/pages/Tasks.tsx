@@ -32,12 +32,7 @@ export default function Tasks() {
   const timers = useRef<number[]>([]);
   const online = hasSession();
 
-  useEffect(() => {
-    if (online) {
-      request<Task[]>("/tasks").then(tasks => patch("tasks", tasks)).catch(err => setNotice(String(err)));
-    }
-    return () => timers.current.forEach(clearTimeout);
-  }, [online, patch]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const open = state.tasks.filter(t => !t.done);
   const completed = state.tasks.filter(t => t.done);

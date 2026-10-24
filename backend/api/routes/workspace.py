@@ -36,6 +36,16 @@ class Challenge(BaseModel):
     value: int = Field(ge=0, le=100000)
     target: int = Field(ge=1, le=100000)
     unit: str = Field(max_length=30)
+    period: Literal["daily","weekly"] = "daily"
+    date_key: str = Field(default="", max_length=16)
+    custom: bool = False
+
+class Template(BaseModel):
+    id: str = Field(max_length=80)
+    title: str = Field(min_length=1,max_length=120)
+    target: int = Field(ge=1,le=100000)
+    unit: str = Field(max_length=30)
+    period: Literal["daily","weekly"] = "daily"
 
 class Workspace(BaseModel):
     notes: list[Note] = Field(default_factory=list, max_length=500)
@@ -44,10 +54,9 @@ class Workspace(BaseModel):
         Chapter(id="ideas", name="Ideas"),
     ], max_length=100)
     subscriptions: list[Subscription] = Field(default_factory=list, max_length=300)
-    challenges: list[Challenge] = Field(default_factory=lambda: [
-        Challenge(id="c1", title="Drink water", value=0, target=8, unit="glasses"),
-        Challenge(id="c2", title="Move a little", value=0, target=1, unit="session"),
-    ], max_length=100)
+    challenges: list[Challenge] = Field(default_factory=list, max_length=100)
+    templates: list[Template] = Field(default_factory=list,max_length=100)
+    leaderboard_opt_in: bool = False
 
 @router.get("", response_model=Workspace)
 def read_workspace(user: str = Depends(get_current_user)):
