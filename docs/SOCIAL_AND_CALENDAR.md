@@ -82,3 +82,9 @@ The notification bell refreshes every four seconds while LifeOrbit is visible an
 Shared notebook pages refresh approximately every three seconds while visible, with local unsaved edits protected from automatic replacement. Calendar invitations refresh every five seconds. Simultaneous editing by multiple accounts remains a known conflict risk and needs revision-based writes.
 
 Calendar events support a context menu via right-click, or a visible Actions control on touch/keyboard devices. Edit opens a small responsive dialog, Share opens a friend picker and Delete asks for confirmation. Movement by drag remains available, but explicit editing is the accessible fallback.
+
+## RSVP and account settings update
+
+Calendar invitations are individual share records with pending, accepted or declined response status. Only the invited recipient can respond or remove their invitation. Owners retain edit rights; invitees get read-only event details. Participant lists are visible to the event owner and existing invitees only. Deleting an invitation removes it for that recipient, not the organizer's event. Declined invitations remain in the database until removed and are hidden from the normal calendar grid.
+
+Theme preference is stored in the authenticated workspace and hydrated during account loading across devices; guests retain local settings. Task deadlines are stored in UTC. An incomplete task past its deadline is classified as Overdue, and the dashboard displays a red warning while any exist.
