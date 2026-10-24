@@ -21,7 +21,8 @@ def output(doc):
         "id": str(doc["_id"]), 
         "title": doc["title"], 
         "date": doc["date"],
-        "source": doc.get("source", "mongodb") # Hilft dem Frontend zu erkennen, woher der Termin kommt
+        "source": doc.get("source", "mongodb"),
+        "start_time": doc.get("start_time"), "end_time": doc.get("end_time")
     }
 
 @router.get("/events")
@@ -30,7 +31,7 @@ def list_events(user: str = Depends(get_current_user)):
 
 @router.post("/events", status_code=201)
 def create_event(data: CalendarEventRequest, user: str = Depends(get_current_user)):
-    doc = {"title": data.title, "date": data.date.isoformat(), "user_id": user, "source": "mongodb"}
+    doc = {"title": data.title, "date": data.date.isoformat(), "user_id": user, "source": "mongodb", "start_time": data.start_time.isoformat(timespec="minutes") if data.start_time else None, "end_time": data.end_time.isoformat(timespec="minutes") if data.end_time else None}
     outcome = get_db().events.insert_one(doc)
     return output({"_id": outcome.inserted_id, **doc})
 
@@ -40,7 +41,9 @@ def update_event(event_id: str, data: CalendarEventRequest, user: str = Depends(
     if not ObjectId.is_valid(event_id):
         raise HTTPException(400, "Invalid event ID")
         
-    update_data = {"title": data.title, "date": data.date.isoformat()}
+    update_data = {"title": data.title, "date": data.date.isoformat(),
+                   "start_time": data.start_time.isoformat(timespec="minutes") if data.start_time else None,
+                   "end_time": data.end_time.isoformat(timespec="minutes") if data.end_time else None}
     result = get_db().events.update_one(
         {"_id": ObjectId(event_id), "user_id": user},
         {"$set": update_data}
@@ -81,7 +84,11 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
         title = str(item.get("summary") or "Untitled event")[:120]
         uid = str(item.get("uid") or title + day.isoformat())
         source_key = sha256((uid + "|" + day.isoformat()).encode()).hexdigest()
+        start_clock = start.dt.strftime("%H:%M") if isinstance(start.dt, datetime) else None
+        end_prop = item.get("dtend")
+        end_clock = end_prop.dt.strftime("%H:%M") if end_prop and isinstance(end_prop.dt, datetime) else None
         entries.append({"user_id": user, "title": title, "date": day.isoformat(),
+                        "start_time": start_clock, "end_time": end_clock,
                         "source": "ical_import", "source_key": source_key})
         if len(entries) > 500:
             raise HTTPException(413, "Calendar contains more than 500 importable events")
