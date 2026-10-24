@@ -30,7 +30,7 @@ Search for members by display name, send and accept friend requests, and view pe
 
 Subscriptions support editing after creation. The week calendar displays hours and timed event cards, with drag controls for schedule changes.
 
-See [Social and calendar design](docs/SOCIAL_AND_CALENDAR.md) for the permission model, verification steps, and explicit limits of provider integrations. Google sign-in is **not** Google Calendar authorisation. Continuous Google, Microsoft and Apple calendar synchronisation is not yet implemented.
+See [Social and calendar design](docs/SOCIAL_AND_CALENDAR.md) for the permission model, verification steps, and explicit limits of provider integrations. Google sign-in is **not** Google Calendar authorisation. Supported HTTPS iCal links from Google, Outlook and iCloud can be saved encrypted and refreshed on demand. This is a read-only subscribed calendar feed; provider OAuth for full Google/Microsoft calendar access, automatic background refresh and two-way updates are not yet implemented.
 
 ## Technology
 
