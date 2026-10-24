@@ -4,6 +4,14 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Challenge limits and calendar context menu
+- Limited active challenges to three personal and two shared slots.
+- Saved the stable shared-invitation identifier in MongoDB to prevent the same invitation being accepted repeatedly.
+- Added Remove to active challenges. Recurring templates no longer silently re-add removed tasks.
+- Updated calendar context-menu handling to capture real right-click events and render the menu at the mouse position outside transformed calendar containers.
+- Keyboard and touch Actions buttons position the same menu beside the control.
+
+
 ### 2026-10-24 · RSVP, synced account preferences, overdue tasks
 - Added recipient-controlled Accept, Decline and Remove for shared event invitations. Invited events remain read-only.
 - Exposed event participant list with accepted, pending and declined responses; showed shared notebook members.
