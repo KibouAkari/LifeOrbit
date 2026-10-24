@@ -21,7 +21,7 @@ export function Layout({ section, dark, children }: { section: Section; dark: bo
   return <div className={`shell ${open ? "menu-open" : ""}`}>
     {open && <button className="mobile-backdrop" aria-label="Close navigation" onClick={() => setOpen(false)}/>}
     <aside className="sidebar" aria-label="Main navigation">
-      <a className="brand" href="#/dashboard" onClick={() => setOpen(false)}><img src="/assets/icon.svg" alt=""/>LifeOrbital</a>
+      <a className="brand" href="#/dashboard" onClick={() => setOpen(false)}><img src="/assets/icon.svg" alt=""/>LifeOrbit</a>
       <nav className="nav nav-group" aria-label="Main menu">
         {navigation.map(([key, label, Icon]) => <a key={key} className="nav-link" href={`#/${key}`} aria-current={section === key ? "page" : undefined} onClick={() => setOpen(false)}><Icon size={19} strokeWidth={1.8}/>{label}</a>)}
       </nav>
