@@ -4,6 +4,15 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Open calendar feeds, notes collaboration and mobile refinements
+- Accept arbitrary public HTTPS or webcal iCalendar feeds, with DNS validation and IP-pinned verified TLS to block internal-network requests.
+- Add responsive calendar, notebook, Settings and leaderboard layout refinements for small screens.
+- Allow deletion of user-created note chapters while retaining their pages in Personal.
+- Introduce MongoDB-backed shared notebooks that owners can create and invite confirmed friends to, with shared pages and explicit save.
+- Refresh leaderboard display names after account profile updates.
+- Document current limits around real-time shared note editing, manual iCal refresh and calendar drag behavior.
+
+
 ### 2026-10-24 · Calendar interaction and sharing improvements
 - Reworked calendar pointer capture to keep one reliable drag owner for move and resize interactions and increased resize grip size.
 - Added an inline friend selector for sharing notes instead of a numeric browser prompt.
