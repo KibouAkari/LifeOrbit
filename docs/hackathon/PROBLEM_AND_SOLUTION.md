@@ -4,6 +4,10 @@
 
 Young Talents' Zentral Hack is a 24-hour opportunity for learners and young professionals to develop an original project, put ICT/design/business skills into practice and demonstrate substantial progress. Teams are responsible for their equipment, accounts and compliant use of external resources.
 
+## How LifeOrbit began
+
+At the start of Zentral Hack, the team of three chose to develop LifeOrbit. The first stage was a shared Miro board to collect ideas and possible features. They then grouped the ideas, described the main components more clearly, divided responsibilities and agreed on the initial technical architecture, including the choice of database, programming languages and framework. With that foundation, the team began implementing the application from scratch.
+
 ## Problem hypothesis
 
 Daily commitments are often spread across separate calendars, task lists, note apps, recurring-payment trackers and messaging channels. Finding what matters today and coordinating with other people can require switching between several interfaces. This increases friction and makes deadlines, invitations or renewals easier to overlook.
