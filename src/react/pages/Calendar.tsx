@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { hasSession, request } from "../data/api";
@@ -23,6 +23,7 @@ export default function Calendar(){
  const [message,setMessage]=useState("");
  const [importing,setImporting]=useState(false);
  const [hidden,setHidden]=useState<string[]>([]);
+ const [imports,setImports]=useState<{id:string;name:string;events:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
  const today=useMemo(()=>new Date(),[]);
  const online=hasSession();
@@ -39,7 +40,8 @@ export default function Calendar(){
    const length=Math.ceil((((last.getTime()-first.getTime())/86400000)+1)/7)*7;
    return Array.from({length},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+i);return d;});
  },[base,view]);
- const source=(event:CalendarEvent)=>event.source||"mongodb";
+ const source=(event:CalendarEvent)=>event.source_id||event.source||"mongodb";
+ useEffect(()=>{if(online)void request<typeof imports>("/calendar/imports").then(setImports).catch(()=>undefined);},[online]);
  const origins=[...new Set(state.events.map(source))];
  const visible=(day:Date)=>state.events.filter(e=>e.date===iso(day)&&!hidden.includes(source(e))).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
  const heading=view==="month"?base.toLocaleDateString("en",{month:"long",year:"numeric"}):`${days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – ${days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}`;
@@ -79,9 +81,14 @@ export default function Calendar(){
    if(file.size>1e6){setMessage("Choose an .ics file below 1 MB");return;}
    if(!online){setMessage("Sign in to import a calendar.");return;}
    setImporting(true);try{
-    const result=await request<{imported:number;total:number}>("/calendar/ical-import",{method:"POST",body:JSON.stringify({content:await file.text()})});
-    const events=await request<CalendarEvent[]>("/calendar/events");patch("events",events);setMessage(`Added ${result.imported} events. ${result.total-result.imported} already existed.`);
+    const result=await request<{imported:number;total:number}>("/calendar/ical-import",{method:"POST",body:JSON.stringify({content:await file.text(),name:file.name.replace(/\\.ics$/i,"")})});
+    const [events, sources]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof imports>("/calendar/imports")]);patch("events",events);setImports(sources);setMessage(`Added ${result.imported} events. ${result.total-result.imported} already existed.`);
    }catch(error){setMessage(error instanceof Error?error.message:"Import failed");}finally{setImporting(false);}
+ }
+ async function removeImport(id:string){
+  if(!window.confirm("Remove all events from this imported calendar?"))return;
+  try{await request(`/calendar/imports/${id}`,{method:"DELETE"});const [events,sources]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof imports>("/calendar/imports")]);patch("events",events);setImports(sources);setMessage("Imported calendar removed");}
+  catch(error){setMessage(error instanceof Error?error.message:"Unable to remove calendar");}
  }
  function drop(e:DragEvent<HTMLElement>,day:string){
    e.preventDefault();
@@ -102,7 +109,7 @@ export default function Calendar(){
     <input ref={input} hidden type="file" accept=".ics,text/calendar" onChange={e=>{void importIcs(e.target.files?.[0]);e.target.value="";}}/>
     <button className="button primary" onClick={()=>open(iso(new Date()))}><Plus size={17}/> Event</button>
    </div></div>
-   <div className="calendar-sources"><strong>Calendars</strong>{origins.length?origins.map(origin=><button key={origin} className={hidden.includes(origin)?"calendar-source muted":"calendar-source"} onClick={()=>setHidden(rows=>rows.includes(origin)?rows.filter(x=>x!==origin):[...rows,origin])}>{hidden.includes(origin)?<EyeOff size={15}/>:<Eye size={15}/>} {origin==="ical_import"?"Imported calendar":"My events"}</button>):<span>My events</span>}</div>
+   <div className="calendar-sources"><strong>Calendars</strong>{origins.length?origins.map(origin=><div className="calendar-source-entry" key={origin}><button className={hidden.includes(origin)?"calendar-source muted":"calendar-source"} onClick={()=>setHidden(rows=>rows.includes(origin)?rows.filter(x=>x!==origin):[...rows,origin])}>{hidden.includes(origin)?<EyeOff size={15}/>:<Eye size={15}/>} {imports.find(s=>s.id===origin)?.name|| (origin==="ical_import"?"Imported events":"My events")}</button>{imports.some(s=>s.id===origin)&&<button className="calendar-source-remove" title="Remove imported calendar" aria-label="Remove imported calendar" onClick={()=>void removeImport(origin)}>×</button>}</div>):<span>My events</span>}</div>
    <p role="status" aria-live="polite" className="feedback-line">{message}</p>
    {creating&&<form className="calendar-add calendar-editor" onSubmit={save}>
     <input className="input" required maxLength={120} placeholder="Event name" value={title} onChange={e=>setTitle(e.target.value)}/>
