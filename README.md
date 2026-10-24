@@ -26,6 +26,11 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 
 ## Friends and sharing
 
+Friend requests refresh periodically and when the browser returns to focus. Notes can be shared from their editor using a friend picker; recipients receive read-only updates.
+
+Calendar events use pointer-captured drag/resize gestures. The browser preview must still be tested with touch and mouse before release. Feed links from known Google, Outlook and iCloud providers support HTTPS or webcal schemes; arbitrary calendar hosts are intentionally rejected for security.
+
+
 Search for members by display name, send and accept friend requests, and view pending invitations in Settings. Accepted friends can receive shared read-only notes and event invitations. Invitations appear in a distinct colour in the calendar. Shared note text is refreshed periodically, not edited collaboratively.
 
 Subscriptions support editing after creation. The week calendar displays hours and timed event cards, with drag controls for schedule changes.

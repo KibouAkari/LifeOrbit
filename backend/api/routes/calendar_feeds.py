@@ -29,17 +29,20 @@ def cipher():
     return Fernet(base64.urlsafe_b64encode(material))
 
 def validate_url(raw):
+    raw=raw.strip()
+    if raw.startswith("webcal://"):
+        raw="https://"+raw[len("webcal://"):]
     url=urlsplit(raw)
     host=(url.hostname or "").lower().rstrip(".")
-    providers={"calendar.google.com","outlook.office365.com","outlook.live.com"}
+    providers={"calendar.google.com","outlook.office365.com","outlook.live.com","outlook.office.com","calendar.live.com","caldav.icloud.com"}
     apple=bool(re.fullmatch(r"p[0-9]+-caldav\.icloud\.com",host))
     if (url.scheme!="https" or url.username or url.password or url.port not in (None,443)
         or url.fragment or (host not in providers and not apple)):
-        raise HTTPException(400,"Only HTTPS iCalendar links from supported calendar providers are accepted")
+        raise HTTPException(400,"Use a Google, Outlook or iCloud calendar subscription URL (https or webcal). Links from other providers are not yet supported")
     return raw
 
 def fetch_events(raw):
-    validate_url(raw)
+    raw=validate_url(raw)
     try:
         response=requests.get(raw,headers={"Accept":"text/calendar"},timeout=(4,12),
                               allow_redirects=False,stream=True)
@@ -88,9 +91,9 @@ def create_feed(payload:FeedInput,user:str=Depends(get_current_user)):
     db=get_db()
     if db.calendar_feeds.count_documents({"user_id":user})>=10:
         raise HTTPException(400,"Maximum of ten subscribed calendars")
-    validate_url(payload.url)
-    events=fetch_events(payload.url)
-    doc={"user_id":user,"name":payload.name,"url_encrypted":cipher().encrypt(payload.url.encode()).decode(),
+    clean_url=validate_url(payload.url)
+    events=fetch_events(clean_url)
+    doc={"user_id":user,"name":payload.name,"url_encrypted":cipher().encrypt(clean_url.encode()).decode(),
          "created_at":datetime.now(timezone.utc)}
     inserted=db.calendar_feeds.insert_one(doc)
     doc["_id"]=inserted.inserted_id
