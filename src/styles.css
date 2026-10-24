@@ -222,3 +222,9 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 @media(max-width:900px){.calendar-rework .calendar-week-grid,.calendar-rework .calendar-month-grid{overflow-x:auto;grid-template-columns:repeat(7,minmax(130px,1fr))}.calendar-rework .week-day{min-width:130px}.calendar-month-grid .week-day{min-height:110px!important}}
 @media(max-width:650px){.challenge-custom-fields{grid-template-columns:1fr 1fr}.challenge-custom-fields .select{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.calendar-rework .week-day,.calendar-event-resize{transition:none!important}}
+
+.calendar-source-entry{display:flex;align-items:center;gap:3px;border-radius:99px}
+.calendar-source-remove{background:transparent;border:0;color:var(--muted);cursor:pointer;padding:5px 8px;font-size:16px}
+.calendar-source-remove:hover{color:var(--text)}
+.calendar-resize-grip{border:0;background:transparent;color:var(--muted);cursor:ns-resize;touch-action:none;padding:3px;align-self:stretch}
+.week-event:hover .calendar-resize-grip,.week-event:focus-within .calendar-resize-grip{color:var(--accent-text)}
