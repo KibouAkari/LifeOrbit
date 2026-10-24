@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, Mail } from "lucide-react";
-import { exchangeGoogleCredential, loginAccount, registerAccount, saveSession, type AuthResponse } from "../data/api";
+import { clearSession, exchangeGoogleCredential, hasSession, loginAccount, registerAccount, saveSession, signOut, type AuthResponse } from "../data/api";
 import { useApp } from "../context/AppContext";
 
 declare global {
@@ -58,10 +58,15 @@ export default function Login(){
    finally{setBusy(false);}
  }
 
- function guest(){
-   sessionStorage.setItem("lifeorbit_guest","true");
-   patch("account","Guest");
-   window.dispatchEvent(new Event("lifeorbit:auth"));
+ async function guest(){
+   setError("");setBusy(true);
+   try{
+     if(hasSession()){await signOut();clearSession();}
+     sessionStorage.setItem("lifeorbit_guest","true");
+     patch("account","Guest");
+     window.dispatchEvent(new Event("lifeorbit:auth"));
+   }catch(err){setError(err instanceof Error?err.message:"Could not sign out. Please try again.");}
+   finally{setBusy(false);}
  }
 
  return <main className="login-screen"><div className="login-layout">
@@ -77,7 +82,7 @@ export default function Login(){
      {!emailVisible?<div className="login-primary-choices">
        <div className="google-button" ref={googleButton}/>
        <button className="button login-email-choice" type="button" onClick={()=>setEmailVisible(true)}><Mail size={17}/> Continue with email <ArrowRight size={16}/></button>
-       <button className="demo-link demo-button" onClick={guest}>Explore as guest <ArrowRight size={15}/></button>
+       <button className="demo-link demo-button" disabled={busy} onClick={guest}>Explore as guest <ArrowRight size={15}/></button>
      </div>:<>
        <div className="auth-switch" aria-label="Account action">
          <button type="button" className={mode==="login"?"active":""} onClick={()=>{setMode("login");setError("");}}>Sign in</button>

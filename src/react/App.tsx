@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { Layout } from "./components/Layout";
 import { useApp } from "./context/AppContext";
 import { clearSession, hasSession, signOut } from "./data/api";
@@ -33,34 +33,46 @@ export default function App() {
   const [intro, setIntro] = useState(false);
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
-  const { state, patch, workspaceReady, workspaceError } = useApp();
-  const [logoutError,setLogoutError]=useState("");
+  const [logoutError, setLogoutError] = useState("");
+  const signingOut = useRef(false);
+  const { state, patch, workspaceStatus, workspaceError, restoreWorkspace } = useApp();
+  const patchRef = useRef(patch);
+  patchRef.current = patch;
   const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
 
   useEffect(() => {
     let alive = true;
     const navigate = () => setRoute(routeFromHash());
     const enter = () => { setSignedIn(hasSession()); setIntro(true); location.hash = "#/dashboard"; };
-    const leaveAccount = () => {
-      clearSession(); sessionStorage.removeItem("lifeorbit_guest");
-      setSignedIn(false); setIntro(false); setLogoutError(""); patch("account", "");
-      window.dispatchEvent(new Event("lifeorbit:logout-complete"));
+    const logout = async () => {
+      if (signingOut.current) return;
+      signingOut.current = true;
+      setLogoutError("");
+      try {
+        await signOut();
+        clearSession();
+        sessionStorage.removeItem("lifeorbit_guest");
+        setSignedIn(false); setIntro(false); patchRef.current("account", "");
+        window.dispatchEvent(new Event("lifeorbit:logout-complete"));
+        location.hash = "#/login"; setRoute("login");
+      } catch (error) {
+        setLogoutError(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+      } finally {
+        signingOut.current = false;
+      }
+    };
+    const authExpired = () => {
+      setSignedIn(false); setIntro(false); sessionStorage.removeItem("lifeorbit_guest");
       location.hash = "#/login"; setRoute("login");
     };
-    const logout = async () => {
-      setLogoutError("");
-      try { await signOut(); leaveAccount(); }
-      catch { setLogoutError("Unable to sign out. Please try again."); }
-    };
-    const sessionExpired = () => leaveAccount();
     window.addEventListener("hashchange", navigate);
     window.addEventListener("lifeorbit:auth", enter);
     window.addEventListener("lifeorbit:logout", logout);
-    window.addEventListener("lifeorbit:session-expired", sessionExpired);
+    window.addEventListener("lifeorbit:auth-expired", authExpired);
     restoreSession().then(user => {
       if (!alive) return;
       setSignedIn(Boolean(user));
-      if (user) { patch("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
+      if (user) { patchRef.current("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
       setReady(true);
     });
     return () => {
@@ -68,9 +80,9 @@ export default function App() {
       window.removeEventListener("hashchange", navigate);
       window.removeEventListener("lifeorbit:auth", enter);
       window.removeEventListener("lifeorbit:logout", logout);
-      window.removeEventListener("lifeorbit:session-expired", sessionExpired);
+      window.removeEventListener("lifeorbit:auth-expired", authExpired);
     };
-  }, [patch]);
+  }, []);
 
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
@@ -86,15 +98,18 @@ export default function App() {
   if (!ready) return <div className="boot-screen" role="status">Opening LifeOrbital…</div>;
   if (intro) return <WelcomeIntro onComplete={() => setIntro(false)} />;
   if (route === "privacy" || route === "terms") return <Legal kind={route}/>;
-  if (signedIn && !workspaceReady) return <div className="boot-screen" role="status">
-    {workspaceError ? <><p>{workspaceError}</p><button className="button" onClick={() => window.dispatchEvent(new Event("lifeorbit:restore"))}>Retry loading workspace</button></> : "Loading your workspace…"}
-  </div>;
   if (!signedIn && !guestMode()) return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "login") return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "not-found") return <NotFound />;
+  if (signedIn && workspaceStatus !== "ready") return <Layout section={route} dark={dark}>
+    <section className="work-page" role={workspaceStatus === "error" ? undefined : "status"}>
+      <h1>{workspaceStatus === "error" ? "Your workspace could not be loaded." : "Loading your workspace…"}</h1>
+      {workspaceStatus === "error" && <><p className="auth-error" role="alert">{workspaceError}</p><button className="button primary" onClick={restoreWorkspace}>Try again</button></>}
+    </section>
+  </Layout>;
   const Page = pages[route];
-  return <>
-    <Layout section={route} dark={dark}><div className="page-enter" key={route}><Page /></div></Layout>
-    {logoutError&&<div className="auth-error" role="alert">{logoutError} <button className="text-button" onClick={() => window.dispatchEvent(new Event("lifeorbit:logout"))}>Try again</button></div>}
-  </>;
+  return <Layout section={route} dark={dark}>
+    {logoutError && <p className="auth-error" role="alert">Sign out failed: {logoutError} <button className="text-button" onClick={() => window.dispatchEvent(new Event("lifeorbit:logout"))}>Try again</button></p>}
+    <div className="page-enter" key={route}><Page /></div>
+  </Layout>;
 }
