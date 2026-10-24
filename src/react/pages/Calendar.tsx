@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { request, hasSession } from "../data/api";
 import { newId } from "../data/storage";
@@ -11,6 +11,7 @@ function weekStart(date:Date){const d=new Date(date);d.setHours(12,0,0,0);d.setD
 export default function Calendar() {
   const {state,patch}=useApp();
   const [week,setWeek]=useState(0);
+  const [selected,setSelected]=useState(iso(new Date()));
   const [title,setTitle]=useState("");
   const [date,setDate]=useState(iso(new Date()));
   const [creating,setCreating]=useState(false);
@@ -34,14 +35,14 @@ export default function Calendar() {
       patch("events",current=>current.filter(e=>e.id!==id));setMessage("Event removed");
     }catch(err){setMessage(err instanceof Error?err.message:"Could not remove event");}
   }
-  return <div className="work-page"><Heading title="Calendar" description="One week at a time."/>
+  return <div className="work-page"><Heading title="Calendar" description="Your plans for the week."/>
     <div className="calendar-toolbar"><div className="actions"><button className="icon-button" aria-label="Previous week" onClick={()=>setWeek(week-1)}><ChevronLeft size={18}/></button><button className="icon-button" aria-label="Next week" onClick={()=>setWeek(week+1)}><ChevronRight size={18}/></button><button className="text-button" onClick={()=>setWeek(0)}>Today</button></div>
     <strong>{days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – {days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}</strong>
     <button className="button primary" onClick={()=>setCreating(!creating)}><Plus size={17}/> Event</button></div>
     {creating&&<form className="calendar-add" onSubmit={add}><input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Event title" required maxLength={120}/><input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} required/><button className="button primary">Save</button></form>}
     <p className="feedback-line" role="status">{message}</p>
-    {!state.events.length&&<div className="calendar-first-event"><CalendarIcon/><h2>Add your first event</h2><p>Give your week a little structure.</p><button className="button primary" onClick={()=>setCreating(true)}>Create event</button></div>}
-    <div className="weekly-grid">{days.map(day=><section className={iso(day)===iso(new Date())?"week-day is-today":"week-day"} key={iso(day)}><div className="week-day-title"><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></div>{state.events.filter(e=>e.date===iso(day)).map(e=><div className="week-event" key={e.id}><span>{e.title}</span><button aria-label="Delete event" onClick={()=>void remove(e.id)}>×</button></div>)}<button className="week-add" onClick={()=>{setDate(iso(day));setCreating(true)}} aria-label={`Add event on ${iso(day)}`}>+</button></section>)}</div>
+    {!state.events.length&&<div className="calendar-first-event"><CalendarDays size={31} strokeWidth={1.5}/><h2>Add your first event</h2><p>Give your week a little structure.</p><button className="button primary" onClick={()=>setCreating(true)}>Create event</button></div>}
+    <div className="weekly-grid">{days.map(day=><section className={`${iso(day)===iso(new Date())?"week-day is-today":"week-day"} ${iso(day)===selected?"week-day-selected":""}`} key={iso(day)}><div className="week-day-title"><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></div>{state.events.filter(e=>e.date===iso(day)).map(e=><div className="week-event" key={e.id}><span>{e.title}</span><button aria-label="Delete event" onClick={()=>void remove(e.id)}>×</button></div>)}<button className="week-add" onClick={()=>{setSelected(iso(day));setDate(iso(day));setCreating(true)}} aria-label={`Add event on ${iso(day)}`}>+</button></section>)}</div>
   </div>;
 }
-function CalendarIcon(){return <span className="calendar-empty-symbol" aria-hidden="true">◇</span>}
+

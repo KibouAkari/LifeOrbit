@@ -16,7 +16,7 @@ export default function Challenges() {
         </div></article>)}
     </section>
     <aside className="ranking"><div className="ranking-heading"><h2>Leaderboard</h2><span className="tag">Sample</span></div><p>Preview with fictional users. Multiplayer ranking will be opt-in.</p>
-      <div className="leaderboard-podium">{scores.slice(0,3).map((p,i)=><div className={`leaderboard-place place-${i+1}`} key={p.id}><div className="leaderboard-profile">{p.name.slice(0,1).toUpperCase()}</div><strong>{p.name}</strong><small>{p.points} pts</small><div className="leaderboard-step">{i===0&&<Crown size={17}/>}#{i+1}</div></div>)}</div>
+      <div className="leaderboard-podium">{[scores[1],scores[0],scores[2]].filter((p):p is typeof scores[number]=>Boolean(p)).map(p=>{const i=scores.findIndex(x=>x.id===p.id);return <div className={`leaderboard-place place-${i+1}`} key={p.id}><div className="leaderboard-profile">{p.name.slice(0,1).toUpperCase()}</div><strong>{p.name}</strong><small>{p.points} pts</small><div className="leaderboard-step">{i===0&&<Crown size={17}/>}#{i+1}</div></div>})}</div>
       {scores.map((p,i)=><div className="ranking-row" key={p.id}><span className="ranking-position">{i+1}</span><strong>{p.name}</strong><span>{p.points} pts</span></div>)}
     </aside></div>
   </div>;
