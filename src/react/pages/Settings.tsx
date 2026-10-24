@@ -29,7 +29,7 @@ export default function Settings(){
    try{
      if(authenticated){
        const result=await request<SignedInUser>("/auth/me",{method:"PATCH",body:JSON.stringify({name:name.trim()})});
-       setUser(result);patch("account",result.name);
+       setUser(result);patch("account",result.name);window.dispatchEvent(new Event("lifeorbit:profile-updated"));
      }else patch("account",name.trim());
      setMessage("Profile saved");
    }catch(err){setMessage(err instanceof Error?err.message:"Could not save profile");}
