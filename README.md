@@ -24,6 +24,10 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 | Challenges | Rotating daily and weekly goals, personal progress |
 | Settings | Profile, account credentials, theme and export |
 
+## Event invitations and account preferences
+
+Invited calendar events can be accepted, declined or removed by the recipient but cannot be edited. The event's participant list shows invitation statuses. Shared notebooks display all members. Unfinished tasks past their deadline appear in Overdue and trigger a red Dashboard warning. Account themes are stored in MongoDB and restored on login across devices; guest theme stays local.
+
 ## Live notifications and event management
 
 LifeOrbit checks for new invitations while open and displays a gentle animated alert. After the first user interaction, incoming alerts may play a short sound. Background push delivery is not implemented. Shared notebook pages update automatically while the section is visible; avoid simultaneous edits to the same page until versioned conflict handling is available.

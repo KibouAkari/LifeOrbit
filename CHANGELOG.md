@@ -4,6 +4,14 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · RSVP, synced account preferences, overdue tasks
+- Added recipient-controlled Accept, Decline and Remove for shared event invitations. Invited events remain read-only.
+- Exposed event participant list with accepted, pending and declined responses; showed shared notebook members.
+- Persisted light/dark/system theme per signed-in account in the MongoDB workspace and restored it on sign-in across devices.
+- Added an Overdue task category and a red overdue warning on the Dashboard.
+- Updated documentation for access controls, sync behaviour and responsive invitation dialogs.
+
+
 ### 2026-10-24 · Live activity and event actions
 - Refresh incoming invitation notifications every four seconds while the app is visible, with an animated toast and gentle opt-in audio after user interaction.
 - Refresh shared notebook content every three seconds without manually reloading the page, and refresh calendar invitations every five seconds.

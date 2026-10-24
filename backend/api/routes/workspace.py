@@ -57,6 +57,7 @@ class Workspace(BaseModel):
     challenges: list[Challenge] = Field(default_factory=list, max_length=100)
     templates: list[Template] = Field(default_factory=list,max_length=100)
     leaderboard_opt_in: bool = True
+    theme: Literal["light","dark","system"] = "system"
 
 @router.get("", response_model=Workspace)
 def read_workspace(user: str = Depends(get_current_user)):

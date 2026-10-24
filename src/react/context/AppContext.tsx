@@ -15,7 +15,7 @@ type ContextValue = {
   };
   reset: () => void;
 };
-type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges" | "templates" | "leaderboard_opt_in">;
+type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges" | "templates" | "leaderboard_opt_in" | "theme">;
 const Context = createContext<ContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -46,6 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       challenges: state.challenges,
       templates: state.templates,
       leaderboard_opt_in: state.leaderboard_opt_in,
+      theme: state.theme,
     };
     return enqueue(async () => {
       if (generation !== sessionGeneration.current || !hasSession() || !workspaceWritable.current) {
@@ -57,7 +58,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       window.dispatchEvent(new Event("lifeorbit:workspace-saved"));
     });
-  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, workspaceStatus, enqueue]);
+  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, state.theme, workspaceStatus, enqueue]);
 
   const restoreWorkspace = useCallback(() => {
     const generation = ++sessionGeneration.current;
@@ -105,6 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         subscriptions: data.subscriptions,
         challenges: data.challenges,
         templates: data.templates || [], leaderboard_opt_in: data.leaderboard_opt_in ?? true,
+        theme:data.theme ?? "system",
       }));
       workspaceWritable.current = true;
       setWorkspaceStatus("ready");
@@ -145,6 +147,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subscriptions: state.subscriptions,
       challenges: state.challenges,
       templates: state.templates, leaderboard_opt_in: state.leaderboard_opt_in,
+      theme:state.theme,
     };
     const handle = window.setTimeout(() => {
       void enqueue(async () => {
