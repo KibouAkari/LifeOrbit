@@ -5,7 +5,10 @@ import type { Store } from "../types";
 
 type ContextValue={
  state:Store;
- patch:<K extends keyof Store>(key:K,value:Store[K]|((current:Store[K])=>Store[K]))=>void;
+ patch:{
+  <K extends keyof Store>(key:K,updater:(current:Store[K])=>Store[K]):void;
+  <K extends keyof Store>(key:K,value:Store[K]):void;
+ };
  reset:()=>void;
 };
 type Workspace=Pick<Store,"notes"|"subscriptions"|"challenges"> & {chapters:{id:string;name:string}[]};
