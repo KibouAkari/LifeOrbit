@@ -12,6 +12,7 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 - Included accepted invitations as read-only, differently coloured events.
 - Redesigned the calendar week as an hourly schedule with timed cards, easier click-to-create, drag-to-move and duration handles.
 - Added subtle hover, click and transition feedback throughout the application with reduced-motion support.
+- Added private encrypted HTTPS iCal feed subscriptions from allowlisted Google, Outlook and iCloud hosts, including user-triggered refresh and removal.
 - Documented external iCal feed security, Google/Outlook/Apple OAuth boundaries and remaining release blockers.
 - Existing README screenshots still depict an earlier validated build; do not misrepresent these as captures from the new preview.
 
