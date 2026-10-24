@@ -13,7 +13,7 @@ export function useFriends(){
    try{setData(await request<FriendsData>("/friends"));setError("");}
    catch(e){setError(e instanceof Error?e.message:"Could not load friends");}
  },[]);
- useEffect(()=>{void reload();const handler=()=>void reload();window.addEventListener("lifeorbit:friends-changed",handler);const poll=setInterval(handler,30000);return()=>{window.removeEventListener("lifeorbit:friends-changed",handler);clearInterval(poll)}},[reload]);
+ useEffect(()=>{void reload();const handler=()=>void reload();const onFocus=()=>void reload();window.addEventListener("focus",onFocus);window.addEventListener("lifeorbit:friends-changed",handler);const poll=setInterval(handler,5000);return()=>{window.removeEventListener("lifeorbit:friends-changed",handler);clearInterval(poll);window.removeEventListener("focus",onFocus)}},[reload]);
  return {data,error,reload};
 }
 export function FriendsPanel(){
