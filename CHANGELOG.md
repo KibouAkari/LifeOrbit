@@ -4,6 +4,18 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Social planning and calendar usability
+- Added editable subscriptions including billing interval, currency, amount, name and renewal date.
+- Implemented MongoDB friend requests, profile search, acceptance, rejection and removal, plus incoming-request badge.
+- Introduced private friend-scoped sharing for notes, event invitations and challenge snapshots.
+- Added a Shared notes section with owner attribution and a 15-second read-only content refresh.
+- Included accepted invitations as read-only, differently coloured events.
+- Redesigned the calendar week as an hourly schedule with timed cards, easier click-to-create, drag-to-move and duration handles.
+- Added subtle hover, click and transition feedback throughout the application with reduced-motion support.
+- Documented external iCal feed security, Google/Outlook/Apple OAuth boundaries and remaining release blockers.
+- Existing README screenshots still depict an earlier validated build; do not misrepresent these as captures from the new preview.
+
+
 ### 2026-10-24 · Dashboard hydration and calendar experience
 - Load tasks, events and account workspace in parallel before the authenticated dashboard renders. Removed per-page-only initial loading.
 - Show today as the leftmost day in the default rolling seven-day calendar, while navigation uses Monday-based weeks.

@@ -24,6 +24,14 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 | Challenges | Rotating daily and weekly goals, personal progress |
 | Settings | Profile, account credentials, theme and export |
 
+## Friends and sharing
+
+Search for members by display name, send and accept friend requests, and view pending invitations in Settings. Accepted friends can receive shared read-only notes and event invitations. Invitations appear in a distinct colour in the calendar. Shared note text is refreshed periodically, not edited collaboratively.
+
+Subscriptions support editing after creation. The week calendar displays hours and timed event cards, with drag controls for schedule changes.
+
+See [Social and calendar design](docs/SOCIAL_AND_CALENDAR.md) for the permission model, verification steps, and explicit limits of provider integrations. Google sign-in is **not** Google Calendar authorisation. Continuous Google, Microsoft and Apple calendar synchronisation is not yet implemented.
+
 ## Technology
 
 React + TypeScript + Vite on the frontend. Python FastAPI + Pydantic on the backend. MongoDB Atlas for persistent account data. Google Identity Services and email/password for authentication. Both frontend and backend deploy together on Vercel.
