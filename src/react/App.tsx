@@ -103,8 +103,8 @@ export default function App() {
   if (route === "not-found") return <NotFound />;
   if (signedIn && (workspaceStatus !== "ready")) return <Layout section={route} dark={dark}>
     <section className="work-page" role={workspaceStatus === "error" ? undefined : "status"}>
-      <h1>{workspaceStatus === "error" || overviewStatus === "error" ? "Your data could not be loaded." : "Preparing your day…"}</h1>
-      {(workspaceStatus === "error" || overviewStatus === "error") && <><p className="auth-error" role="alert">{workspaceError}</p><button className="button primary" onClick={() => {restoreWorkspace();}}>Try again</button></>}
+      <h1>{workspaceStatus === "error" ? "Your data could not be loaded." : "Preparing your day…"}</h1>
+      {(workspaceStatus === "error") && <><p className="auth-error" role="alert">{workspaceError}</p><button className="button primary" onClick={() => {restoreWorkspace();}}>Try again</button></>}
     </section>
   </Layout>;
   const Page = pages[route];
