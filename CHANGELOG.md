@@ -4,6 +4,11 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-10-24 · Zentral Hack documentation and origin correction
+- Corrected the project history: LifeOrbit was chosen at the beginning of Zentral Hack, planned in Miro, split into responsibilities, architected and implemented from scratch.
+- Replaced the incorrect pre-existing-project baseline and later-increment narrative throughout the hackathon dossier with the actual ideation-to-prototype sequence.
+- Left exact dates, Miro exports, team attributions and measurable outcomes to be evidenced rather than invented.
+
 ### 2026-10-24 · Zentral Hack challenge documentation
 - Added a dedicated hackathon dossier mapping all MUST/SHOULD criteria, technical restrictions, resources and judging weights to evidence.
 - Documented the problem hypothesis, target audience, solution, business considerations and responsible project limitations.
