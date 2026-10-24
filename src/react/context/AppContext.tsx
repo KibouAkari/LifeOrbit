@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { initialState, readDemo, writeDemo } from "../data/storage";
 import { hasSession, request } from "../data/api";
-import type { Store } from "../types";
+import type { Store, Task, Event as CalendarEvent } from "../types";
 
 type ContextValue = {
   state: Store;
@@ -57,13 +57,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     void enqueue(async () => {
       if (generation !== sessionGeneration.current || !hasSession()) return;
-      const data = await request<Workspace>("/workspace");
+      const [data, tasks, events] = await Promise.all([
+        request<Workspace>("/workspace"),
+        request<Task[]>("/tasks"),
+        request<CalendarEvent[]>("/calendar/events"),
+      ]);
       if (generation !== sessionGeneration.current || !hasSession()) return;
       const chapters = data.chapters.length ? data.chapters : structuredClone(initialState.chapters);
       const chapterIds = new Set(chapters.map(chapter => chapter.id));
       const defaultChapter = chapterIds.has("personal") ? "personal" : chapters[0].id;
       setState(current => ({
         ...current,
+        tasks, events,
         notes: data.notes.map(note => ({
           ...note,
           chapter_id: chapterIds.has(note.chapter_id) ? note.chapter_id : defaultChapter,
