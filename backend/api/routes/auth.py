@@ -10,6 +10,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
+from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from backend.api.database import get_db
@@ -48,7 +49,7 @@ def issue_token(user, response: Response):
         "aud": "lifeorbital-api", "iat": now,
         "exp": now + timedelta(hours=2),
     }, secret_key(), algorithm="HS256")
-    response.set_cookie("lifeorbital_auth", access_token, httponly=True, secure=True, samesite="strict", max_age=7200, path="/api")
+    response.set_cookie("lifeorbital_auth", access_token, httponly=True, secure=True, samesite=os.getenv("AUTH_COOKIE_SAMESITE", "strict").lower(), max_age=7200, path="/api")
     return {"user": public_user(user), "expires_in": 7200}
 
 
@@ -166,5 +167,40 @@ def me(user_id: str = Depends(get_current_user)):
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("lifeorbital_auth", path="/api", secure=True, httponly=True, samesite="strict")
+    response.delete_cookie("lifeorbital_auth", path="/api", secure=True, httponly=True, samesite=os.getenv("AUTH_COOKIE_SAMESITE", "strict").lower())
     return {"signed_out": True}
+
+class ProfileUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=70)
+
+
+@router.patch("/me")
+def update_profile(payload: ProfileUpdate, user_id: str = Depends(get_current_user)):
+    """Change only the current account's display name."""
+    user = find_user(user_id)
+    updated = get_db().users.find_one_and_update(
+        {"_id": user["_id"]},
+        {"$set": {"name": payload.name.strip(), "updated_at": datetime.now(timezone.utc)}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return public_user(updated)
+
+
+@router.get("/export")
+def export_user_data(user_id: str = Depends(get_current_user)):
+    """Downloadable personal data; never include secrets or password hashes."""
+    user = find_user(user_id)
+    db = get_db()
+    def clean(rows):
+        return [{key: value for key, value in row.items()
+                 if key not in ("_id", "user_id", "password_hash")} for row in rows]
+    return {
+        "profile": public_user(user),
+        "tasks": clean(db.tasks.find({"user_id": user_id})),
+        "events": clean(db.events.find({"user_id": user_id})),
+        "workspace": db.workspaces.find_one(
+            {"user_id": user_id}, {"_id": 0, "user_id": 0}
+        ) or {},
+    }

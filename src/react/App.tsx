@@ -42,18 +42,8 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
-    restoreSession().then(user => {
-      if (!alive) return;
-      setSignedIn(Boolean(user));
-      if (user) { patchRef.current("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
-      setReady(true);
-    });
     const navigate = () => setRoute(routeFromHash());
     const enter = () => { setSignedIn(hasSession()); setIntro(true); location.hash = "#/dashboard"; };
-    const authExpired = () => {
-      setSignedIn(false); setIntro(false); sessionStorage.removeItem("lifeorbit_guest");
-      location.hash = "#/login"; setRoute("login");
-    };
     const logout = async () => {
       if (signingOut.current) return;
       signingOut.current = true;
@@ -71,10 +61,20 @@ export default function App() {
         signingOut.current = false;
       }
     };
+    const authExpired = () => {
+      setSignedIn(false); setIntro(false); sessionStorage.removeItem("lifeorbit_guest");
+      location.hash = "#/login"; setRoute("login");
+    };
     window.addEventListener("hashchange", navigate);
     window.addEventListener("lifeorbit:auth", enter);
     window.addEventListener("lifeorbit:logout", logout);
     window.addEventListener("lifeorbit:auth-expired", authExpired);
+    restoreSession().then(user => {
+      if (!alive) return;
+      setSignedIn(Boolean(user));
+      if (user) { patchRef.current("account", user.name); window.dispatchEvent(new Event("lifeorbit:restore")); }
+      setReady(true);
+    });
     return () => {
       alive = false;
       window.removeEventListener("hashchange", navigate);
@@ -109,7 +109,7 @@ export default function App() {
   </Layout>;
   const Page = pages[route];
   return <Layout section={route} dark={dark}>
-    {logoutError && <p className="auth-error" role="alert">Sign out failed: {logoutError}</p>}
+    {logoutError && <p className="auth-error" role="alert">Sign out failed: {logoutError} <button className="text-button" onClick={() => window.dispatchEvent(new Event("lifeorbit:logout"))}>Try again</button></p>}
     <div className="page-enter" key={route}><Page /></div>
   </Layout>;
 }

@@ -9,7 +9,7 @@ export async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   let response:Response;
   try{
     response=await fetch(`${BASE}/api${path}`,{
-      ...init,credentials:"same-origin",headers:{
+      ...init,credentials:"include",headers:{
         ...(init.body?{"Content-Type":"application/json"}:{}),...init.headers
       }
     });

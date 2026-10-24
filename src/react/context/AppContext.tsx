@@ -145,7 +145,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [sessionVersion]);
 
   return <Context.Provider value={{ state, workspaceStatus, workspaceError, restoreWorkspace, patch, reset }}>{children}</Context.Provider>;
-}
+};
 
 export function useApp(): ContextValue {
   const value = useContext(Context);

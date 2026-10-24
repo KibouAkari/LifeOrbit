@@ -59,16 +59,28 @@ response proves routing, but not MongoDB connectivity. Configure Atlas network
 access and provision indexes using `backend.api.database.ensure_indexes()`
 once during setup, after making sure indexes do not conflict with old data.
 
+## Login, database and troubleshooting
+
+The Python backend shares the Vercel hostname with React. After setting a valid
+MongoDB Atlas connection string, verify `/api/health/database` returns JSON
+`{"status":"connected"}`. A 503 means registration and Google sign-in cannot
+persist accounts. The Vercel production logs on 24 October 2026 showed DNS
+NXDOMAIN for `cluster.mongodb.net`: a placeholder Atlas hostname was configured.
+
+Signed-in sessions use a Secure, HttpOnly, SameSite cookie. Tokens are not stored
+in browser sessionStorage. The guest mode still keeps non-account demo data in
+localStorage. Configure a fresh actual MONGODB_URI privately in Vercel and redeploy.
+
 ## What works
 
 React and TypeScript pages, themes, tasks, week calendar, notebook-style notes,
 recurring-subscription projections and challenges. Python implements Google
 login, password login/registration and owner-scoped task and calendar endpoints.
 
-**Limits:** Notes, subscriptions and challenges still use browser-local state,
-while the leaderboard contains fictional demo scores. Password recovery,
-email verification, account deletion and a production-grade session mechanism
-remain to be implemented. Do not use for sensitive personal data yet.
+**Persistence:** For signed-in users, tasks, calendar events, notes, notebook chapters,
+subscriptions and personal challenge progress use MongoDB. Guest data remains local
+in the browser. Shared leaderboard scores are still fictional examples. Password recovery, email verification, account deletion and production session
+revocation remain to be implemented. Do not use for sensitive personal data yet.
 
 ## Quality gates
 

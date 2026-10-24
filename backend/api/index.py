@@ -13,7 +13,7 @@ app = FastAPI(title="LifeOrbital API", version="0.4.0",
 
 origins=[x.strip() for x in os.getenv("FRONTEND_ORIGINS","http://localhost:5173").split(",") if x.strip()]
 app.add_middleware(CORSMiddleware,allow_origins=origins,
-                   allow_credentials=False,allow_methods=["GET","POST","PUT","PATCH","DELETE"],
+                   allow_credentials=True,allow_methods=["GET","POST","PUT","PATCH","DELETE"],
                    allow_headers=["Authorization","Content-Type"])
 app.include_router(auth.router,prefix="/api/auth")
 app.include_router(calendar.router,prefix="/api/calendar")
