@@ -15,7 +15,10 @@ export async function request<T>(path:string,init:RequestInit={}):Promise<T>{
     });
   }catch{throw new Error("Cannot reach LifeOrbital. Please check your connection.");}
   if(!response.ok){
-    if(response.status===401)authenticated=false;
+    if(response.status===401&&authenticated){
+      authenticated=false;
+      if(path!=="/auth/logout")window.dispatchEvent(new Event("lifeorbit:auth-expired"));
+    }
     const body:unknown=await response.json().catch(()=>null);
     const detail=body&&typeof body==="object"&&"detail" in body?String(body.detail):`Request failed (${response.status})`;
     throw new Error(detail);

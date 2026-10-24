@@ -39,9 +39,15 @@ class Challenge(BaseModel):
 
 class Workspace(BaseModel):
     notes: list[Note] = Field(default_factory=list, max_length=500)
-    chapters: list[Chapter] = Field(default_factory=list, max_length=100)
+    chapters: list[Chapter] = Field(default_factory=lambda: [
+        Chapter(id="personal", name="Personal"),
+        Chapter(id="ideas", name="Ideas"),
+    ], max_length=100)
     subscriptions: list[Subscription] = Field(default_factory=list, max_length=300)
-    challenges: list[Challenge] = Field(default_factory=list, max_length=100)
+    challenges: list[Challenge] = Field(default_factory=lambda: [
+        Challenge(id="c1", title="Drink water", value=0, target=8, unit="glasses"),
+        Challenge(id="c2", title="Move a little", value=0, target=1, unit="session"),
+    ], max_length=100)
 
 @router.get("", response_model=Workspace)
 def read_workspace(user: str = Depends(get_current_user)):

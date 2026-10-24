@@ -110,7 +110,7 @@ def password_login(payload: LoginRequest, response: Response):
     # Do not disclose whether an email exists.
     if not user or not user.get("password_hash") or not passwords.verify(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    return issue_token(user)
+    return issue_token(user, response)
 
 
 @router.post("/google")
@@ -156,7 +156,7 @@ def google_login(payload: GoogleAuthRequest, response: Response):
         except DuplicateKeyError:
             raise HTTPException(status_code=409, detail="An account already uses this email.")
         user.update(profile)
-    return issue_token(user)
+    return issue_token(user, response)
 
 
 @router.get("/me")
