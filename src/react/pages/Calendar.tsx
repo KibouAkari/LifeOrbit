@@ -27,6 +27,8 @@ export default function Calendar(){
  const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
  const [invited,setInvited]=useState<CalendarEvent[]>([]);
  const [messageInvite,setMessageInvite]=useState("");
+ const [feedForm,setFeedForm]=useState(false),[feedUrl,setFeedUrl]=useState(""),[feedName,setFeedName]=useState("");
+ const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
  const today=useMemo(()=>new Date(),[]);
  const online=hasSession();
@@ -44,7 +46,12 @@ export default function Calendar(){
    return Array.from({length},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+i);return d;});
  },[base,view]);
  const source=(event:CalendarEvent)=>event.source_id||event.source||"mongodb";
- useEffect(()=>{if(!online)return;void Promise.all([request<typeof imports>("/calendar/imports"),request<{friends:typeof friends}>("/friends"),request<CalendarEvent[]>("/sharing/events")]).then(([sources,data,events])=>{setImports(sources);setFriends(data.friends);setInvited(events)}).catch(()=>undefined);},[online]);
+ async function refreshCalendarData(){const [events,feedList]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof feeds>("/calendar/feeds")]);patch("events",events);setFeeds(feedList);}
+ async function subscribeFeed(e:FormEvent){e.preventDefault();setImporting(true);try{await request("/calendar/feeds",{method:"POST",body:JSON.stringify({name:feedName,url:feedUrl})});await refreshCalendarData();setFeedName("");setFeedUrl("");setFeedForm(false);setMessage("Calendar link connected. Use Refresh to check for changes.")}catch(error){setMessage(error instanceof Error?error.message:"Could not connect feed")}finally{setImporting(false)}}
+ async function refreshFeed(id:string){setImporting(true);try{await request(`/calendar/feeds/${id}/refresh`,{method:"POST"});await refreshCalendarData();setMessage("Calendar refreshed")}catch(error){setMessage(error instanceof Error?error.message:"Refresh failed")}finally{setImporting(false)}}
+ async function removeFeed(id:string){if(!window.confirm("Remove this calendar link and imported events?"))return;try{await request(`/calendar/feeds/${id}`,{method:"DELETE"});await refreshCalendarData();setMessage("Calendar link removed")}catch(error){setMessage(error instanceof Error?error.message:"Could not remove calendar")}}
+
+ useEffect(()=>{if(!online)return;void Promise.all([request<typeof imports>("/calendar/imports"),request<{friends:typeof friends}>("/friends"),request<CalendarEvent[]>("/sharing/events"),request<typeof feeds>("/calendar/feeds")]).then(([sources,data,events,subscriptions])=>{setImports(sources);setFriends(data.friends);setInvited(events);setFeeds(subscriptions)}).catch(()=>undefined);},[online]);
  const origins=[...new Set(state.events.map(source))];
  const visible=(day:Date)=>[...state.events,...invited].filter(e=>e.date===iso(day)&&!hidden.includes(source(e))).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
  const heading=view==="month"?base.toLocaleDateString("en",{month:"long",year:"numeric"}):`${days[0].toLocaleDateString("en",{month:"short",day:"numeric"})} – ${days[6].toLocaleDateString("en",{month:"short",day:"numeric",year:"numeric"})}`;
@@ -120,11 +127,13 @@ export default function Calendar(){
     <button className="text-button" onClick={()=>{setShift(0)}}>Today</button>
     <div className="calendar-view-switch"><button className={view==="week"?"active":""} onClick={()=>{setView("week");setShift(0)}}>Week</button><button className={view==="month"?"active":""} onClick={()=>{setView("month");setShift(0)}}>Month</button></div>
    </div><strong className="calendar-period-label">{heading}</strong><div className="actions">
-    <button className="button calendar-import" disabled={importing} onClick={()=>input.current?.click()}><Upload size={17}/>{importing?"Importing…":"Import"}</button>
+    <button className="button calendar-import" disabled={importing} onClick={()=>input.current?.click()}><Upload size={17}/>{importing?"Importing…":"Import .ics"}</button><button className="button" onClick={()=>setFeedForm(v=>!v)}>Add calendar link</button>
     <input ref={input} hidden type="file" accept=".ics,text/calendar" onChange={e=>{void importIcs(e.target.files?.[0]);e.target.value="";}}/>
     <button className="button primary" onClick={()=>open(iso(new Date()))}><Plus size={17}/> Event</button>
    </div></div>
-   <div className="calendar-sources"><strong>Calendars</strong>{origins.length?origins.map(origin=><div className="calendar-source-entry" key={origin}><button className={hidden.includes(origin)?"calendar-source muted":"calendar-source"} onClick={()=>setHidden(rows=>rows.includes(origin)?rows.filter(x=>x!==origin):[...rows,origin])}>{hidden.includes(origin)?<EyeOff size={15}/>:<Eye size={15}/>} {imports.find(s=>s.id===origin)?.name|| (origin==="ical_import"?"Imported events":"My events")}</button>{imports.some(s=>s.id===origin)&&<button className="calendar-source-remove" title="Remove imported calendar" aria-label="Remove imported calendar" onClick={()=>void removeImport(origin)}>×</button>}</div>):<span>My events</span>}</div>
+   {feedForm&&<form className="calendar-feed-form" onSubmit={e=>void subscribeFeed(e)}><strong>Subscribe to a calendar link</strong><input className="input" aria-label="Calendar name" placeholder="Calendar name" required value={feedName} maxLength={80} onChange={e=>setFeedName(e.target.value)}/><input className="input" aria-label="Private iCal HTTPS address" placeholder="https://calendar.google.com/calendar/ical/..." type="url" required value={feedUrl} onChange={e=>setFeedUrl(e.target.value)}/><button className="button primary" disabled={importing}>Connect</button><p className="muted">Only recognised HTTPS links from Google, Outlook and iCloud are supported. Links are stored encrypted.</p></form>}
+   {feeds.length>0&&<div className="calendar-feed-list">{feeds.map(f=><div key={f.id}><strong>{f.name}</strong><span>{f.count} events · {f.last_synced?"Updated "+new Date(f.last_synced).toLocaleString():"Not updated"}</span><button className="text-button" onClick={()=>void refreshFeed(f.id)} disabled={importing}>Refresh</button><button className="text-button" onClick={()=>void removeFeed(f.id)}>Remove</button></div>)}</div>}
+   <div className="calendar-sources"><strong>Calendars</strong>{origins.length?origins.map(origin=><div className="calendar-source-entry" key={origin}><button className={hidden.includes(origin)?"calendar-source muted":"calendar-source"} onClick={()=>setHidden(rows=>rows.includes(origin)?rows.filter(x=>x!==origin):[...rows,origin])}>{hidden.includes(origin)?<EyeOff size={15}/>:<Eye size={15}/>} {imports.find(s=>s.id===origin)?.name||feeds.find(s=>s.id===origin)?.name|| (origin==="ical_import"?"Imported events":"My events")}</button>{imports.some(s=>s.id===origin)&&<button className="calendar-source-remove" title="Remove imported calendar" aria-label="Remove imported calendar" onClick={()=>void removeImport(origin)}>×</button>}</div>):<span>My events</span>}</div>
    <p role="status" aria-live="polite" className="feedback-line">{message}</p>
    {creating&&<form className="calendar-add calendar-editor" onSubmit={save}>
     <input className="input" required maxLength={120} placeholder="Event name" value={title} onChange={e=>setTitle(e.target.value)}/>
