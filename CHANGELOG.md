@@ -4,6 +4,14 @@ LifeOrbital follows Keep a Changelog conventions. All entries remain Unreleased 
 
 ## [Unreleased]
 
+### 2026-10-24 · Restore Google authentication and legal page cleanup
+- Fixed production-wide API HTTP 500 errors caused by missing `icalendar` in root Vercel Python dependencies.
+- Kept root requirements in sync with the backend requirements to prevent future imports from breaking the whole API.
+- Simplified the login hero: removed the redundant small planet logo at top left and the bottom slogan; retained the LifeOrbital wordmark and the prominent login icon.
+- Reworked privacy and terms content to describe the implemented Google, Vercel and MongoDB data flows and removed the visible draft label.
+- Documented that operator identity and formal legal review are still needed for a fully public legal notice.
+
+
 ### 2026-10-24 · Real users, identity and calendar import
 - Removed fictional Alex/Taylor leaderboard accounts and sample positions from Challenges and Dashboard.
 - Dashboard challenge insights now show actual personal points and the stored display name.
