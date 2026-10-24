@@ -7,14 +7,14 @@ import { Heading } from "../components/UI";
 
 // Chapters and pages are stored as one workspace for authenticated accounts.
 export default function Notes(){
-  const {state,patch}=useApp();
+  const {state,patch,flushWorkspace}=useApp();
   const [chapter,setChapter]=useState("personal");
   const [sharedMode,setSharedMode]=useState(false);
   const [shared,setShared]=useState<{id:string;title:string;body:string;shared_by:string}[]>([]);
   const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
   const [notice,setNotice]=useState("");
   useEffect(()=>{if(!hasSession())return;let live=true;async function refresh(){try{const [notes,data]=await Promise.all([request<typeof shared>("/sharing/notes"),request<{friends:typeof friends}>("/friends")]);if(live){setShared(notes);setFriends(data.friends)}}catch{}}void refresh();const timer=setInterval(()=>{if(sharedMode)void refresh()},15000);return()=>{live=false;clearInterval(timer)}},[sharedMode]);
-  async function shareNote(id:string){if(!friends.length){setNotice("Add a friend first in Settings.");return;}const recipient=window.prompt("Share with: "+friends.map((p,i)=>`${i+1}. ${p.name}`).join(", ")+"\nEnter number");if(!recipient)return;const target=friends[Number(recipient)-1];if(!target){setNotice("Invalid selection");return;}try{await request("/sharing/notes",{method:"POST",body:JSON.stringify({resource_id:id,recipient_id:target.id})});setNotice("Note shared with "+target.name)}catch(error){setNotice(error instanceof Error?error.message:"Sharing failed")}}
+  async function shareNote(id:string){if(!friends.length){setNotice("Add a friend first in Settings.");return;}const recipient=window.prompt("Share with: "+friends.map((p,i)=>`${i+1}. ${p.name}`).join(", ")+"\nEnter number");if(!recipient)return;const target=friends[Number(recipient)-1];if(!target){setNotice("Invalid selection");return;}try{await flushWorkspace();await request("/sharing/notes",{method:"POST",body:JSON.stringify({resource_id:id,recipient_id:target.id})});setNotice("Note shared with "+target.name)}catch(error){setNotice(error instanceof Error?error.message:"Sharing failed")}}
   const [selected,setSelected]=useState<string|null>(null);
   const [addingChapter,setAddingChapter]=useState(false);
   const [chapterName,setChapterName]=useState("");
@@ -46,7 +46,7 @@ export default function Notes(){
       </form>}
       {!sharedMode&&state.chapters.map(c=><button className={chapter===c.id?"selected":""} key={c.id} onClick={()=>{setChapter(c.id);setSelected(null);}}><BookOpen size={17}/>{c.name}</button>)}
     </aside><section className="notebook-list">
-      <div className="notebook-section-heading">Pages <button aria-label="New note" onClick={create}><Plus size={17}/></button></div>
+      <div className="notebook-section-heading">Pages {!sharedMode&&<button aria-label="New note" onClick={create}><Plus size={17}/></button>}</div>
       {sharedMode?shared.map(n=><button key={n.id} className={selected===n.id?"selected":""} onClick={()=>setSelected(n.id)}><strong>{n.title}</strong><small>From {n.shared_by}</small></button>):items.length?items.map(n=><button className={selected===n.id?"selected":""} key={n.id} onClick={()=>setSelected(n.id)}><strong>{n.title}</strong><small>{n.body.slice(0,64)||"Empty note"}</small></button>):<div className="quiet-empty">No pages here yet.</div>}
     </section><section className="notebook-editor">
       {sharedMode?<div className="notebook-shared">{shared.filter(n=>n.id===selected).map(n=><article key={n.id}><small>Shared by {n.shared_by} · Read only · Refreshes every 15 seconds</small><h2>{n.title}</h2><p style={{whiteSpace:"pre-wrap"}}>{n.body}</p></article>)}</div>:note?<><div className="notebook-editor-actions"><span>Changes save automatically</span><button className="icon-button" aria-label="Share note" title="Share with a friend" onClick={()=>void shareNote(note.id)}><Share2 size={17}/></button><button className="icon-button" title="Delete note" aria-label="Delete note" onClick={()=>{patch("notes",current=>current.filter(n=>n.id!==selected));setSelected(null);}}><Trash2 size={18}/></button></div>

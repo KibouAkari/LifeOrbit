@@ -251,7 +251,7 @@ body{font-size:14px;letter-spacing:-.12px}.shell{grid-template-columns:250px min
 .orbit-day-column.is-today .orbit-day-heading{background:var(--accent-soft);color:var(--accent-text)}
 .orbit-day-heading{display:flex;gap:8px;align-items:center;justify-content:center;width:100%;border:0;color:var(--text);cursor:pointer}
 .orbit-day-heading strong{font-size:20px}
-.orbit-time-slots{height:1152px;position:relative;background:repeating-linear-gradient(to bottom,transparent 0,transparent 63px,var(--line) 63px,var(--line) 64px);cursor:crosshair}
+.orbit-time-slots{height:1536px;position:relative;background:repeating-linear-gradient(to bottom,transparent 0,transparent 63px,var(--line) 63px,var(--line) 64px);cursor:crosshair}
 .orbit-day-column.is-today .orbit-time-slots{background-color:color-mix(in srgb,var(--accent-soft) 26%,transparent)}
 .orbit-timed-event{position:absolute;left:5px;right:5px;z-index:1;min-height:24px;background:var(--accent-soft);border:1px solid var(--accent);border-left-width:3px;border-radius:8px;padding:5px 7px;color:var(--accent-text);display:flex;flex-direction:column;overflow:hidden;cursor:grab;box-shadow:0 3px 10px rgba(0,0,0,.07)}
 .orbit-timed-event:hover{z-index:2;filter:brightness(1.05);box-shadow:0 8px 16px rgba(0,0,0,.12)}

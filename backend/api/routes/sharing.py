@@ -35,17 +35,30 @@ def share_note(data:ShareRequest,user:str=Depends(get_current_user)):
 
 @router.get("/notes")
 def shared_notes(user:str=Depends(get_current_user)):
-    db=get_db();rows=db.shares.find({"recipient":user,"kind":"note"}).limit(100)
+    db=get_db();rows=list(db.shares.find({"recipient":user,"kind":"note"}).limit(100))
+    owners={row["owner"] for row in rows if ObjectId.is_valid(row.get("owner",""))}
+    pairs={"-".join(sorted((owner,user))) for owner in owners}
+    accepted_pairs={row["pair"] for row in db.friendships.find(
+        {"pair":{"$in":list(pairs)},"status":"accepted"},{"pair":1})} if pairs else set()
+    active_owners={owner for owner in owners if "-".join(sorted((owner,user))) in accepted_pairs}
+    owner_ids=[ObjectId(owner) for owner in active_owners]
+    workspaces={workspace["user_id"]:workspace for workspace in db.workspaces.find(
+        {"user_id":{"$in":list(active_owners)}},{"user_id":1,"notes":1})} if active_owners else {}
+    notes_by_owner={owner:{note.get("id"):note for note in workspace.get("notes",[])}
+                    for owner,workspace in workspaces.items()}
+    authors={str(author["_id"]):author for author in db.users.find(
+        {"_id":{"$in":owner_ids}},{"name":1})} if owner_ids else {}
     result=[]
     for row in rows:
-        try:
-            require_friend(db,row["owner"],user)
-            note=note_from_owner(db,row["owner"],row["resource_id"])
-            author=db.users.find_one({"_id":ObjectId(row["owner"])},{"name":1})
-            note["shared_by"]=(author or {}).get("name","Member")
-            result.append(note)
-        except HTTPException:
+        owner=row["owner"]
+        if owner not in active_owners:
             continue
+        note=notes_by_owner.get(owner,{}).get(row["resource_id"])
+        if not note:
+            continue
+        result.append({"id":row["resource_id"],"title":note.get("title",""),
+                       "body":note.get("body",""),"owner":owner,
+                       "shared_by":authors.get(owner,{}).get("name","Member")})
     return result
 
 @router.post("/events")

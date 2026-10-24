@@ -10,6 +10,30 @@ const iso=(d:Date)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),Stri
 const monday=(date:Date)=>{const d=new Date(date);d.setHours(12,0,0,0);d.setDate(d.getDate()-(d.getDay()+6)%7);return d;};
 const format=(time?:string|null)=>time?time.slice(0,5):"";
 const advance=(time:string,minutes:number)=>{const [h,m]=time.split(":").map(Number);const n=h*60+m+minutes;if(n<0||n>=1440)return null;return `${String(Math.floor(n/60)).padStart(2,"0")}:${String(n%60).padStart(2,"0")}`;};
+const timeMinutes=(time?:string|null,fallback="09:00")=>{const [h,m]=(time||fallback).split(":").map(Number);return h*60+m;};
+function layoutEvents(events:CalendarEvent[]){
+  const sorted=events.map(event=>({event,start:timeMinutes(event.start_time),end:Math.max(timeMinutes(event.end_time,"10:00"),timeMinutes(event.start_time)+15),lane:0}));
+  sorted.sort((a,b)=>a.start-b.start);
+  const positions=new Map<string,{lane:number;lanes:number}>();
+  let group:typeof sorted=[];
+  let groupEnd=-1;
+  const placeGroup=()=>{
+    const laneEnds:number[]=[];
+    for(const item of group){
+      let lane=laneEnds.findIndex(end=>end<=item.start);
+      if(lane<0){lane=laneEnds.length;laneEnds.push(item.end);}
+      else laneEnds[lane]=item.end;
+      item.lane=lane;
+    }
+    for(const item of group)positions.set(item.event.id,{lane:item.lane,lanes:laneEnds.length});
+  };
+  for(const item of sorted){
+    if(group.length&&item.start>=groupEnd){placeGroup();group=[];groupEnd=-1;}
+    group.push(item);groupEnd=Math.max(groupEnd,item.end);
+  }
+  if(group.length)placeGroup();
+  return positions;
+}
 
 export default function Calendar(){
  const {state,patch}=useApp();
@@ -120,9 +144,9 @@ export default function Calendar(){
    const column=e.currentTarget.querySelector(".orbit-time-slots");
    if(column && item.start_time){
      const bounds=column.getBoundingClientRect();
-     const minutes=Math.max(0,Math.min(17*60,Math.round((e.clientY-bounds.top)/16)*15));
+     const minutes=Math.max(0,Math.min(23*60+45,Math.round((e.clientY-bounds.top)/16)*15));
      const [hour,minute]=item.start_time.split(":").map(Number);
-     const delta=(6*60+minutes)-(hour*60+minute);
+     const delta=minutes-(hour*60+minute);
      void shiftEvent(item,day,delta);
    }else void shiftEvent(item,day);
  }
@@ -156,18 +180,18 @@ export default function Calendar(){
    </form>}
    {!state.events.length&&!creating&&<div className="calendar-first-event"><CalendarDays size={28}/><h2>Add your first event</h2><p>Make space for your next plan.</p><button className="button primary" onClick={()=>open(iso(new Date()))}>Create event</button></div>}
    {view==="week"?<div className="orbit-timeline-shell"><div className="orbit-timeline">
-    <div className="orbit-times"><div className="orbit-time-heading">GMT</div>{Array.from({length:18},(_,i)=><div className="orbit-time-label" key={i}>{String(i+6).padStart(2,"0")}:00</div>)}</div>
-    {days.map(day=><div key={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
+    <div className="orbit-times"><div className="orbit-time-heading">GMT</div>{Array.from({length:24},(_,i)=><div className="orbit-time-label" key={i}>{String(i).padStart(2,"0")}:00</div>)}</div>
+    {days.map(day=>{const events=visible(day);const positions=layoutEvents(events);return <div key={iso(day)} className={`orbit-day-column ${iso(day)===iso(new Date())?"is-today":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
       <button className="orbit-day-heading" onClick={()=>open(iso(day))}>{day.toLocaleDateString("en",{weekday:"short"})}<strong>{day.getDate()}</strong></button>
-      <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(17*60,Math.round((e.clientY-bounds.top)/16)*15));const h=6+Math.floor(minutes/60);const m=minutes%60;open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.min(23,h+1)).padStart(2,"0")}:${String(m).padStart(2,"0")}`)}}>
-        {visible(day).map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=Math.max(0,((sh-6)*60+sm)*64/60);const height=Math.max(24,((eh-sh)*60+em-sm)*64/60);return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""}`} key={item.id} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`}}>
+      <div className="orbit-time-slots" onClick={e=>{const bounds=e.currentTarget.getBoundingClientRect();const minutes=Math.max(0,Math.min(23*60+45,Math.round((e.clientY-bounds.top)/16)*15));const h=Math.floor(minutes/60);const m=minutes%60;const endMinutes=Math.min(23*60+59,minutes+60);open(iso(day));setStart(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);setEnd(`${String(Math.floor(endMinutes/60)).padStart(2,"0")}:${String(endMinutes%60).padStart(2,"0")}`)}}>
+        {events.map(item=>{const [sh,sm]=(item.start_time||"09:00").split(":").map(Number);const [eh,em]=(item.end_time||"10:00").split(":").map(Number);const top=(sh*60+sm)*64/60;const height=Math.max(24,((eh-sh)*60+em-sm)*64/60);const {lane,lanes}=positions.get(item.id)||{lane:0,lanes:1};return <div className={`orbit-timed-event ${item.source==="invited"?"invited-event":""}`} key={item.id} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={e=>e.stopPropagation()} style={{top:`${top}px`,height:`${height}px`,left:`calc(${lane*100/lanes}% + 5px)`,right:`calc(${(lanes-lane-1)*100/lanes}% + 5px)`}}>
           <button className="orbit-event-label" onClick={()=>item.source==="invited"?setMessage("Invited events are read only."):open(item.date,item)}><strong>{item.title}</strong><small>{format(item.start_time)} – {format(item.end_time)}{item.source==="invited"?" · Invitation":""}</small></button>
           {item.source!=="invited"&&<button className="orbit-event-grip" aria-label="Resize event" title="Drag to change duration" onPointerDown={e=>{e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);e.currentTarget.dataset.startY=String(e.clientY)}} onPointerUp={e=>{e.stopPropagation();const initial=Number(e.currentTarget.dataset.startY||e.clientY);const steps=Math.round((e.clientY-initial)/16);if(steps)void resizeEvent(item,steps*15);e.currentTarget.releasePointerCapture(e.pointerId)}}/>}
         </div>})}
       </div>
-    </div>)}
+    </div>})}
    </div></div>:<div className="weekly-grid calendar-month-grid">{days.map(day=><section key={iso(day)} className={`week-day ${iso(day)===iso(new Date())?"is-today":""} ${day.getMonth()!==base.getMonth()?"out-of-month":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,iso(day))}>
-     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><button key={item.id} className={`week-event ${item.source==="invited"?"invited-event":""}`} onClick={()=>item.source==="invited"?setMessage("This invitation is read only"):open(item.date,item)}>{caption(item)}</button>)}
+     <button className="week-day-title" onClick={()=>open(iso(day))}><span>{day.toLocaleDateString("en",{weekday:"short"})}</span><strong>{day.getDate()}</strong></button>{visible(day).map(item=><button key={item.id} className={`week-event ${item.source==="invited"?"invited-event":""}`} draggable={item.source!=="invited"} onDragStart={e=>e.dataTransfer.setData("text/plain",item.id)} onClick={()=>item.source==="invited"?setMessage("This invitation is read only"):open(item.date,item)}>{caption(item)}</button>)}
      <button className="week-add" onClick={()=>open(iso(day))}>+</button>
    </section>)}</div>}
    <p className="calendar-help">Drag an event to another day. Edit its start and end time to resize it. Importing .ics files creates a copy, not a live Google, Outlook or Apple connection.</p>

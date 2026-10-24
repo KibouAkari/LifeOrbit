@@ -72,7 +72,11 @@ def accept(request_id:str,user:str=Depends(get_current_user)):
 @router.delete("/requests/{request_id}")
 def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     if not ObjectId.is_valid(request_id):raise HTTPException(400,"Invalid request")
-    result=get_db().friendships.delete_one({"_id":ObjectId(request_id),
+    db=get_db()
+    friendship=db.friendships.find_one_and_delete({"_id":ObjectId(request_id),
                          "$or":[{"sender":user},{"recipient":user}]})
-    if not result.deleted_count:raise HTTPException(404,"Request not found")
+    if not friendship:raise HTTPException(404,"Request not found")
+    other=friendship["recipient"] if friendship["sender"]==user else friendship["sender"]
+    db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
+                                 {"owner":other,"recipient":user}]})
     return {"removed":True}
