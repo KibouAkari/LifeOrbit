@@ -8,6 +8,7 @@ All changes remain under Unreleased until a verified release.
 - Located production 404 root cause: the Vercel project deployed only Vite and had no live Python API.
 - Added an in-project FastAPI function entrypoint, explicit Python requirements and /api routing configuration.
 - Fixed Vercel Python requirements parser rejecting the -r inclusion directive.
+- Fixed runtime import failure caused by missing requests dependency for Google token validation.
 - Normalized Python backend imports for the monorepo.
 - Added scheduled npm and Python dependency vulnerability checks.
 - Added a severity-based security audit and a release-blocker list.
