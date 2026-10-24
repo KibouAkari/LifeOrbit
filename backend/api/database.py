@@ -45,3 +45,4 @@ def ensure_indexes():
     db.friendships.create_index([("recipient",1),("status",1)])
     db.shares.create_index([("owner",1),("recipient",1),("kind",1),("resource_id",1)],unique=True)
     db.shares.create_index([("recipient",1),("kind",1)])
+    db.calendar_feeds.create_index("user_id")
