@@ -62,6 +62,14 @@ def list_notifications(user:str=Depends(get_current_user)):
                             "target":"calendar" if share["kind"]=="event" else "notes"})
             if len(results)==100:break
     if len(results)<100:
+        for book in db.shared_notebooks.find({"members":user},{"owner":1,"title":1}).limit(100):
+            key="notebook:"+str(book["_id"])
+            if key in seen:continue
+            owner=book.get("owner","")
+            author=db.users.find_one({"_id":ObjectId(owner)},{"name":1}) if ObjectId.is_valid(owner) else None
+            results.append({"id":key,"kind":"notebook","title":(author or {}).get("name","A friend")+" invited you to "+book.get("title","a notebook"),"target":"notes"})
+            if len(results)>=100:break
+    if len(results)<100:
         for task in db.tasks.find({"user_id":user,"done":False,"due_at":{"$gte":now,"$lte":now+timedelta(hours=1)}}).batch_size(100):
             due=task.get("due_at")
             if not due:continue
