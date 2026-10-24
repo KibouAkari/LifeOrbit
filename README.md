@@ -26,9 +26,9 @@ Tasks, calendars, notebooks, subscriptions and progress in one calm personal wor
 
 ## Friends and sharing
 
-Friend requests refresh periodically and when the browser returns to focus. Notes can be shared from their editor using a friend picker; recipients receive read-only updates.
+Friend requests refresh periodically and when the browser returns to focus. Private notes can be shared read-only with friends. Shared notebooks can also be created under Notes, with confirmed friends invited and pages saved into MongoDB.
 
-Calendar events use pointer-captured drag/resize gestures. The browser preview must still be tested with touch and mouse before release. Feed links from known Google, Outlook and iCloud providers support HTTPS or webcal schemes; arbitrary calendar hosts are intentionally rejected for security.
+Calendar events use pointer-captured drag/resize gestures. The browser preview must still be tested with touch and mouse before release. Public HTTPS or webcal calendar feeds can be subscribed from any provider, subject to strict public-network validation, verified TLS and response size limits. Private network URLs and redirects are rejected for security.
 
 
 Search for members by display name, send and accept friend requests, and view pending invitations in Settings. Accepted friends can receive shared read-only notes and event invitations. Invitations appear in a distinct colour in the calendar. Shared note text is refreshed periodically, not edited collaboratively.
