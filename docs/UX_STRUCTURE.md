@@ -1,13 +1,33 @@
-# LifeOrbit experience
+# LifeOrbital interface guide
 
-Landing on the site opens the demo login. Both the name form and guest link trigger a short, reduced-motion-aware brand reveal, then the dashboard.
+Updated 24 October 2026.
 
-The dashboard prioritises open tasks, upcoming events, notes and challenge points. Avoid generic decorative statistics.
+## Navigation
 
-Tasks use a list-first interface. Calendar opens in week view. Notes are organised into chapters and editable pages. Subscriptions emphasise recurring costs. Challenges include local progress and a clearly labelled sample leaderboard.
+Shared left sidebar with Dashboard, Tasks, Calendar, Notes, Subscriptions, Challenges and Settings. A compact pending friend-request badge appears beside Settings. All subpages reuse the same layout and the same theme tokens.
 
-All screens use the shared layout and design tokens. Do not duplicate sidebars or introduce labels above every heading.
+## Main interactions
 
-## Integration boundaries
+**Dashboard:** waits for the signed-in profile, tasks, calendar and workspace to load; avoids misleading zero-value placeholders.
 
-Calendar supports **one-time ICS import**, including files exported from Google, Outlook or Apple Calendar; this is not an OAuth or CalDAV connection. Real provider sync belongs to Python with proper tokens and user consent. Notes and chapters are local-only for now. Real leaderboard data must be opt-in and authorized on the backend.
+**Calendar:** starts in a today-first rolling week. The weekly view uses hourly columns and draggable event cards with a lower resize handle. A separate month overview exists. Use the Event action or a free time slot to create entries; event modifications go to FastAPI. Invited events are read-only and have a distinct colour. Multiple .ics files and encrypted provider iCal URL subscriptions appear as sources, with manual refresh and removal for linked calendars.
+
+**Subscriptions:** list current plans and estimated monthly equivalents. Add or edit name, amount, currency, billing frequency and renewal date.
+
+**Friends:** search by display name in Settings, send requests, accept or decline incoming requests and remove existing friends. The navbar shows pending requests.
+
+**Notes:** notebook chapters and pages belong to the account. Shared notes are read-only with author attribution and content refreshing every 15 seconds while open.
+
+**Challenges:** randomized daily and weekly suggestions, saved recurring custom templates, completion feedback and sounds, opt-in real leaderboard and friend-sharing proposals.
+
+## Motion and accessibility
+
+Motion should indicate state changes, not decorate empty space. Use restrained hover elevation and button press feedback, avoid layout jumping and respect `prefers-reduced-motion`. Maintain keyboard focus rings, labelled inputs and status messages after actions.
+
+## Screenshots
+
+`docs/screenshots/dashboard.webp` and `docs/screenshots/login.webp` capture an earlier actual development version. They have **not** been replaced with fabricated captures of this PR. Capture the deployed final version through an authenticated browser session before claiming them as current in the README.
+
+## Known limits
+
+Full Google Calendar/Microsoft Graph/Apple CalDAV integration is not implemented. iCal subscriptions are read-only and currently refresh on demand. Shared note polling is not simultaneous collaborative editing. Event timezones and recurrence, touch-friendly drag operations, multiple-device write conflicts and a full accessibility audit need additional verification.

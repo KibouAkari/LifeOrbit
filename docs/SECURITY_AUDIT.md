@@ -1,38 +1,40 @@
-# Security review · 24 October 2026
+# LifeOrbital security review
 
-## Confirmed runtime issue (24 October 2026)
-- Registration HTTP 500 traced to MongoDB Atlas DNS NXDOMAIN for placeholder `cluster.mongodb.net`. It requires a correct private Vercel `MONGODB_URI` value, redeployment, and a successful database health test. Code now returns a sanitized 503 for MongoDB failures. This is **not fixed in deployment until the variable is corrected**.
+Updated 24 October 2026.
 
-## Recent mitigations
-- Removed browser sessionStorage JWT persistence for authenticated users; a Secure HttpOnly SameSite cookie now carries the short-lived token.
-- Added owner-scoped MongoDB storage for notes, chapters, subscriptions and personal challenges.
-- Corrected a potential authenticated-data-to-guest-state leak at logout.
-- Added server-side profile edits and account data export.
-- The actual Atlas connection URI remains invalid in Vercel; `/api/health/database` safely returns 503 until corrected.
+## Automated checks
 
-## Findings
+GitHub Actions runs TypeScript/build validation, npm audit and pip-audit on pull requests. These checks are necessary but cannot prove that account authorization or the running app is secure.
 
-| Severity | Finding | Status |
+## Mitigations introduced
+
+- Email/password logins use password hashes; Google ID tokens are verified server-side.
+- Sessions are signed, short-lived, Secure, HttpOnly and SameSite.
+- MongoDB documents for tasks, events and workspaces are owner-scoped.
+- Friend requests are restricted to real accounts, and only their recipients can accept.
+- Shared notes, events and challenges can only be read by confirmed friends; removing a friendship disables access to an existing share.
+- Private iCal URL feeds are limited to recognized provider hosts, HTTPS, no redirects, 1 MB response and 500 events. Stored private URLs are encrypted.
+- HTML and CSS motion respects reduced-motion accessibility settings.
+
+## Open risks and release blockers
+
+| Severity | Finding | Required action |
 | --- | --- | --- |
-| Critical to functionality | Vite-only deployment returned 404 for /api routes | Added root Python function and route rewrite; deployment verification outstanding |
-| High | API source used inconsistent absolute imports under a monorepo | Converted to one backend package namespace |
-| High | Login endpoints have no effective brute-force protection | Open: configure Vercel WAF / durable per-account and per-IP throttling before launch |
-| High | Browser-accessible JWT | Mitigated with HttpOnly SameSite cookie; token revocation and session rotation remain open |
-| High | Public email/password registration lacks verified email and recovery | Open: block public signup until verified flows exist |
-| High | Other account data features remain browser-local while signed in | Open: database-backed notes, subscriptions, challenges and privacy controls |
-| Medium | No vulnerability scanning in CI | Added Python audit and npm audit jobs; examine actual reports |
-| Medium | MongoDB indexes were only defined, not provisioned | Documented one-time index step |
-| Medium | Legal documents contain placeholders | Open: fill operator identity, contact, region, rights and retention |
-| Medium | No authenticated account deletion/export | Open |
-| Medium | No automated integration tests against MongoDB Atlas | Open |
-| Medium | Google OAuth origin/client ID must be verified in Vercel + Google Cloud | Open |
+| High | No durable rate limiting on public auth and friend-request endpoints | Apply per-IP/account limits and abuse controls |
+| High | Public email changes are not yet verified at the new email address | Confirm possession of new address before switching |
+| High | No comprehensive password recovery and session revocation | Build verification, recovery and session lifecycle |
+| High | Calendar feed SSRF defense is primarily hostname allowlisting | Add network-level egress filtering, DNS/IP pinning and redirect/port regression tests |
+| High | Shared workspace writes replace the full document | Use revision checks and conflict management before real-time multi-author editing |
+| High | Shared calendars lack precise timezone/recurrence semantics | Normalize UTC instants, DST and RFC 5545 recurrence semantics |
+| Medium | Private feed encryption key is derived from JWT signing key | Introduce independent versioned encryption key and rotation |
+| Medium | Friend search can be enumerated | Rate limit, consider privacy settings and explicit discoverability |
+| Medium | Challenges are not server-authoritative | Add verified actions, anti-abuse controls before competitive rankings |
+| Medium | Shared note refresh is polling rather than true real-time sync | Build authenticated subscriptions with versioned writes if multi-editor collaboration is needed |
+| Medium | Cookies are restricted by SameSite but there is no comprehensive CSRF integration suite | Exercise cross-origin and forged-request tests |
+| Medium | Operator identity, data retention and legal notices still need completion | Verify actual entity/contact, processors and retention policies |
 
-## Release decision
+## Verification before merge or public use
 
-**Not approved for public production.** CI or Vercel build completion
-is not proof of secure authentication. A safe release requires verifying
-API health on the deployed hostname, testing signup/login and Google SSO,
-securing sessions and abuse prevention, checking user isolation, and completing
-legal privacy notices.
+Use two real test accounts. Verify friendship request, rejection and revocation; attempt forbidden shared-note and event access; validate calendar import and delete access; rotate/revoke accounts; test malformed feed URLs, redirects, slow/oversized downloads and timezone changes. Verify no secrets are in responses or logs. Run vulnerability scans and a complete end-to-end browser test against the new production domain.
 
-Never commit live secrets or put MONGODB_URI / JWT_SECRET_KEY in VITE_ variables.
+Do not treat a successful Vercel build or empty dependency scan as a security certification.
