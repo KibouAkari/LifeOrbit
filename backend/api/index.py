@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import auth, dashboard, calendar, tasks
 
-app = FastAPI(title="LifeOrbit API", version="0.2.0")
+app = FastAPI(title="LifeOrbit API", version="0.2.0", openapi_url="/api/openapi.json")
 origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware, allow_origins=origins,
