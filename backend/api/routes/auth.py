@@ -12,7 +12,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
 from pymongo.errors import DuplicateKeyError
 
-from api.database import get_db
+from backend.api.database import get_db
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)

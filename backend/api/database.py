@@ -1,26 +1,21 @@
-"""MongoDB connection and per-user collection indexes."""
+"""One reusable MongoDB client and explicit index provisioning."""
 import os
 from functools import lru_cache
-
 from fastapi import HTTPException
 from pymongo import MongoClient
-
 
 @lru_cache
 def get_client():
     uri = os.getenv("MONGODB_URI")
     if not uri:
-        raise HTTPException(status_code=503, detail="Database not configured")
-    return MongoClient(uri, serverSelectionTimeoutMS=5000)
-
+        raise HTTPException(503, "Database is not configured")
+    return MongoClient(uri, serverSelectionTimeoutMS=4000, connectTimeoutMS=4000)
 
 def get_db():
-    database = get_client()[os.getenv("MONGODB_DATABASE", "lifeorbit")]
-    return database
-
+    return get_client()[os.getenv("MONGODB_DATABASE", "lifeorbit")]
 
 def ensure_indexes():
-    """Run this on deployment as a controlled setup operation, not per request."""
+    """Run once during setup; never rebuild indexes on incoming requests."""
     db = get_db()
     db.users.create_index("email", unique=True)
     db.users.create_index("google_id", unique=True, sparse=True)
