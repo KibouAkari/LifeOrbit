@@ -30,7 +30,7 @@ export default function Calendar(){
  const base=useMemo(()=>{
    const d=new Date(today);d.setHours(12,0,0,0);
    if(view==="month"){d.setDate(1);d.setMonth(d.getMonth()+shift);return d;}
-   if(shift!==0){const week=monday(today);week.setDate(week.getDate()+shift*7);return week;}
+   if(shift!==0){const week=monday(today);week.setDate(week.getDate()+(shift<0?shift+1:shift)*7);return week;}
    return d;
  },[today,view,shift]);
  const days=useMemo(()=>{
