@@ -1,27 +1,29 @@
-# Mehrwert und Weiterentwicklung
+# Value and Future Development
 
-## Nutzen der Anwendung
+## Intended benefit
 
-LifeOrbit bündelt unterschiedliche Aufgaben der persönlichen Organisation in einer Webanwendung. Die Idee dahinter ist, die tägliche Planung übersichtlicher zu machen und kleine Gruppen bei gemeinsamen Vorhaben zu unterstützen.
+LifeOrbit brings tasks, calendar planning, personal notes, subscriptions and small goals into one interface. Its proposed value is reducing the need to switch between separate applications for everyday organisation.
 
-Die Plattform richtet sich zunächst besonders an Lernende, Studierende und junge Berufsleute. Diese Zielgruppe muss häufig Schule oder Ausbildung, Arbeit, Freizeit und eigene Projekte koordinieren.
+Sharing functions are intended to make coordination easier for friends and small groups.
 
-## Positionierung
+## Product positioning
 
-Es gibt bereits etablierte Anwendungen für Kalender, Notizen und Aufgaben. LifeOrbit soll diese Lösungen nicht einfach ersetzen, sondern eine andere Kombination anbieten: eine ruhige, zusammenhängende Oberfläche mit persönlichen Funktionen und unkomplizierter Zusammenarbeit.
+Established products already cover many individual parts of this problem, including calendars, task lists and note management. LifeOrbit explores a different combination: a calm, integrated personal workspace with lightweight social features.
 
-Ob Benutzer diese Kombination langfristig bevorzugen würden, müsste mit weiterem Feedback untersucht werden.
+Whether this approach is preferable to existing tools is a hypothesis that would need validation with real users.
 
-## Mögliche Weiterentwicklung
+## Potential operating models
 
-Da LifeOrbit als Prototyp entstanden ist, stehen vor einem öffentlichen Produktbetrieb zunächst Qualität und Sicherheit im Vordergrund. Dazu gehören zuverlässiges Synchronisieren, robustere Benutzerrechte, verbesserte mobile Bedienbarkeit und der Umgang mit gleichzeitigen Änderungen.
+The project is licensed under MIT. Possible future approaches include an open-source self-hosted version, a hosted service with a free tier or optional features for small groups.
 
-Anschliessend wäre ein frei nutzbares Open-Source-Angebot mit einer optional gehosteten Version denkbar. Auch zusätzliche Funktionen für kleine Gruppen könnten interessant sein. Ein solches Geschäftsmodell ist derzeit eine Überlegung und keine nachgewiesene Nachfrage.
+These are directions for consideration, not launched offerings or validated revenue models.
 
-## Wirtschaftliche Aspekte
+## Operational considerations
 
-Für einen dauerhaften Betrieb fallen beispielsweise Kosten für Hosting, Datenbank, Domain, Überwachung, Backups und Support an. Diese müssten anhand der tatsächlichen Nutzung ermittelt werden, bevor sich ein nachhaltiges Angebot beurteilen lässt.
+Long-term operation would involve hosting, database usage, domain costs, backups, monitoring, security maintenance and user support. Reliable account recovery, stronger access controls and data deletion processes would also need to be addressed before a broadly available hosted service.
 
-## Fazit
+## Development priorities
 
-LifeOrbit zeigt in erster Linie das technische und gestalterische Potenzial unserer Idee. Für den Hackathon war entscheidend, dass wir diese Idee im Team geplant und praktisch umgesetzt haben. Eine kommerzielle Einführung ist dafür nicht erforderlich.
+Further work could focus on cross-browser interaction quality, concurrency-safe shared editing, account lifecycle security, automated reminders and more complete external calendar integrations.
+
+The hackathon project establishes a functional starting point, not a finished commercial product.

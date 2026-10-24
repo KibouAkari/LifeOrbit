@@ -1,38 +1,35 @@
-# Projektidee und Ausgangslage
+# Project Background and Concept
 
-## Ausgangssituation
+## Context
 
-Im Alltag kommen Termine, Aufgaben, Notizen und regelmässige Ausgaben zusammen. Häufig werden diese Informationen in verschiedenen Anwendungen verwaltet. Wir wollten untersuchen, wie sich diese Bereiche in einer übersichtlichen Oberfläche verbinden lassen, ohne dass die Anwendung kompliziert wird.
+Tasks, appointments, notes and recurring expenses are commonly managed in separate applications. We wanted to explore how these activities could be brought together in a single, straightforward workspace.
 
-Daraus entstand unsere Idee für **LifeOrbit**: eine zentrale Plattform, mit der man seinen Alltag planen und bestimmte Inhalte unkompliziert mit anderen teilen kann.
+At the beginning of Zentral Hack, our two-person team chose to build **LifeOrbit** as a personal organisation platform.
 
-## Entstehung der Idee
+## From idea to product concept
 
-Wir entschieden uns zu Beginn des Zentral Hacks gemeinsam für dieses Thema. Anschliessend sammelten wir auf einem Miro-Board mögliche Funktionen und Ansätze. Das gab uns zunächst Raum für verschiedene Vorstellungen, bevor wir die Idee genauer eingrenzten.
+We started with a shared Miro board where we collected feature ideas and explored what a life-management application should contain. We then grouped related ideas, described the functional areas in more detail and established a structure for development.
 
-Nach der Sammlung ordneten wir die Funktionen, beschrieben die einzelnen Bereiche ausführlicher und überlegten, wie sie miteinander zusammenspielen sollen. Aus dieser Planung entstand die Grundlage für den Aufbau der Anwendung.
+This process led to a web application organised around a dashboard, tasks, calendar, notes, subscriptions and challenges. Sharing capabilities were included to support planning with friends.
 
-## Zielgruppe
+## Intended audience
 
-LifeOrbit richtet sich vor allem an Lernende, Studierende und junge Berufsleute, die Schule, Arbeit, Freizeit und eigene Projekte organisieren möchten. Auch für kleinere Freundesgruppen bietet die Anwendung Ansätze zur gemeinsamen Planung.
+LifeOrbit is primarily aimed at learners, students and young professionals managing school, work, personal commitments and projects. Small groups of friends may also benefit from shared events and notes.
 
-Die Zielgruppe beschreibt unsere ursprüngliche Ausrichtung. Eine repräsentative Markt- oder Nutzerstudie wurde damit nicht durchgeführt.
+This describes the intended audience, not a statistically validated market segment.
 
-## Unsere Lösung
+## Product functionality
 
-LifeOrbit vereint mehrere Funktionen in einer Webanwendung:
+- A dashboard combining information from different sections
+- Task management with deadlines and overdue status
+- Weekly and monthly calendars, external iCalendar sources and invitations
+- Personal notes and shared notebooks
+- Subscription and recurring-cost tracking
+- Personal and shared challenges
+- Account settings and profile preferences
 
-- **Dashboard:** Übersicht über Aufgaben, Termine und persönliche Fortschritte
-- **Tasks:** Aufgaben verwalten, Deadlines setzen und überfällige Aufgaben erkennen
-- **Calendar:** Termine planen, externe Kalender einbinden und Personen einladen
-- **Notes:** Notizen in Kapiteln organisieren und gemeinsam an Notizbüchern arbeiten
-- **Subscriptions:** wiederkehrende Kosten im Blick behalten
-- **Challenges:** persönliche Ziele verfolgen und Challenges mit Freunden teilen
+Our design objective was a consistent and approachable interface rather than a collection of unrelated tools.
 
-Eine ruhige, konsistente Gestaltung war uns dabei wichtig. Die Funktionen sollten zusammenpassen und sich nicht wie einzelne, lose verbundene Anwendungen anfühlen.
+## Project scope
 
-## Projektziel
-
-Unser Ziel während des Hackathons war es, aus dieser Idee einen funktionierenden Webprototypen zu entwickeln und dabei sowohl technische als auch gestalterische Entscheidungen selbst zu treffen. Dazu gehörten die Planung der Benutzeroberfläche, die Entwicklung des Frontends, der Aufbau einer API, die Speicherung der Daten und die Verbindung der einzelnen Funktionen.
-
-LifeOrbit ist ein Prototyp und keine vollständig ausgereifte kommerzielle Anwendung. Beispielsweise erfordern gleichzeitige Änderungen an gemeinsamen Inhalten noch eine robustere Konfliktbehandlung.
+The project was developed as a functional prototype during the hackathon. It is not a commercially hardened product. For example, calendar subscriptions currently require manual refresh, notifications operate within the open application, and concurrent shared-note editing does not yet provide conflict-free synchronisation.

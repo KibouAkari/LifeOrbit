@@ -1,42 +1,40 @@
-# Technologien und Hilfsmittel
+# Technologies, Open Source and AI Assistance
 
-## Technischer Stack
+## Technologies used
 
-Die technische Grundlage von LifeOrbit wurde während der Planung festgelegt und anschliessend umgesetzt.
-
-| Technologie | Verwendung |
+| Technology | Role |
 | --- | --- |
-| React | Aufbau der Benutzeroberfläche |
-| TypeScript | Programmierung und Typprüfung im Frontend |
-| Vite | Entwicklungsumgebung und Frontend-Build |
-| CSS | Gestaltung, Layout und Responsive Design |
-| Lucide | Icons in der Anwendung |
-| Python | Backend-Programmierung |
-| FastAPI | API-Schnittstellen für Benutzer und Anwendungsdaten |
-| Pydantic | Validierung von API-Daten |
-| MongoDB Atlas | Speicherung von Konten und Inhalten |
-| Vercel | Bereitstellung von Frontend und Backend |
-| Google Identity Services | Anmeldung mit einem Google-Konto |
-| Miro | Ideensammlung, Funktionsplanung und Strukturierung |
+| Miro | Idea collection, feature organisation and project planning |
+| React | User interface |
+| TypeScript | Frontend programming and static types |
+| Vite | Frontend development and builds |
+| CSS | Layout, styling and responsive design |
+| Lucide | Interface icon library |
+| Python | Backend programming |
+| FastAPI | HTTP API |
+| Pydantic | Request and data validation |
+| MongoDB Atlas | Persistent storage |
+| Vercel | Deployment and hosting |
+| Google Identity Services | Google account sign-in |
 
-Weitere eingesetzte Python-Bibliotheken sind in [requirements.txt](../../requirements.txt) und [backend/requirements.txt](../../backend/requirements.txt) aufgeführt. Die direkten Frontend-Abhängigkeiten stehen in [package.json](../../package.json).
+The actual dependency declarations are in [package.json](../../package.json), [requirements.txt](../../requirements.txt) and [backend/requirements.txt](../../backend/requirements.txt).
 
-## Open-Source-Komponenten
+## Open-source components and licensing
 
-LifeOrbit verwendet mehrere Open-Source-Frameworks und Bibliotheken. Der eigene Projektcode steht unter der [MIT-Lizenz](../../LICENSE). Die Rechte und Lizenzbedingungen der einzelnen Abhängigkeiten und externen Dienste gelten unabhängig davon und sind bei einer Veröffentlichung zu beachten.
+LifeOrbit's own source is released under the [MIT License](../../LICENSE). Third-party libraries and services retain their respective licensing and usage terms. The project's MIT license does not override restrictions on third-party assets or hosted services.
 
-Zu den wichtigsten Bibliotheken gehören React, TypeScript, Vite, FastAPI, Pydantic, PyMongo und Lucide. Die Liste der installierten Pakete sowie deren tatsächliche Versionen muss für eine vollständige Lizenzübersicht anhand der jeweiligen Entwicklungsumgebung überprüft werden.
+Important dependencies include React, TypeScript, Vite, FastAPI, Pydantic, PyMongo, cryptography and Lucide. The complete set of direct and transitive dependencies depends on the installed versions.
 
-## Unterstützung durch KI
+## AI assistance
 
-Während der Entwicklung wurde **ChatGPT** als Hilfsmittel verwendet, unter anderem für Ideen zur Benutzeroberfläche, Codevorschläge, das Untersuchen von Fehlern und die Überarbeitung der Dokumentation.
+ChatGPT was used as a development aid during the project, including assistance with UI ideas, code suggestions, debugging and documentation.
 
-Die Wahl des Projektthemas, die gemeinsame Planung und die Verantwortung für die Umsetzung liegen beim Team. Generierte Vorschläge und Code müssen auf ihre Funktion, Sicherheit und Eignung geprüft werden.
+The project concept originated with the two-person team, which made the planning decisions and remained responsible for reviewing and integrating the resulting work. AI-generated code or text should not be interpreted as independently tested or verified simply because it was generated.
 
-LifeOrbit enthält dadurch nicht automatisch eine KI-Funktion für Endbenutzer. Weitere KI-Werkzeuge werden hier nur genannt, wenn ihre tatsächliche Verwendung durch das Team bestätigt ist.
+The repository does not establish a deployed, user-facing AI assistant feature. No other AI products are attributed without confirmed use.
 
-## Datenschutz und verantwortungsvolle Nutzung
+## Responsible development
 
-Bei der Entwicklung von Anmeldungen, persönlichen Daten und geteilten Inhalten müssen Zugriffsrechte eingehalten werden. Vertrauliche Daten und Zugangsschlüssel gehören weder in den Quellcode noch in die Projektdokumentation.
+Credentials, private calendar URLs and personal account data should not appear in source code or public documentation. Authentication, access control and shared data require server-side enforcement and ongoing security review.
 
-Für technische Risiken und bekannte Einschränkungen verweisen wir auf die [Security-Dokumentation](../SECURITY_AUDIT.md).
+See [Security Policy](../../SECURITY.md) and [Security Audit](../SECURITY_AUDIT.md).

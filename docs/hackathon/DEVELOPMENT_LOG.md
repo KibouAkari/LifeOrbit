@@ -1,59 +1,55 @@
-# Planung und Entwicklung
+# Planning and Development
 
-## 1. Ideensammlung in Miro
+## Initial idea collection
 
-Unsere Arbeit begann mit dem gemeinsamen Miro-Board. Dort hielten wir erste Ideen für LifeOrbit fest und sammelten Funktionen, die für einen persönlichen Life Manager sinnvoll sein könnten.
+The project started with a two-person discussion about the application we wanted to create. After choosing LifeOrbit, we used a shared Miro board to collect possible features and explore the scope of a personal life manager.
 
-In dieser Phase stand noch nicht die Umsetzung im Vordergrund. Zuerst wollten wir ein gemeinsames Verständnis davon entwickeln, was die Anwendung können soll.
+This initial stage focused on understanding the product before writing code.
 
-## 2. Funktionen genauer beschreiben
+## Feature structure
 
-Aus der anfänglichen Sammlung machten wir anschliessend eine strukturiertere Übersicht. Wir fassten verwandte Ideen zusammen, beschrieben die geplanten Funktionen genauer und besprachen, welche Bereiche zusammengehören.
+We organised the collected ideas into related areas and described their responsibilities more precisely. The resulting application includes a dashboard, tasks, calendar, notes, subscriptions and challenges.
 
-Die Gliederung in Dashboard, Tasks, Calendar, Notes, Subscriptions und Challenges bildete später auch die Grundlage für die Navigation der Webanwendung.
+Planning these sections helped establish how the navigation and application data should fit together.
 
-## 3. Aufgaben im Team verteilen
+## Division of work
 
-Nach der Strukturierung besprachen wir die Aufteilung der Arbeiten. Dabei mussten Frontend, Backend, Datenhaltung, Gestaltung und die Verknüpfung der Funktionen berücksichtigt werden.
+After outlining the functionality, we divided the development work between the **two team members**. The work required frontend implementation, backend endpoints, data persistence, design and integration.
 
-Die genaue Zuordnung einzelner Funktionen zu Teammitgliedern lässt sich anhand der ursprünglichen Miro-Planung und der Git-Commits nachvollziehen. In dieser Dokumentation werden keine Zuständigkeiten behauptet, die nicht durch diese Unterlagen bestätigt sind.
+The precise ownership of individual features should be derived from the original Miro board and commit history rather than inferred retrospectively.
 
-## 4. Technische Grundlagen festlegen
+## Technology decisions
 
-Vor dem eigentlichen Programmieren beschäftigten wir uns mit dem Aufbau der Anwendung. Wir mussten entscheiden, wie wir die Oberfläche entwickeln, wie die API aufgebaut wird, wie Benutzerdaten gespeichert werden und wie die Anwendung bereitgestellt werden soll.
+Before implementation, we determined the overall structure and selected the technologies used in the project.
 
-Der umgesetzte technische Aufbau sieht so aus:
-
-| Bereich | Eingesetzte Lösung |
+| Layer | Implemented technology |
 | --- | --- |
-| Benutzeroberfläche | React, TypeScript und Vite |
-| Gestaltung | CSS und Lucide-Icons |
-| Backend | Python und FastAPI |
-| Datenbank | MongoDB Atlas |
+| Frontend | React, TypeScript and Vite |
+| Styling | CSS and Lucide icons |
+| Backend | Python and FastAPI |
+| Database | MongoDB Atlas |
 | Hosting | Vercel |
-| Anmeldung | E-Mail/Passwort sowie Google-Anmeldung |
-| Gemeinsame Planung | Eigene API-Endpunkte und Datenbankzugriffe |
+| Authentication | Email/password and Google Sign-In |
+| Planning | Miro |
 
-Diese Tabelle beschreibt die tatsächlich verwendeten Technologien. Einzelheiten zu diskutierten Alternativen oder ursprünglichen Entscheidungsgründen lassen sich nur mit den damaligen Planungsnotizen ergänzen.
+The table documents the actual stack. It does not claim particular selection criteria or rejected alternatives without the corresponding planning records.
 
-## 5. Aufbau des Prototyps
+## Implementation
 
-Nachdem die Grundentscheidungen getroffen waren, begannen wir mit der Implementierung. Zuerst musste eine funktionierende Grundlage entstehen, auf der sich die einzelnen Bereiche aufbauen und verbinden liessen.
+Once the technical foundation was clear, we developed LifeOrbit from scratch. The application uses reusable React components, a Python API and persistent data storage.
 
-Die fertige Codebasis umfasst eine React-Oberfläche mit wiederverwendbaren Komponenten, ein Python-Backend mit mehreren API-Routen sowie eine MongoDB-Datenhaltung für Benutzerkonten und persönliche Inhalte.
+Work extended beyond the initial layout to user accounts, task and calendar management, personal and shared notes, subscriptions, challenges and account-specific preferences.
 
-Im weiteren Verlauf wurden Funktionen erweitert, miteinander verbunden und an verschiedenen Stellen überarbeitet. Dazu gehören insbesondere die Kalenderbedienung, die Freigabe von Inhalten, die Accountverwaltung und die Anpassung für kleinere Bildschirme.
+Several areas required refinement after implementation, including calendar interactions across browsers, sharing permissions, notification refresh behaviour and mobile layouts.
 
-Die vollständige technische Änderungshistorie befindet sich in der [CHANGELOG.md](../../CHANGELOG.md). Die Commits und Pull Requests im Repository zeigen die einzelnen Entwicklungsschritte.
+## Integration and technical observations
 
-## 6. Integration und Fehlerbehebung
+Bringing the different functions together required careful coordination between frontend state, backend validation and database persistence. Account-specific data must stay isolated, while intentionally shared resources need separate permission checks.
 
-Beim Verbinden von Frontend, Backend und Datenbank mussten wir berücksichtigen, dass Änderungen dauerhaft gespeichert werden und Benutzer nur auf berechtigte Inhalte zugreifen dürfen. Auch die Bedienung des Kalenders, das Aktualisieren gemeinsamer Inhalte und das responsive Design erforderten mehrere Anpassungen.
+The development also highlighted practical differences between an interface that appears complete and one that works reliably after refresh, between accounts and across devices.
 
-Dabei zeigte sich, wie wichtig eine klare Trennung zwischen Benutzeroberfläche, API und Datenhaltung ist. Ebenso wurde deutlich, dass eine Funktion nicht nur optisch fertig sein darf, sondern auch nach einem Neuladen, auf verschiedenen Geräten und bei mehreren Benutzern korrekt funktionieren muss.
+## Source history
 
-## 7. Ergebnis der Entwicklung
+The repository's commits and pull requests provide the detailed development history. The main [CHANGELOG](../../CHANGELOG.md) contains a feature-oriented record. The original Miro planning material provides context for the decisions made before implementation.
 
-Aus einer Ideensammlung entstand eine zusammenhängende Webanwendung mit mehreren nutzbaren Bereichen. Besonders wesentlich war für uns der Weg von der gemeinsamen Planung über die Architekturentscheidungen bis zur konkreten Umsetzung.
-
-Die für eine abschliessende Auswertung relevanten Testresultate, Screenshots und Zuordnungen der Teamarbeit ergeben sich aus den tatsächlichen Projektmaterialien. Wir verzichten hier bewusst auf unbestätigte Zeitangaben, erfundene Kennzahlen oder nachträglich zugeschriebene Aufgaben.
+Exact task assignments, dates and measured results are not reconstructed where supporting evidence is unavailable.
