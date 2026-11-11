@@ -109,6 +109,30 @@ class YjsMigrationTests(unittest.TestCase):
                                 for method, _, kwargs in actions))
             grant.assert_called_once()
 
+    def test_incomplete_existing_ydoc_does_not_replace_old_notes(self):
+        db = MagicMock()
+        db.realtime_notebooks.find_one.return_value = None
+        book = {"_id": ObjectId(BOOK), "owner": OWNER, "members": [],
+                "pages": [{"id": "note-1", "title": "Important", "body": "Do not lose"}]}
+        def partial_provider(method, endpoint, **kwargs):
+            if method == "GET" and endpoint.endswith("/ydoc"):
+                return {"page:note-1:title": "Important"}  # body is missing
+            if method == "GET":
+                return {"usersAccesses": {}}
+            return {}
+        with patch.object(realtime, "require_enabled"), \
+             patch.object(realtime, "enforce_limit"), \
+             patch.object(realtime, "get_db", return_value=db), \
+             patch("backend.api.routes.shared_notebooks.locate", return_value=book), \
+             patch.object(realtime, "sync_book_access") as grant, \
+             patch.object(realtime, "api", side_effect=partial_provider) as provider:
+            with self.assertRaises(HTTPException) as error:
+                realtime.prepare_notebook(BOOK, http_request(), user=OWNER)
+            self.assertEqual(error.exception.status_code, 409)
+            grant.assert_not_called()
+            self.assertFalse(any(call.args[0] == "PUT"
+                                 for call in provider.call_args_list))
+
     def test_legacy_full_document_save_is_blocked_while_migrating(self):
         db = MagicMock()
         db.realtime_notebooks.find_one.return_value = {"status": "initializing"}
