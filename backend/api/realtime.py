@@ -66,7 +66,7 @@ def account_room(user: str):
 
 
 def notebook_room(notebook: str):
-    return "lo:notebook:" + notebook
+    return "lo:notebook:" + str(ObjectId(notebook))
 
 
 def _authorized_members(db, book):
