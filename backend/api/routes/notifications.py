@@ -66,7 +66,14 @@ def list_notifications(user:str=Depends(get_current_user)):
             key="notebook:"+str(book["_id"])
             if key in seen:continue
             owner=book.get("owner","")
-            author=db.users.find_one({"_id":ObjectId(owner)},{"name":1}) if ObjectId.is_valid(owner) else None
+            # A stale membership must not disclose a former friend's notebook
+            # title or continued existence through notifications.
+            if not isinstance(owner,str) or not ObjectId.is_valid(owner):
+                continue
+            pair="-".join(sorted((owner,user)))
+            if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
+                continue
+            author=db.users.find_one({"_id":ObjectId(owner)},{"name":1})
             results.append({"id":key,"kind":"notebook","title":(author or {}).get("name","A friend")+" invited you to "+book.get("title","a notebook"),"target":"notes"})
             if len(results)>=100:break
     if len(results)<100:
