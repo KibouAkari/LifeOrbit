@@ -84,9 +84,9 @@ class RevocationTests(unittest.TestCase):
                                 "body": "Private data"}]}
         self.db.shared_notebooks.find_one.return_value = self.book
         self.db.shared_notebooks.find.side_effect = lambda *args, **kwargs: Cursor([self.book])
-        self.db.shares.find.return_value = [
+        self.db.shares.find.return_value = Cursor([
             {"owner": OWNER, "recipient": FORMER_FRIEND, "kind": "note",
-             "resource_id": "note-1"}]
+             "resource_id": "note-1"}])
 
     def test_remove_revokes_all_duplicate_friendships_and_shared_documents(self):
         self.assertEqual(len(self.db.friendships.rows), 2)
