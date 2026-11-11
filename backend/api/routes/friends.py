@@ -89,15 +89,15 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
         {"sender":user,"recipient":other},
         {"sender":other,"recipient":user},
     ]})
+    db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
+                                 {"owner":other,"recipient":user}]})
+    db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
+    db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
     if db.friendships.find_one({"$or":[
         {"pair":relationship,"status":"accepted"},
         {"sender":user,"recipient":other,"status":"accepted"},
         {"sender":other,"recipient":user,"status":"accepted"},
     ]}):
         raise HTTPException(503,"Could not verify friendship revocation")
-    db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
-                                 {"owner":other,"recipient":user}]})
-    db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
-    db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
 
     return {"removed":True}
