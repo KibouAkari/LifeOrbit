@@ -9,6 +9,7 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Added MongoDB-backed authentication, calendar-feed and friend-request throttling keyed by hashed client IP/account, with HTTP 429 responses and TTL cleanup.
 - Added server-validated session versions that invalidate previous sessions after logout or password changes.
 - Temporarily blocked unverified email changes and updated the account settings interface.
+- Corrected leaderboard privacy defaults to opt-out and added explicit consent gating so previously saved implicit opt-ins do not disclose names or scores.
 - Closed stale notebook access when friendships are removed, including member list reads and page writes.
 - Added Origin validation for cookie-authenticated writes, disabled public production OpenAPI, improved malformed calendar URL handling and added Vercel CSP/HSTS/frame protections.
 - Added limits on owned notebook creation and stored notification read markers to reduce unbounded growth.

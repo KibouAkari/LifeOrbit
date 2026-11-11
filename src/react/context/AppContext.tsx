@@ -15,7 +15,7 @@ type ContextValue = {
   };
   reset: () => void;
 };
-type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges" | "templates" | "leaderboard_opt_in" | "theme">;
+type Workspace = Pick<Store, "notes" | "chapters" | "subscriptions" | "challenges" | "templates" | "leaderboard_opt_in" | "leaderboard_consent_v1" | "theme">;
 const Context = createContext<ContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -46,6 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       challenges: state.challenges,
       templates: state.templates,
       leaderboard_opt_in: state.leaderboard_opt_in,
+      leaderboard_consent_v1: state.leaderboard_consent_v1,
       theme: state.theme,
     };
     return enqueue(async () => {
@@ -58,7 +59,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       window.dispatchEvent(new Event("lifeorbit:workspace-saved"));
     });
-  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, state.theme, workspaceStatus, enqueue]);
+  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, state.leaderboard_consent_v1, state.theme, workspaceStatus, enqueue]);
 
   const restoreWorkspace = useCallback(() => {
     const generation = ++sessionGeneration.current;
@@ -80,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       chapters: [],
       subscriptions: [],
       challenges: [],
-      templates: [], leaderboard_opt_in:true,
+      templates: [], leaderboard_opt_in:false, leaderboard_consent_v1:false,
     }));
 
     void enqueue(async () => {
@@ -105,7 +106,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         chapters,
         subscriptions: data.subscriptions,
         challenges: data.challenges,
-        templates: data.templates || [], leaderboard_opt_in: data.leaderboard_opt_in ?? true,
+        templates: data.templates || [],
+        leaderboard_consent_v1: Boolean(data.leaderboard_consent_v1),
+        leaderboard_opt_in: Boolean(data.leaderboard_opt_in && data.leaderboard_consent_v1),
         theme:data.theme ?? "system",
       }));
       workspaceWritable.current = true;
@@ -147,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subscriptions: state.subscriptions,
       challenges: state.challenges,
       templates: state.templates, leaderboard_opt_in: state.leaderboard_opt_in,
+      leaderboard_consent_v1: state.leaderboard_consent_v1,
       theme:state.theme,
     };
     const handle = window.setTimeout(() => {
@@ -160,7 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }).catch(error => console.error("Workspace save failed", error));
     }, 900);
     return () => clearTimeout(handle);
-  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, workspaceStatus, enqueue]);
+  }, [state.notes, state.chapters, state.subscriptions, state.challenges, state.templates, state.leaderboard_opt_in, state.leaderboard_consent_v1, workspaceStatus, enqueue]);
 
   useEffect(() => {
     if (workspaceStatus === "guest" && !hasSession()) writeDemo(state);

@@ -7,7 +7,7 @@ export const initialState: Store = {
   notes: [],
   chapters: [{ id: "personal", name: "Personal" }, { id: "ideas", name: "Ideas" }],
   events: [], subscriptions: [],
-  challenges: [], templates: [], leaderboard_opt_in:true,
+  challenges: [], templates: [], leaderboard_opt_in:false, leaderboard_consent_v1:false,
 };
 export function readDemo(): Store {
   try {
@@ -27,6 +27,9 @@ export function readDemo(): Store {
     return {
       ...structuredClone(initialState),
       ...value,
+      // Legacy guest defaults must never silently become a public opt-in.
+      leaderboard_opt_in: Boolean(value.leaderboard_opt_in && value.leaderboard_consent_v1),
+      leaderboard_consent_v1: Boolean(value.leaderboard_consent_v1),
       notes,
       chapters: chapters ?? structuredClone(initialState.chapters),
     };

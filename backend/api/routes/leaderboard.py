@@ -9,8 +9,8 @@ router = APIRouter()
 @router.get("")
 def ranking(user_id: str = Depends(get_current_user)):
     db = get_db()
-    visible = list(db.workspaces.find({"leaderboard_opt_in": True}, {"user_id": 1, "challenges": 1}))
-    mine = db.workspaces.find_one({"user_id": user_id}, {"challenges": 1})
+    visible = list(db.workspaces.find({"leaderboard_opt_in": True, "leaderboard_consent_v1": True}, {"user_id": 1, "challenges": 1}))
+    mine = db.workspaces.find_one({"user_id": user_id}, {"challenges": 1, "leaderboard_opt_in": 1, "leaderboard_consent_v1": 1})
     if not any(item.get("user_id") == user_id for item in visible):
         visible.append({"user_id": user_id, "challenges": (mine or {}).get("challenges", [])})
     ids = [ObjectId(item["user_id"]) for item in visible if ObjectId.is_valid(item.get("user_id", ""))]
@@ -30,4 +30,4 @@ def ranking(user_id: str = Depends(get_current_user)):
     current = next((entry for entry in entries if entry["me"]), None)
     if current and current not in participants:
         participants.append(current)
-    return {"participants": participants, "opted_in": bool((mine or {}).get("leaderboard_opt_in", False))}
+    return {"participants": participants, "opted_in": bool((mine or {}).get("leaderboard_opt_in", False) and (mine or {}).get("leaderboard_consent_v1", False))}

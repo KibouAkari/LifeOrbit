@@ -13,6 +13,7 @@ Updated 11 November 2026. Scope: static source and documentation review on the d
 | High | Password changes/logouts left older JWTs valid until expiry. | Verify session versions against the account on every authenticated request; increment on logout/password change and issue a fresh cookie after a password change. |
 | High | Unfriending did not revoke shared-notebook memberships. | Remove memberships in both directions and revalidate friendship for notebook listing, reads and edits. |
 | High | Accounts could change to unverified email addresses. | Disable changes until a verified email-delivery challenge is available. This intentionally restricts functionality. |
+| High | The leaderboard previously enabled public participation for newly saved workspaces without affirmative consent. | Change defaults to off and require a new explicit consent flag. Existing implicitly enrolled accounts must reopt in manually. |
 | Medium | Cookie-authenticated writes were not independently checked against cross-origin requests. | Require trusted Origin for cookie-backed POST, PATCH, PUT and DELETE. |
 | Medium | Production OpenAPI schema remained publicly accessible. | Disable OpenAPI in production. |
 | Medium | Missing explicit web response protections. | Add CSP tuned for Google Identity Services, HSTS, anti-framing and COOP. Browser compatibility must still be tested. |
@@ -33,7 +34,7 @@ Targeted pattern checks covered 32 current tracked Markdown files, hackathon doc
 3. Verify hosting security configuration directly: Vercel access, preview protection, MongoDB TLS and least-privilege users, secret rotation, audit logging, network egress and backups.
 4. Review iCalendar security further. Existing public-IP resolution, pinned TLS and redirect rejection remain application-level measures, not a network firewall. Test unusual DNS, slow streams, recurrence and timezones.
 5. Set real operator/contact, retention, privacy, export and deletion procedures. Do not imply these legal and operational controls are complete.
-6. Replace whole-workspace writes with revision-aware updates to prevent lost changes. Community ranking is based on user-controlled challenge values and is not fraud-resistant.
+6. Reconfirm user-facing leaderboard privacy and display names after existing accounts reopt in. Replace whole-workspace writes with revision-aware updates to prevent lost changes. Community ranking is based on user-controlled challenge values and is not fraud-resistant.
 7. Tune abuse limits with observed legitimate usage and add alerts, resource quotas and privacy-preserving security monitoring.
 8. Verify the Google Sign-In user journey in a browser with the new CSP. Do not relax the policy without examining reported violations.
 9. Add a reviewed lockfile. Existing npm/pip audits with ranged dependencies do not prove the exact dependency versions used in a past deployment.
