@@ -37,6 +37,22 @@ class YjsMigrationTests(unittest.TestCase):
         self.assertEqual(query["_id"], realtime.notebook_room(BOOK))
         self.assertIn("token", query)
 
+    def test_lost_notebook_lock_blocks_acl_provider_writes(self):
+        db = MagicMock()
+        db.realtime_locks.find_one_and_update.return_value = {
+            "_id": realtime.notebook_room(BOOK)}
+        db.realtime_locks.find_one.return_value = None
+        with patch.object(realtime, "api", return_value={"usersAccesses": {}}) as provider:
+            with realtime.notebook_lock(db, BOOK):
+                with self.assertRaises(HTTPException):
+                    realtime._update_permissions(
+                        realtime.notebook_room(BOOK), {OWNER}, create=False,
+                        guard=lambda: realtime._assert_lock(
+                            db, realtime.notebook_room(BOOK)))
+        self.assertEqual(provider.call_count, 1)
+        self.assertEqual(provider.call_args.args[:2],
+                         ("GET", "/rooms/" + realtime.encoded(realtime.notebook_room(BOOK))))
+
     def test_acl_reconciliation_uses_current_database_membership(self):
         db = MagicMock()
         fresh = {"_id": ObjectId(BOOK), "owner": OWNER, "members": []}
@@ -45,12 +61,14 @@ class YjsMigrationTests(unittest.TestCase):
         db.friendships.find_one.return_value = {"status": "accepted"}
         with patch.object(realtime, "_update_permissions") as update:
             realtime.sync_book_access(db, stale)
-        update.assert_called_once_with(realtime.notebook_room(BOOK), {OWNER}, create=False)
+        self.assertEqual(update.call_args.args,
+                         (realtime.notebook_room(BOOK), {OWNER}))
+        self.assertFalse(update.call_args.kwargs["create"])
+        self.assertTrue(callable(update.call_args.kwargs["guard"]))
 
     def test_prepare_rereads_notebook_after_acquiring_lock(self):
         db = MagicMock()
         original = {"_id": ObjectId(BOOK), "owner": OWNER, "pages": []}
-        latest = {**original, "pages": [{"id": "new", "title": "Latest", "body": "Text"}]}
         order = []
 
         @contextmanager
@@ -72,8 +90,8 @@ class YjsMigrationTests(unittest.TestCase):
             result = realtime.prepare_notebook(BOOK, http_request(), user=OWNER)
 
         self.assertEqual(result, {"ready": True})
-        self.assertEqual(order, ["locate", "lock", "locate"])
-        self.assertIs(migrate.call_args.args[3], latest)
+        self.assertEqual(order, ["lock", "locate"])
+        self.assertIs(migrate.call_args.args[3], original)
 
     def test_invalidation_is_scheduled_after_response(self):
         background = BackgroundTasks()
@@ -134,16 +152,19 @@ class YjsMigrationTests(unittest.TestCase):
 
         def provider(*_args, **_kwargs):
             order.append("provider-read")
-            return {"page:page1:title": "New title", "page:page1:body": "New body"}
+            return {"page:page1:title": "New title"}
 
-        def update(*_args, **_kwargs):
+        def update(*args, **kwargs):
             order.append("preview-write")
+            self.assertEqual(args[1]["$set"]["pages.$.body"], "")
+            self.assertEqual(args[1]["$set"]["pages.$.title"], "New title")
 
         db.realtime_notebooks.find_one.return_value = {"status": "ready"}
         db.shared_notebooks.update_one.side_effect = update
         with patch.object(realtime, "require_enabled"), \
              patch.object(realtime, "get_db", return_value=db), \
              patch.object(realtime, "notebook_lock", side_effect=lock), \
+             patch.object(realtime, "_assert_lock"), \
              patch("backend.api.routes.shared_notebooks.locate", side_effect=locate), \
              patch.object(realtime, "api", side_effect=provider):
             result = realtime.snapshot_notebook(BOOK, user=OWNER)
@@ -151,6 +172,32 @@ class YjsMigrationTests(unittest.TestCase):
         self.assertEqual(result, {"snapshotted": 1})
         self.assertEqual(order, [
             "lock", "locate", "provider-read", "preview-write", "unlock"])
+
+    def test_empty_yjs_text_roots_are_optional_on_migration_retry(self):
+        db = MagicMock()
+        db.realtime_notebooks.find_one.return_value = None
+        book = {"_id": ObjectId(BOOK), "owner": OWNER, "members": [],
+                "pages": [{"id": "empty-body", "title": "Existing title", "body": ""}]}
+
+        def provider(method, endpoint, **_kwargs):
+            if method == "GET" and endpoint.endswith("/ydoc"):
+                return {"page:empty-body:title": "Existing title"}
+            if method == "GET":
+                return {"usersAccesses": {}}
+            return {}
+
+        with patch.object(realtime, "require_enabled"), \
+             patch.object(realtime, "enforce_limit"), \
+             patch.object(realtime, "get_db", return_value=db), \
+             patch("backend.api.routes.shared_notebooks.locate", return_value=book), \
+             patch.object(realtime, "sync_book_access") as grant, \
+             patch.object(realtime, "api", side_effect=provider) as provider_call:
+            result = realtime.prepare_notebook(BOOK, http_request(), user=OWNER)
+
+        self.assertTrue(result["ready"])
+        self.assertFalse(any(call.args[0] == "PUT"
+                             for call in provider_call.call_args_list))
+        grant.assert_called_once()
 
     def test_python_yjs_update_preserves_legacy_page(self):
         book = {"pages": [{"id": "page1", "title": "My title",

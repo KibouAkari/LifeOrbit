@@ -7,7 +7,9 @@ from pydantic import BaseModel,Field
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
 from backend.api.realtime import (configured, notebook_room, publish_to_users,
-                                  notebook_lock, revoke_book_access, sync_book_access)
+                                  notebook_lock, revoke_book_access, sync_book_access,
+                                  realtime_access_lock,
+                                  assert_realtime_access_lock)
 
 router=APIRouter()
 class NotebookInput(BaseModel):
@@ -93,13 +95,14 @@ def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user),
                   background_tasks:BackgroundTasks=None):
     db=get_db()
     target=payload.user_id
-    with notebook_lock(db,id):
+    with realtime_access_lock(db,user,target), notebook_lock(db,id):
         book=locate(db,id,user)
         if book["owner"]!=user:raise HTTPException(403,"Only the owner can invite members")
         if target==user or not ObjectId.is_valid(target):raise HTTPException(400,"Invalid member")
         pair="-".join(sorted((user,target)))
         if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
             raise HTTPException(403,"Only confirmed friends can be invited")
+        assert_realtime_access_lock(db,user,target)
         db.shared_notebooks.update_one({"_id":book["_id"],"owner":user},{"$addToSet":{"members":target}})
         book=db.shared_notebooks.find_one({"_id":book["_id"]})
         if configured() and (db.realtime_notebooks.find_one({"_id":notebook_room(id)}) or {}).get("status")=="ready":

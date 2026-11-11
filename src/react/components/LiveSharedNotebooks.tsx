@@ -66,16 +66,17 @@ async function fetchAllBooks() {
 async function prepareNotebook(id: string) {
   // Another request may be migrating the same legacy notebook. Never edit
   // until its migration has finished on the server.
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 60; i++) {
     try {
       const result = await request<{ room: string; ready: boolean }>(
         `/realtime/notebooks/${id}/prepare`, { method: "POST" });
       return result.room;
     } catch (error) {
       const isConcurrent = error instanceof Error &&
-        error.message.includes("Another editor is preparing");
-      if (!isConcurrent || i === 11) throw error;
-      await new Promise<void>((resolve) => setTimeout(resolve, 650));
+        (error.message.includes("Another editor is preparing") ||
+         error.message.includes("Notebook is busy; try again"));
+      if (!isConcurrent || i === 59) throw error;
+      await new Promise<void>((resolve) => setTimeout(resolve, 1000));
     }
   }
   throw new Error("Unable to open the realtime notebook");
@@ -97,6 +98,7 @@ function CollaborativeBook({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [invite, setInvite] = useState("");
+  const [roomVersion, setRoomVersion] = useState(0);
   const snapshotTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDoc = useRef<Y.Doc | null>(null);
 
@@ -110,6 +112,19 @@ function CollaborativeBook({
   useEffect(() => {
     let mounted = true;
     let closeRoom: (() => void) | undefined;
+    let accessRevoked = false;
+    const onRemoteUpdate = (event: Event) => {
+      if ((event as CustomEvent<unknown>).detail === "access-revoked") {
+        accessRevoked = true;
+        if (mounted) {
+          void reload();
+          setRoomVersion((version) => version + 1);
+        } else {
+          closeRoom?.();
+        }
+      }
+    };
+    window.addEventListener("lifeorbit:remote-updated", onRemoteUpdate);
     setDoc(null); setSynced(false); setStatus("connecting"); setMessage("");
     void prepareNotebook(book.id).then((roomId) => {
       if (!mounted) return;
@@ -121,7 +136,55 @@ function CollaborativeBook({
       const provider = getYjsProviderForRoom(room);
       const shared = provider.getYDoc();
       latestDoc.current = shared;
+      let roomStatus: RoomStatus = "connecting";
+      let providerStatus = provider.getStatus();
+      let lastUpdateAt = 0;
+      let updateVersion = 0;
+      let releaseRequested = false;
+      let finalized = false;
+      let releaseStarted = false;
+      let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+      let finalize = () => {};
+      const scheduleRelease = () => {
+        if (!releaseRequested || finalized) return;
+        if (accessRevoked && roomStatus === "disconnected") {
+          finalize();
+          return;
+        }
+        if (!lastUpdateAt) {
+          finalize();
+          return;
+        }
+        const quietFor = Date.now() - lastUpdateAt;
+        if (roomStatus !== "connected" || providerStatus !== "synchronized" || quietFor < 1800) {
+          if (releaseTimer) clearTimeout(releaseTimer);
+          releaseTimer = setTimeout(scheduleRelease,
+            Math.max(500, 1800 - quietFor));
+          return;
+        }
+        if (releaseStarted) return;
+        releaseStarted = true;
+        const snapshotVersion = updateVersion;
+        void request(`/realtime/notebooks/${book.id}/snapshot`, { method: "POST" })
+          .then(() => {
+            releaseStarted = false;
+            if (snapshotVersion === updateVersion &&
+                Date.now() - lastUpdateAt >= 1800) {
+              finalize();
+            } else {
+              scheduleRelease();
+            }
+          })
+          .catch(() => {
+            releaseStarted = false;
+            if (releaseTimer) clearTimeout(releaseTimer);
+            releaseTimer = setTimeout(scheduleRelease, 1000);
+          });
+      };
       const onUpdate = () => {
+        lastUpdateAt = Date.now();
+        updateVersion++;
+        if (releaseRequested) scheduleRelease();
         if (!mounted) return;
         setRevision((n) => n + 1);
         if (snapshotTimer.current) clearTimeout(snapshotTimer.current);
@@ -138,13 +201,24 @@ function CollaborativeBook({
           if (ready) setRevision((n) => n + 1);
         }
       };
+      const onProviderStatus = (value: typeof providerStatus) => {
+        providerStatus = value;
+        if (releaseRequested) scheduleRelease();
+      };
       const offStatus = room.subscribe("status", (value) => {
+        roomStatus = value;
+        if (releaseRequested) scheduleRelease();
         if (!mounted) return;
         setStatus(value);
         if (value === "disconnected") {
           // Permission removal immediately disconnects the provider. Recheck
           // MongoDB access and unmount the editor if membership was revoked.
-          void reload();
+          if (accessRevoked) {
+            finalize();
+            setRoomVersion((version) => version + 1);
+          } else {
+            void reload();
+          }
         }
       });
       const offOthers = room.subscribe("others", (users) => {
@@ -157,12 +231,27 @@ function CollaborativeBook({
       });
       shared.on("update", onUpdate);
       provider.on("sync", onSync);
+      provider.on("status", onProviderStatus);
       setDoc(shared);
       setSynced(provider.synced);
-      closeRoom = () => {
+      finalize = () => {
+        if (finalized) return;
+        finalized = true;
+        if (releaseTimer) clearTimeout(releaseTimer);
+        window.removeEventListener("lifeorbit:remote-updated", onRemoteUpdate);
         shared.off("update", onUpdate);
         provider.off("sync", onSync);
+        provider.off("status", onProviderStatus);
         offStatus(); offOthers(); leave();
+      };
+      closeRoom = () => {
+        if (accessRevoked) {
+          finalize();
+          return;
+        }
+        releaseRequested = true;
+        if (lastUpdateAt) scheduleRelease();
+        else finalize();
       };
     }).catch((error) => {
       if (mounted) setMessage(error instanceof Error ? error.message : "Could not join notebook");
@@ -177,9 +266,10 @@ function CollaborativeBook({
     return () => {
       mounted = false; closeRoom?.(); latestDoc.current = null;
       if (snapshotTimer.current) clearTimeout(snapshotTimer.current);
+      if (!closeRoom) window.removeEventListener("lifeorbit:remote-updated", onRemoteUpdate);
       document.removeEventListener("visibilitychange", flushOnHide);
     };
-  }, [book.id]);
+  }, [book.id, roomVersion, reload]);
 
   const selected = useMemo(() => pages.find((item) => item.id === active), [pages, active]);
   // revision forces a render on remote Yjs changes, with no full-text writes.

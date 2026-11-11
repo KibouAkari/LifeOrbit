@@ -10,7 +10,9 @@ from backend.api.routes.auth import get_current_user
 from backend.api.security import enforce_limit
 from backend.api.realtime import (configured, notebook_lock, notebook_room,
                                   publish_to_users, queue_acl_revocation,
-                                  retry_acl_revocations, sync_book_access)
+                                  retry_acl_revocations, sync_book_access,
+                                  realtime_access_lock,
+                                  assert_realtime_access_lock)
 from fastapi import Request
 
 router=APIRouter()
@@ -78,19 +80,24 @@ def accept(request_id:str,user:str=Depends(get_current_user),
     db=get_db()
     request=db.friendships.find_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"})
     if not request:raise HTTPException(404,"Request not found")
-    impacted=list(db.shared_notebooks.find({"$or":[
-        {"owner":request["sender"],"members":request["recipient"]},
-        {"owner":request["recipient"],"members":request["sender"]}]}))
-    with ExitStack() as locks:
-        for book in sorted(impacted,key=lambda item:str(item["_id"])):
-            locks.enter_context(notebook_lock(db,str(book["_id"])))
-        result=db.friendships.update_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"},
-                                         {"$set":{"status":"accepted"}})
-        if not result.modified_count:raise HTTPException(404,"Request not found")
-        if configured():
-            for book in impacted:
-                if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
-                    sync_book_access(db,book,locked=True)
+    other=request["sender"]
+    with realtime_access_lock(db,user,other):
+        request=db.friendships.find_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"})
+        if not request:raise HTTPException(404,"Request not found")
+        impacted=list(db.shared_notebooks.find({"$or":[
+            {"owner":request["sender"],"members":request["recipient"]},
+            {"owner":request["recipient"],"members":request["sender"]}]}))
+        with ExitStack() as locks:
+            for book in sorted(impacted,key=lambda item:str(item["_id"])):
+                locks.enter_context(notebook_lock(db,str(book["_id"])))
+            assert_realtime_access_lock(db,user,other)
+            result=db.friendships.update_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"},
+                                             {"$set":{"status":"accepted"}})
+            if not result.modified_count:raise HTTPException(404,"Request not found")
+            if configured():
+                for book in impacted:
+                    if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                        sync_book_access(db,book,locked=True)
     doc=db.friendships.find_one({"_id":ObjectId(request_id)})
     publish_to_users([doc["sender"],doc["recipient"]],"friends",background_tasks)
     return {"accepted":True}
@@ -107,38 +114,43 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user),
     # Revoke all duplicate or historical rows; a single remaining accepted
     # relationship would otherwise keep read-only and realtime access alive.
     key=pair(user,other)
-    candidates=list(db.shared_notebooks.find({"owner":{"$in":[user,other]}}))
-    with ExitStack() as locks:
-        for book in sorted(candidates,key=lambda item:str(item["_id"])):
-            locks.enter_context(notebook_lock(db,str(book["_id"])))
-        impacted=list(db.shared_notebooks.find({"$or":[
-            {"owner":user,"members":other},{"owner":other,"members":user}]}))
-        # Record revocations before membership changes so provider outages or
-        # disabled realtime cannot permanently strand stale access.
-        for book in impacted:
-            if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
-                queue_acl_revocation(db,book)
-        db.friendships.delete_many({"$or":[
-            {"pair":key},
-            {"sender":user,"recipient":other},
-            {"sender":other,"recipient":user},
-        ]})
-        db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
-                                     {"owner":other,"recipient":user}]})
-        # Friendship revocation must also remove shared-notebook membership.
-        db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
-        db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
-        if db.friendships.find_one({"pair":key,"status":"accepted"}):
-            raise HTTPException(503,"Friendship revocation could not be verified")
-        if configured():
+    with realtime_access_lock(db,user,other):
+        friendship=db.friendships.find_one({"_id":ObjectId(request_id),
+                             "$or":[{"sender":user},{"recipient":user}]})
+        if not friendship:raise HTTPException(404,"Request not found")
+        candidates=list(db.shared_notebooks.find({"owner":{"$in":[user,other]}}))
+        with ExitStack() as locks:
+            for book in sorted(candidates,key=lambda item:str(item["_id"])):
+                locks.enter_context(notebook_lock(db,str(book["_id"])))
+            impacted=list(db.shared_notebooks.find({"$or":[
+                {"owner":user,"members":other},{"owner":other,"members":user}]}))
+            # Record revocations before membership changes so provider outages or
+            # disabled realtime cannot permanently strand stale access.
             for book in impacted:
                 if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
-                    try:
-                        sync_book_access(db,book,locked=True)
-                    except HTTPException:
-                        # The durable outbox retries after the response and on
-                        # subsequent realtime authorization requests.
-                        pass
+                    queue_acl_revocation(db,book)
+            assert_realtime_access_lock(db,user,other)
+            db.friendships.delete_many({"$or":[
+                {"pair":key},
+                {"sender":user,"recipient":other},
+                {"sender":other,"recipient":user},
+            ]})
+            db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
+                                         {"owner":other,"recipient":user}]})
+            # Friendship revocation must also remove shared-notebook membership.
+            db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
+            db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
+            if db.friendships.find_one({"pair":key,"status":"accepted"}):
+                raise HTTPException(503,"Friendship revocation could not be verified")
+            if configured():
+                for book in impacted:
+                    if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                        try:
+                            sync_book_access(db,book,locked=True)
+                        except HTTPException:
+                            # The durable outbox retries after the response and on
+                            # subsequent realtime authorization requests.
+                            pass
     if background_tasks is not None:
         background_tasks.add_task(retry_acl_revocations, db)
     # Existing browser rooms must reauthorize even if already connected.
