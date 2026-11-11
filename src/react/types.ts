@@ -6,5 +6,5 @@ export type Event = { id: string; title: string; date: string; start_time?: stri
 export type Subscription = { id: string; name: string; amount: number; currency: string; renews: string; interval?: "monthly" | "yearly" };
 export type Challenge = { id: string; title: string; value: number; target: number; unit: string; period?: "daily"|"weekly"; date_key?: string; custom?: boolean; shared_source?: string | null };
 export type ChallengeTemplate = { id: string; title: string; target: number; unit: string; period: "daily"|"weekly" };
-export type Store = { theme: Theme; account: string; tasks: Task[]; notes: Note[]; chapters: Chapter[]; events: Event[]; subscriptions: Subscription[]; challenges: Challenge[]; templates: ChallengeTemplate[]; leaderboard_opt_in: boolean };
+export type Store = { theme: Theme; account: string; tasks: Task[]; notes: Note[]; chapters: Chapter[]; events: Event[]; subscriptions: Subscription[]; challenges: Challenge[]; templates: ChallengeTemplate[]; leaderboard_opt_in: boolean; leaderboard_consent_v1: boolean };
 export type Section = "dashboard" | "notes" | "tasks" | "calendar" | "subscriptions" | "challenges" | "settings" | "login";

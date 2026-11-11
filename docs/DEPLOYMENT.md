@@ -12,7 +12,7 @@ LifeOrbit deploys the Vite/React frontend and the Python FastAPI backend in **on
 | `GOOGLE_CLIENT_ID` | Server only | Verify Google identity tokens |
 | `VITE_GOOGLE_CLIENT_ID` | Public | Browser Google sign-in client identifier |
 | `FRONTEND_ORIGINS` | Server only | Exact allowed frontend origin(s) |
-| `AUTH_COOKIE_SAMESITE` | Server only | Cookie SameSite policy for your architecture |
+| `AUTH_COOKIE_SAMESITE` | Server only | Use strict for the normal same-origin deployment |
 | `VITE_API_BASE_URL` | Public | Leave empty for same-origin API |
 
 Do not expose `MONGODB_URI`, `JWT_SECRET_KEY` or provider secrets with a `VITE_` prefix.
@@ -25,8 +25,8 @@ Do not expose `MONGODB_URI`, `JWT_SECRET_KEY` or provider secrets with a `VITE_`
 4. Use the existing same-origin `/api` routing; avoid an unnecessary second backend deployment.
 5. Deploy a **preview** from the PR and confirm `GET /api/health` responds with JSON.
 6. Check `GET /api/health/database` with valid credentials.
-7. Confirm schema/index provisioning and resolve any duplicate records before creating unique indexes.
-8. Test registration, email/password sign-in, Google sign-in, logout and cookie behaviour.
+7. Run the documented `ensure_indexes()` provisioning function using a database identity authorized to manage indexes. In addition to uniqueness constraints, it creates `rate_limits.expires_at` TTL cleanup. Resolve duplicate records before adding unique indexes.
+8. Test sign-in, registration, Google Sign-In, logout and cookie behaviour, including Origin checks and throttling. Password changes invalidate older sessions. Email changes are temporarily unavailable until verification is implemented.
 9. Test with **two real test accounts**: data isolation, friends, notes, RSVPs, notifications and permissions.
 10. Test calendar import/subscription refresh, including public-address validation and denied private endpoints.
 11. Complete the [release checklist](RELEASING.md) before promoting or merging.
@@ -35,6 +35,6 @@ Do not expose `MONGODB_URI`, `JWT_SECRET_KEY` or provider secrets with a `VITE_`
 
 ## Operations
 
-Keep signing and iCalendar encryption secrets stable across deployments until a reviewed rotation plan exists. Since private calendar URLs are encrypted using material derived from `JWT_SECRET_KEY`, rotating it without migration may require affected feeds to be reconnected.
+Keep signing and iCalendar encryption secrets stable across deployments until a reviewed rotation plan exists. Confirm the resolved Vite version is at least 6.4.6 on the 6.x line (GHSA-p4f5-76q4-ffq7) and PyJWT is at least 2.15.1. Check transitive dependencies as well. Since private calendar URLs are encrypted using material derived from `JWT_SECRET_KEY`, rotating it without migration may require affected feeds to be reconnected.
 
 Do not expose database secrets, private calendar subscription links or personal content in issue reports or telemetry. For problems, consult [MongoDB setup](MONGODB_SETUP.md), [backend integration](BACKEND_INTEGRATION.md) and the [security review](SECURITY_AUDIT.md).

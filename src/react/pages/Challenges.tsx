@@ -109,6 +109,8 @@ export default function Challenges(){
   else setMessage("Progress saved.");
  }
  function optIn(){
+  // Only a deliberate click marks an account as consenting to public rankings.
+  patch("leaderboard_consent_v1",true);
   patch("leaderboard_opt_in",!state.leaderboard_opt_in);
  }
  const online=hasSession();

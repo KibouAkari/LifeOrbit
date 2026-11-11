@@ -100,8 +100,10 @@ def participants(event_id:str,user:str=Depends(get_current_user)):
     ev=db.events.find_one({"_id":ObjectId(event_id)})
     if not ev:raise HTTPException(404,"Event not found")
     shares=list(db.shares.find({"kind":"event","resource_id":event_id}))
-    if user!=ev["user_id"] and not any(row["recipient"]==user for row in shares):
-        raise HTTPException(403,"You cannot view the participants")
+    if user!=ev["user_id"]:
+        require_friend(db, ev["user_id"], user)
+        if not any(row["recipient"]==user for row in shares):
+            raise HTTPException(403,"You cannot view the participants")
     ids=[ev["user_id"]]+[row["recipient"] for row in shares]
     names={str(p["_id"]):p.get("name","Member") for p in db.users.find(
         {"_id":{"$in":[ObjectId(i) for i in ids if ObjectId.is_valid(i)]}},{"name":1})}

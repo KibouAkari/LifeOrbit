@@ -57,7 +57,9 @@ class Workspace(BaseModel):
     subscriptions: list[Subscription] = Field(default_factory=list, max_length=300)
     challenges: list[Challenge] = Field(default_factory=list, max_length=100)
     templates: list[Template] = Field(default_factory=list,max_length=100)
-    leaderboard_opt_in: bool = True
+    leaderboard_opt_in: bool = False
+    # Old clients set opt-in to true by default; explicit consent is now required.
+    leaderboard_consent_v1: bool = False
     theme: Literal["light","dark","system"] = "system"
 
 @router.get("", response_model=Workspace)

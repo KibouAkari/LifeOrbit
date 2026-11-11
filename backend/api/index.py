@@ -9,9 +9,27 @@ from backend.api.routes import auth, calendar, challenges, dashboard, tasks, wor
 
 app = FastAPI(title="LifeOrbital API", version="0.4.0",
               docs_url=None if os.getenv("VERCEL_ENV")=="production" else "/api/docs",
-              openapi_url="/api/openapi.json", redoc_url=None)
+              openapi_url=None if os.getenv("VERCEL_ENV")=="production" else "/api/openapi.json", redoc_url=None)
 
 origins=[x.strip() for x in os.getenv("FRONTEND_ORIGINS","http://localhost:5173").split(",") if x.strip()]
+@app.middleware("http")
+async def protect_browser_requests(request: Request, call_next):
+    """Require an allowed Origin for cookie-authenticated writes (CSRF)."""
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        length = request.headers.get("content-length", "")
+        if length.isdecimal() and int(length) > 2 * 1024 * 1024:
+            return JSONResponse(status_code=413, content={"detail": "Request is too large"})
+        if request.cookies.get("lifeorbital_auth"):
+            origin = request.headers.get("origin")
+            host = request.headers.get("host", "").lower()
+            scheme = "https" if os.getenv("VERCEL") == "1" else request.url.scheme
+            allowed = set(origins)
+            if host:
+                allowed.add(f"{scheme}://{host}")
+            if not origin or origin not in allowed:
+                return JSONResponse(status_code=403, content={"detail": "Untrusted request origin"})
+    return await call_next(request)
+
 app.add_middleware(CORSMiddleware,allow_origins=origins,
                    allow_credentials=True,allow_methods=["GET","POST","PUT","PATCH","DELETE"],
                    allow_headers=["Authorization","Content-Type"])
