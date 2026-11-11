@@ -14,6 +14,7 @@ from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from backend.api.database import get_db
+from backend.api.security import enforce_limit
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
@@ -45,7 +46,7 @@ def secret_key():
 def issue_token(user, response: Response):
     now = datetime.now(timezone.utc)
     access_token = jwt.encode({
-        "sub": str(user["_id"]), "iss": "lifeorbital",
+        "sub": str(user["_id"]), "ver": int(user.get("session_version", 0)), "iss": "lifeorbital",
         "aud": "lifeorbital-api", "iat": now,
         "exp": now + timedelta(hours=2),
     }, secret_key(), algorithm="HS256")
@@ -65,12 +66,17 @@ def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials
     token = request.cookies.get("lifeorbital_auth") or (credentials.credentials if credentials else None)
     if not token:
         raise HTTPException(status_code=401, detail="Sign in required")
+    if len(token) > 4096:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
     try:
         claims = jwt.decode(
             token, secret_key(), algorithms=["HS256"],
             issuer="lifeorbital", audience="lifeorbital-api",
             options={"require": ["sub", "iat", "exp", "aud", "iss"]},
         )
+        user = find_user(claims["sub"])
+        if type(claims.get("ver")) is not int or claims["ver"] != user.get("session_version", 0):
+            raise HTTPException(status_code=401, detail="Session has been revoked")
         return claims["sub"]
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
@@ -87,8 +93,9 @@ def find_user(user_id: str):
 
 
 @router.post("/register", status_code=201)
-def register(payload: RegisterRequest, response: Response):
+def register(payload: RegisterRequest, response: Response, request: Request):
     secret_key()
+    enforce_limit(request, "register", maximum=10, window_seconds=3600, identity=payload.email)
     db = get_db()
     email = payload.email.strip().lower()
     if db.users.find_one({"email": email}):
@@ -107,7 +114,8 @@ def register(payload: RegisterRequest, response: Response):
 
 
 @router.post("/login")
-def password_login(payload: LoginRequest, response: Response):
+def password_login(payload: LoginRequest, response: Response, request: Request):
+    enforce_limit(request, "password-login", maximum=60, window_seconds=900, identity=payload.email)
     user = get_db().users.find_one({"email": payload.email.strip().lower()})
     # Do not disclose whether an email exists.
     if not user or not user.get("password_hash") or not passwords.verify(payload.password, user["password_hash"]):
@@ -116,7 +124,8 @@ def password_login(payload: LoginRequest, response: Response):
 
 
 @router.post("/google")
-def google_login(payload: GoogleAuthRequest, response: Response):
+def google_login(payload: GoogleAuthRequest, response: Response, request: Request):
+    enforce_limit(request, "google-login", maximum=60, window_seconds=900)
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=503, detail="Google login is not configured")
@@ -166,7 +175,14 @@ def me(user_id: str = Depends(get_current_user)):
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(request: Request, response: Response):
+    # Revoke all outstanding sessions, even if the browser forgets its cookie.
+    try:
+        user_id = get_current_user(request, None)
+        from bson import ObjectId
+        get_db().users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"session_version": 1}})
+    except HTTPException:
+        pass  # Logout also works when a cookie is already expired.
     response.delete_cookie("lifeorbital_auth", path="/api", secure=True, httponly=True, samesite=os.getenv("AUTH_COOKIE_SAMESITE", "strict").lower())
     return {"signed_out": True}
 
@@ -217,37 +233,28 @@ class PasswordChange(BaseModel):
 
 @router.patch("/email")
 def change_email(payload: EmailChange, user_id: str = Depends(get_current_user)):
-    """Require the existing password before changing a password account's email."""
-    user = find_user(user_id)
-    hashed = user.get("password_hash")
-    if not hashed:
-        raise HTTPException(400, "Google-only accounts manage email through Google")
-    if not passwords.verify(payload.password, hashed):
-        raise HTTPException(403, "Incorrect password")
-    new_email = payload.email.strip().lower()
-    try:
-        updated = get_db().users.find_one_and_update(
-            {"_id": user["_id"]},
-            {"$set": {"email": new_email, "updated_at": datetime.now(timezone.utc)}},
-            return_document=ReturnDocument.AFTER,
-        )
-    except DuplicateKeyError:
-        raise HTTPException(409, "Email already in use")
-    return public_user(updated)
+    # No mail-delivery challenge exists yet. An unverified address must never
+    # become an account identity.
+    raise HTTPException(403, "Email changes are unavailable until verification is implemented")
 
 
 @router.patch("/password")
-def change_password(payload: PasswordChange, user_id: str = Depends(get_current_user)):
-    """Password changes are only available to accounts with an existing password."""
+def change_password(payload: PasswordChange, response: Response, user_id: str = Depends(get_current_user)):
+    """Rotate the password and revoke every earlier session atomically."""
     user = find_user(user_id)
     hashed = user.get("password_hash")
     if not hashed:
         raise HTTPException(400, "This Google account does not have a password")
     if not passwords.verify(payload.current_password, hashed):
         raise HTTPException(403, "Incorrect password")
-    get_db().users.update_one(
-        {"_id": user["_id"]},
+    updated = get_db().users.find_one_and_update(
+        {"_id": user["_id"], "password_hash": hashed},
         {"$set": {"password_hash": passwords.hash(payload.new_password),
-                  "updated_at": datetime.now(timezone.utc)}},
+                  "updated_at": datetime.now(timezone.utc)},
+         "$inc": {"session_version": 1}},
+        return_document=ReturnDocument.AFTER,
     )
+    if not updated:
+        raise HTTPException(409, "Password changed in another session; sign in again")
+    issue_token(updated, response)
     return {"updated": True}

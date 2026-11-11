@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
+from backend.api.security import enforce_limit
+from fastapi import Request
 
 router=APIRouter()
 
@@ -22,7 +24,8 @@ def profile(db,uid):
     return {"id":uid,"name":doc.get("name","Member")} if doc else None
 
 @router.get("/search")
-def find_people(q:str=Query(min_length=2,max_length=70),user:str=Depends(get_current_user)):
+def find_people(request:Request,q:str=Query(min_length=2,max_length=70),user:str=Depends(get_current_user)):
+    enforce_limit(request, "people-search", maximum=90, window_seconds=900, identity=user)
     # Discover by display name only. No email address or raw MongoDB data returned.
     from re import escape
     matches=get_db().users.find({"name":{"$regex":escape(q),"$options":"i"},
@@ -46,7 +49,8 @@ def list_friends(user:str=Depends(get_current_user)):
     return result
 
 @router.post("/requests",status_code=201)
-def request_friend(payload:FriendRequest,user:str=Depends(get_current_user)):
+def request_friend(payload:FriendRequest,request:Request,user:str=Depends(get_current_user)):
+    enforce_limit(request, "friend-request", maximum=30, window_seconds=3600, identity=user)
     db=get_db()
     if payload.user_id==user or not profile(db,payload.user_id):
         raise HTTPException(400,"Invalid friend")
@@ -79,4 +83,7 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     other=friendship["recipient"] if friendship["sender"]==user else friendship["sender"]
     db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
                                  {"owner":other,"recipient":user}]})
+    # Friendship revocation must also remove shared-notebook membership.
+    db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
+    db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
     return {"removed":True}

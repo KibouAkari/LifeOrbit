@@ -25,6 +25,10 @@ def locate(db,id,user):
     if not ObjectId.is_valid(id):raise HTTPException(400,"Invalid notebook")
     book=db.shared_notebooks.find_one({"_id":ObjectId(id)})
     if not access(book,user):raise HTTPException(404,"Notebook not found")
+    if book["owner"]!=user:
+        pair="-".join(sorted((book["owner"],user)))
+        if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
+            raise HTTPException(404,"Notebook not found")
     return book
 
 def serialize(db,book,viewer):
@@ -75,23 +79,25 @@ def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user))
     pair="-".join(sorted((user,target)))
     if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
         raise HTTPException(403,"Only confirmed friends can be invited")
-    db.shared_notebooks.update_one({"_id":book["_id"]},{"$addToSet":{"members":target}})
+    db.shared_notebooks.update_one({"_id":book["_id"],"owner":user},{"$addToSet":{"members":target}})
     return {"invited":True}
 
 @router.put("/{id}/pages/{page_id}")
 def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_user)):
     db=get_db();book=locate(db,id,user)
-    # Each page has a unique id. Update its content in one atomic DB operation.
-    document=db.shared_notebooks.update_one({"_id":book["_id"],"pages.id":page_id},
+    # Each write rechecks membership to prevent a stale authorization snapshot.
+    if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
+    member_scope={"_id":book["_id"],"$or":[{"owner":user},{"members":user}]}
+    document=db.shared_notebooks.update_one({**member_scope,"pages.id":page_id},
        {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
     if not document.matched_count:
         inserted=db.shared_notebooks.update_one(
-            {"_id":book["_id"],"pages.id":{"$ne":page_id},
+            {**member_scope,"pages.id":{"$ne":page_id},
              "$expr":{"$lt":[{"$size":{"$ifNull":["$pages",[]]}},100]}},
             {"$push":{"pages":{"id":page_id,"title":payload.title,"body":payload.body}},
              "$set":{"updated_at":datetime.now(timezone.utc)}})
         if not inserted.matched_count:
-            updated=db.shared_notebooks.update_one({"_id":book["_id"],"pages.id":page_id},
+            updated=db.shared_notebooks.update_one({**member_scope,"pages.id":page_id},
                 {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
             if not updated.matched_count:raise HTTPException(400,"Notebook is full")
     return {"saved":True}
@@ -99,8 +105,9 @@ def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_
 @router.delete("/{id}/pages/{page_id}")
 def delete_page(id:str,page_id:str,user:str=Depends(get_current_user)):
     book=locate(get_db(),id,user)
+    if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
     result=get_db().shared_notebooks.update_one(
-        {"_id":book["_id"],"pages.id":page_id},
+        {"_id":book["_id"],"$or":[{"owner":user},{"members":user}],"pages.id":page_id},
         {"$pull":{"pages":{"id":page_id}},"$set":{"updated_at":datetime.now(timezone.utc)}})
     if not result.modified_count:raise HTTPException(404,"Page not found")
     return {"removed":True}
@@ -109,5 +116,5 @@ def delete_page(id:str,page_id:str,user:str=Depends(get_current_user)):
 def delete_notebook(id:str,user:str=Depends(get_current_user)):
     db=get_db();book=locate(db,id,user)
     if book["owner"]!=user:raise HTTPException(403,"Only the owner can delete this notebook")
-    db.shared_notebooks.delete_one({"_id":book["_id"]})
+    db.shared_notebooks.delete_one({"_id":book["_id"],"owner":user})
     return {"removed":True}
