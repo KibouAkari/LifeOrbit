@@ -10,7 +10,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from backend.api.index import protect_browser_requests
-from backend.api.routes import auth, friends
+from backend.api.routes import auth, friends, shared_notebooks, calendar_feeds, notifications
 from backend.api.security import _client_address, enforce_limit
 
 
@@ -60,6 +60,44 @@ class SessionTests(unittest.TestCase):
                                                password="test-password"),
                               user_id=USER_ID)
         self.assertEqual(error.exception.status_code, 403)
+
+    def test_notebook_access_requires_current_friendship(self):
+        notebook_id = "507f1f77bcf86cd799439099"
+        owner_id = "507f191e810c19729de860ea"
+        from unittest.mock import MagicMock
+        db = MagicMock()
+        db.shared_notebooks.find_one.return_value = {
+            "_id": ObjectId(notebook_id), "owner": owner_id, "members": [USER_ID]}
+        db.friendships.find_one.return_value = None
+        with self.assertRaises(HTTPException) as denied:
+            shared_notebooks.locate(db, notebook_id, USER_ID)
+        self.assertEqual(denied.exception.status_code, 404)
+
+    def test_calendar_parser_compatible_with_secured_version(self):
+        sample = (b"BEGIN:VCALENDAR\\r\\nVERSION:2.0\\r\\n"
+                  b"BEGIN:VEVENT\\r\\nUID:test-event\\r\\n"
+                  b"DTSTART;VALUE=DATE:20261111\\r\\n"
+                  b"SUMMARY:Test calendar event\\r\\n"
+                  b"END:VEVENT\\r\\nEND:VCALENDAR\\r\\n")
+        # The feed parser must still work after the major iCalendar upgrade.
+        with patch("backend.api.routes.calendar_feeds.fetch_calendar_bytes",
+                   return_value=sample):
+            events = calendar_feeds.fetch_events("https://example.org/test.ics")
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["title"], "Test calendar event")
+
+    def test_malformed_calendar_port_is_rejected(self):
+        with self.assertRaises(HTTPException) as error:
+            calendar_feeds.validate_url("https://example.org:not-a-port/calendar.ics")
+        self.assertEqual(error.exception.status_code, 400)
+
+    def test_notification_history_is_bounded(self):
+        with patch("backend.api.routes.notifications.get_db") as db:
+            notifications.read_notification(
+                notifications.ReadRequest(id="share:507f1f77bcf86cd799439012"),
+                user=USER_ID)
+            args = db.return_value.notification_state.update_one.call_args
+            self.assertEqual(args.args[1]["$push"]["read"]["$slice"], -2000)
 
     def test_friend_removal_revokes_notebooks(self):
         from_id, to_id = USER_ID, "507f191e810c19729de860ea"
