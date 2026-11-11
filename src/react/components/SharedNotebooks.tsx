@@ -36,6 +36,7 @@ export default function SharedNotebooks(){
    if(generation!==refreshVersion.current)return;
    setBooks(items);
    setSelected(current=>items.some(item=>item.id===current)?current:"");
+   setNotice("");
    try{
     const people=await request<{friends:Friend[]}>("/friends");
     if(generation===refreshVersion.current)setFriends(people.friends);
@@ -46,7 +47,8 @@ export default function SharedNotebooks(){
    if(generation!==refreshVersion.current)return;
    // Fail closed: do not keep displaying private documents if their current
    // membership cannot be verified. No server documents are deleted.
-   setBooks([]);setFriends([]);setSelected("");
+   setBooks([]);setFriends([]);setSelected("");setPage("");
+   setTitle("");setBody("");setDirty(false);editVersion.current+=1;
    setNotice(err instanceof Error?err.message:"Unable to verify notebook access");
   }finally{
    activeRefreshes.current-=1;
@@ -75,7 +77,10 @@ export default function SharedNotebooks(){
   catch(e){setNotice(e instanceof Error?e.message:"Invite failed")}finally{setBusy(false)}
  }
  async function savePage(){
-  if(!book||!title.trim())return;setBusy(true);
+  if(!book||!title.trim())return;
+  // Force a fresh server authorization before submitting potentially stale
+  // editor content from an already-open revoked notebook.
+  setBusy(true);
   const id=page||crypto.randomUUID();
   const version=editVersion.current;
   setPage(id);

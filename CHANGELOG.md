@@ -4,14 +4,12 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
-### 2026-11-11 · Shared-note access revocation hotfix
-- Revoke all friendship records for the affected account pair when unfriending, including historical duplicate rows if indexes were absent.
-- Remove reciprocal note and event shares and notebook memberships, and verify no accepted friendship survived.
-- Fail closed in the shared-notebook UI when fresh authorization cannot be established; remove revoked notebooks and their local editor state after reloading.
-- Decouple the shared-notebook authorization refresh from the friend-list request so a failed friend-list update cannot keep sensitive notes visible.
-- Refresh open notebook views immediately after local friendship changes, while retaining the regular recovery poll.
-- Add regression tests for duplicate-record removal, server-side note isolation and revocation.
-
+### 2026-11-11 · Immediate revocation of shared-note access
+- On unfriending, remove all historical friendship records for the pair rather than only the clicked request, and verify that no accepted relationship remains.
+- Continue deleting both directions of note/event/challenge shares and removing the former friend from owned shared notebooks.
+- Fail closed in the shared notebook UI: discard cached pages, selected editor content, and stale request results whenever access cannot be verified. Refresh notebook authorization independently of the friend-list request.
+- Refresh open notebook views immediately after friendship changes, while retaining the usual fallback polling.
+- Added regression tests covering duplicate accepted friendships, former-friend read/write denial, and share cleanup.
 
 ### 2026-11-11 · Security hardening and vulnerability review
 - Raised the minimum Vite 6 version to 6.4.6 for GHSA-p4f5-76q4-ffq7, a critical advisory relevant to network-exposed development servers, the minimum PyJWT version to 2.15.1, and iCalendar to 7.3.0 to avoid known old-version advisories.

@@ -2,6 +2,12 @@
 
 Updated 11 November 2026. Scope: static source and documentation review on the default branch, plus proposed changes on the security branch. This is not an independent penetration test, runtime scan or production certification.
 
+## Confirmed report and immediate revocation fix (11 November 2026)
+
+A user reported retained access to shared notes after unfriending, including seeing later edits. The hotfix removes *every* friendship row for the pair and cleans up both directions of shares and shared notebook memberships. API reads and writes continue checking accepted friendships; the frontend now clears cached private pages if verification fails rather than continuing to show stale copies.
+
+This is a source-level mitigation, not proof of production behavior. Test with two real accounts and pre-existing duplicate friendship records. Historical content already copied, downloaded, cached or screenshotted by a former recipient cannot be remotely erased from that person's possession. The separately proposed Liveblocks integration must additionally revoke provider access on already-connected clients before production enablement.
+
 ## Mitigations proposed
 
 | Severity | Finding | Proposed mitigation |
