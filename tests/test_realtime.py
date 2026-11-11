@@ -1,10 +1,12 @@
 """Offline authorization and CRDT correctness regression checks."""
 import os
 import unittest
+import asyncio
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 from bson import ObjectId
-from fastapi import HTTPException, Request
+from fastapi import BackgroundTasks, HTTPException, Request
 from pycrdt import Doc, Text
 
 from backend.api import realtime
@@ -22,6 +24,79 @@ def http_request():
 
 
 class YjsMigrationTests(unittest.TestCase):
+    def test_notebook_room_canonicalizes_object_id_case(self):
+        self.assertEqual(realtime.notebook_room(BOOK.upper()),
+                         realtime.notebook_room(BOOK.lower()))
+
+    def test_notebook_lock_is_released_with_its_ownership_token(self):
+        db = MagicMock()
+        db.realtime_locks.find_one_and_update.return_value = {"_id": realtime.notebook_room(BOOK)}
+        with realtime.notebook_lock(db, BOOK):
+            db.realtime_locks.delete_one.assert_not_called()
+        query = db.realtime_locks.delete_one.call_args.args[0]
+        self.assertEqual(query["_id"], realtime.notebook_room(BOOK))
+        self.assertIn("token", query)
+
+    def test_acl_reconciliation_uses_current_database_membership(self):
+        db = MagicMock()
+        fresh = {"_id": ObjectId(BOOK), "owner": OWNER, "members": []}
+        stale = {**fresh, "members": [OTHER]}
+        db.shared_notebooks.find_one.return_value = fresh
+        db.friendships.find_one.return_value = {"status": "accepted"}
+        with patch.object(realtime, "_update_permissions") as update:
+            realtime.sync_book_access(db, stale)
+        update.assert_called_once_with(realtime.notebook_room(BOOK), {OWNER}, create=False)
+
+    def test_prepare_rereads_notebook_after_acquiring_lock(self):
+        db = MagicMock()
+        original = {"_id": ObjectId(BOOK), "owner": OWNER, "pages": []}
+        latest = {**original, "pages": [{"id": "new", "title": "Latest", "body": "Text"}]}
+        order = []
+
+        @contextmanager
+        def lock(_db, _book_id):
+            order.append("lock")
+            yield
+
+        def locate(_db, _book_id, _user):
+            order.append("locate")
+            return original if order.count("locate") == 1 else latest
+
+        with patch.object(realtime, "require_enabled"), \
+             patch.object(realtime, "enforce_limit"), \
+             patch.object(realtime, "get_db", return_value=db), \
+             patch.object(realtime, "notebook_lock", side_effect=lock), \
+             patch("backend.api.routes.shared_notebooks.locate", side_effect=locate), \
+             patch.object(realtime, "_prepare_notebook_locked",
+                          return_value={"ready": True}) as migrate:
+            result = realtime.prepare_notebook(BOOK, http_request(), user=OWNER)
+
+        self.assertEqual(result, {"ready": True})
+        self.assertEqual(order, ["locate", "lock", "locate"])
+        self.assertIs(migrate.call_args.args[3], latest)
+
+    def test_invalidation_is_scheduled_after_response(self):
+        background = BackgroundTasks()
+        with patch.object(realtime, "configured", return_value=True), \
+             patch.object(realtime, "api", return_value={}) as provider:
+            realtime.publish_to_users([OWNER], "notes", background)
+            provider.assert_not_called()
+            asyncio.run(background())
+        provider.assert_called_once()
+
+    def test_failed_acl_retry_remains_queued(self):
+        db = MagicMock()
+        room_id = realtime.notebook_room(BOOK)
+        db.realtime_acl_outbox.find.return_value.limit.return_value = [
+            {"_id": room_id, "notebook_id": BOOK}
+        ]
+        db.shared_notebooks.find_one.return_value = {
+            "_id": ObjectId(BOOK), "owner": OWNER, "members": [OTHER]
+        }
+        with patch.object(realtime, "api", side_effect=HTTPException(503, "provider down")):
+            realtime.retry_acl_revocations(db)
+        db.realtime_acl_outbox.delete_one.assert_not_called()
+
     def test_python_yjs_update_preserves_legacy_page(self):
         book = {"pages": [{"id": "page1", "title": "My title",
                            "body": "Original text"}]}
