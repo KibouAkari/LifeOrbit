@@ -62,12 +62,30 @@ def list_notifications(user:str=Depends(get_current_user)):
                             "target":"calendar" if share["kind"]=="event" else "notes"})
             if len(results)==100:break
     if len(results)<100:
-        for book in db.shared_notebooks.find({"members":user},{"owner":1,"title":1}).limit(100):
-            key="notebook:"+str(book["_id"])
-            if key in seen:continue
+        books=[book for book in db.shared_notebooks.find(
+            {"members":user},{"owner":1,"title":1}
+        ).limit(100) if "notebook:"+str(book["_id"]) not in seen]
+        owners={book.get("owner","") for book in books
+                if isinstance(book.get("owner"),str) and ObjectId.is_valid(book["owner"])}
+        pairs={"-".join(sorted((owner,user))) for owner in owners}
+        accepted_pairs={row["pair"] for row in db.friendships.find(
+            {"pair":{"$in":list(pairs)},"status":"accepted"},{"pair":1}
+        )} if pairs else set()
+        active_owners={owner for owner in owners
+                       if "-".join(sorted((owner,user))) in accepted_pairs}
+        owner_ids=[ObjectId(owner) for owner in active_owners]
+        authors={str(author["_id"]):author.get("name","A friend") for author in db.users.find(
+            {"_id":{"$in":owner_ids}},{"name":1}
+        )} if owner_ids else {}
+        for book in books:
             owner=book.get("owner","")
-            author=db.users.find_one({"_id":ObjectId(owner)},{"name":1}) if ObjectId.is_valid(owner) else None
-            results.append({"id":key,"kind":"notebook","title":(author or {}).get("name","A friend")+" invited you to "+book.get("title","a notebook"),"target":"notes"})
+            # A stale membership must not disclose a former friend's notebook
+            # title or continued existence through notifications.
+            if owner not in active_owners:
+                continue
+            author=authors.get(owner,"A friend")
+            key="notebook:"+str(book["_id"])
+            results.append({"id":key,"kind":"notebook","title":author+" invited you to "+book.get("title","a notebook"),"target":"notes"})
             if len(results)>=100:break
     if len(results)<100:
         for task in db.tasks.find({"user_id":user,"done":False,"due_at":{"$gte":now,"$lte":now+timedelta(hours=1)}}).batch_size(100):

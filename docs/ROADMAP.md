@@ -56,14 +56,14 @@ and has its changelog entry and basic validation documented.
 This roadmap is a team proposal, not a promise or shipped feature list.
 
 
-## Current status (October 2026)
+## Current status (November 2026)
 
 Implemented foundations include authenticated account workspaces, dashboard, task deadlines, calendar views and iCal feed imports, chapter-based notes, shared notebooks, subscriptions, challenge selection, friends and event invitations. Calendar providers are not connected by two-way OAuth synchronization, and notification delivery is currently foreground-only. Editing collaboration is polling-based without conflict-free multi-user writes.
 
 ### Priority follow-ups
 
-- Complete two-account authorization and cross-browser interaction tests.
-- Improve password recovery, email verification, session revocation, account deletion and rate limiting.
+- Complete two-account authorization and cross-browser interaction tests, including friend leaderboard privacy, unfriending, rate-limit and injection regression cases.
+- Implement password recovery, email verification, selective session management and account deletion. The source now includes rate limiting and account-wide session revocation; verify them in a real preview and monitor abuse.
 - Implement safe database concurrency/version checks for shared notebooks and multi-device settings.
 - Add automatic calendar feed scheduling and robust timezone/recurrence handling.
 - Introduce real background push only with explicit permission and reliable server scheduling.

@@ -1,6 +1,7 @@
 """Account registration, password sign-in and Google identity verification."""
 import os
 import secrets
+from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -19,6 +20,12 @@ from backend.api.security import enforce_limit
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
 passwords = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
+
+
+@lru_cache(maxsize=1)
+def _dummy_password_hash():
+    """Do equivalent password verification work for unknown accounts."""
+    return passwords.hash(secrets.token_urlsafe(32))
 
 
 class RegisterRequest(BaseModel):
@@ -115,10 +122,13 @@ def register(payload: RegisterRequest, response: Response, request: Request):
 
 @router.post("/login")
 def password_login(payload: LoginRequest, response: Response, request: Request):
-    enforce_limit(request, "password-login", maximum=60, window_seconds=900, identity=payload.email)
+    enforce_limit(request, "password-login", maximum=60, window_seconds=900,
+                  identity=payload.email, account_maximum=20)
     user = get_db().users.find_one({"email": payload.email.strip().lower()})
-    # Do not disclose whether an email exists.
-    if not user or not user.get("password_hash") or not passwords.verify(payload.password, user["password_hash"]):
+    # Verify a dummy bcrypt hash for missing / Google-only accounts to reduce
+    # account enumeration through response timing. Never log credentials.
+    stored_hash = user.get("password_hash") if user else None
+    if not passwords.verify(payload.password, stored_hash or _dummy_password_hash()) or not stored_hash:
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return issue_token(user, response)
 
@@ -239,8 +249,11 @@ def change_email(payload: EmailChange, user_id: str = Depends(get_current_user))
 
 
 @router.patch("/password")
-def change_password(payload: PasswordChange, response: Response, user_id: str = Depends(get_current_user)):
+def change_password(payload: PasswordChange, response: Response, request: Request,
+                    user_id: str = Depends(get_current_user)):
     """Rotate the password and revoke every earlier session atomically."""
+    enforce_limit(request, "password-change", maximum=30, window_seconds=900,
+                  identity=user_id, account_maximum=8)
     user = find_user(user_id)
     hashed = user.get("password_hash")
     if not hashed:

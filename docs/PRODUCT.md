@@ -2,6 +2,8 @@
 
 **Tagline:** Your day, in a better orbit.
 
+This product brief describes the intended direction rather than only shipped features. As of 11 November 2026, notes use plain text, not a rich-text/image editor. Accepted friends see each other's challenge points privately; broader community visibility still requires explicit opt-in.
+
 LifeOrbit is a minimal, friendly life manager: fewer scattered apps,
 less mental overhead and one approachable place to organise daily life.
 
