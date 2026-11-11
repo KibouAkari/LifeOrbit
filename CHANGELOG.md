@@ -4,6 +4,14 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-11 · Sharing revocation protection for realtime
+- Remove all matching friendship rows during unfriending so duplicate accepted relationships cannot preserve access to private notes or notebooks.
+- Reconcile Liveblocks room permissions after friendship cleanup; removing a member from the room ACL disconnects currently connected users.
+- Broadcast invalidation for affected note shares and refetch authorized notebooks independently of friend-list loading.
+- Remove revoked notebooks from the realtime editor and fail closed when access cannot be reverified.
+- Add regression coverage for the revocation path before enabling provider-backed realtime.
+
+
 ### 2026-11-11 · Optional realtime notebook collaboration
 - Implemented opt-in private Liveblocks account-room notifications for friendship, event, invitation, note and shared-notebook updates; periodic polling remains a slower recovery path.
 - Added a Yjs collaborative shared notebook editor that merges simultaneous character-level edits, shows who is online and automatically synchronizes content without requiring a Save button.

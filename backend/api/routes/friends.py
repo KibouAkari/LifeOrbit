@@ -81,10 +81,18 @@ def accept(request_id:str,user:str=Depends(get_current_user)):
 def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     if not ObjectId.is_valid(request_id):raise HTTPException(400,"Invalid request")
     db=get_db()
-    friendship=db.friendships.find_one_and_delete({"_id":ObjectId(request_id),
+    friendship=db.friendships.find_one({"_id":ObjectId(request_id),
                          "$or":[{"sender":user},{"recipient":user}]})
     if not friendship:raise HTTPException(404,"Request not found")
     other=friendship["recipient"] if friendship["sender"]==user else friendship["sender"]
+    # Revoke all duplicate or historical rows; a single remaining accepted
+    # relationship would otherwise keep read-only and realtime access alive.
+    key=pair(user,other)
+    db.friendships.delete_many({"$or":[
+        {"pair":key},
+        {"sender":user,"recipient":other},
+        {"sender":other,"recipient":user},
+    ]})
     impacted=list(db.shared_notebooks.find({"$or":[
         {"owner":user,"members":other},{"owner":other,"members":user}]}))
     db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
@@ -92,6 +100,8 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     # Friendship revocation must also remove shared-notebook membership.
     db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
     db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
+    if db.friendships.find_one({"pair":key,"status":"accepted"}):
+        raise HTTPException(503,"Friendship revocation could not be verified")
     if configured():
         for book in impacted:
             fresh=db.shared_notebooks.find_one({"_id":book["_id"]})
@@ -100,4 +110,5 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     publish_to_users([user,other],"friends")
     publish_to_users([user,other],"notebooks")
     publish_to_users([user,other],"calendar")
+    publish_to_users([user,other],"notes")
     return {"removed":True}

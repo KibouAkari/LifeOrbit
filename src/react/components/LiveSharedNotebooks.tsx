@@ -302,14 +302,29 @@ export default function LiveSharedNotebooks() {
   const [newTitle, setNewTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const latestRefresh = useRef(0);
 
   const reload = useCallback(async () => {
+    const version = ++latestRefresh.current;
     try {
-      const [all, people] = await Promise.all([
-        fetchAllBooks(), request<{ friends: Friend[] }>("/friends")]);
-      setBooks(all); setFriends(people.friends);
+      const all = await fetchAllBooks();
+      if (version !== latestRefresh.current) return;
+      // Access checks are independent of the friend-list API. Never keep a
+      // revoked book rendered because another request failed or returned late.
+      setBooks(all);
+      setSelected(current => all.some(book => book.id === current) ? current : "");
+      try {
+        const people = await request<{ friends: Friend[] }>("/friends");
+        if (version === latestRefresh.current) setFriends(people.friends);
+      } catch {
+        if (version === latestRefresh.current) setFriends([]);
+      }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to refresh notebooks");
+      if (version !== latestRefresh.current) return;
+      setBooks([]);
+      setSelected("");
+      setFriends([]);
+      setNotice(error instanceof Error ? error.message : "Cannot verify notebook access");
     }
   }, []);
 
@@ -321,10 +336,13 @@ export default function LiveSharedNotebooks() {
     }, 60000); // Recovery if a broadcast is missed, not the primary update path.
     window.addEventListener("focus", refresh);
     window.addEventListener("lifeorbit:remote-updated", refresh);
+    window.addEventListener("lifeorbit:friends-changed", refresh);
     return () => {
+      latestRefresh.current++;
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
       window.removeEventListener("lifeorbit:remote-updated", refresh);
+      window.removeEventListener("lifeorbit:friends-changed", refresh);
     };
   }, [reload]);
 
