@@ -12,7 +12,10 @@
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0"
+    "lucide-react": "^0.468.0",
+    "@liveblocks/client": "^3.25.0",
+    "@liveblocks/yjs": "^3.25.0",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

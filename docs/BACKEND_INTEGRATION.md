@@ -51,4 +51,6 @@ XSS/CSP protection still require further work. See security audit.
 - `/api/notifications`: authenticated unread invitations and task reminders with dismissal.
 - `/api/leaderboard`: participant ranking based on stored user/challenge data.
 
+Realtime (optional) adds `POST /api/realtime/authorize`, `POST /api/realtime/notebooks/{id}/prepare`, and `POST /api/realtime/notebooks/{id}/snapshot`. Liveblocks only receives private, server-authorized room identities and Yjs notebook content; MongoDB remains authoritative for users and membership. See [Realtime collaboration](REALTIME_COLLABORATION.md) for migration and operational cautions.
+
 See [Social & Calendar](SOCIAL_AND_CALENDAR.md) for access and synchronization details and [API implementation](../backend/api/index.py) for mounted routes.

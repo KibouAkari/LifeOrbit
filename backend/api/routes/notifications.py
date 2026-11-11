@@ -1,11 +1,12 @@
 """Unread sharing invitations and upcoming task deadlines for the current account."""
 from datetime import datetime,timezone,timedelta
 from itertools import islice
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter,BackgroundTasks,Depends
 from pydantic import BaseModel,Field
 from bson import ObjectId
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
+from backend.api.realtime import publish_to_users
 router=APIRouter()
 class ReadRequest(BaseModel):
     id:str=Field(min_length=5,max_length=180,pattern=r"^(share|notebook|task):")
@@ -79,8 +80,10 @@ def list_notifications(user:str=Depends(get_current_user)):
             if len(results)==100:break
     return {"items":results[:100],"count":min(len(results),100)}
 @router.post("/read")
-def read_notification(data:ReadRequest,user:str=Depends(get_current_user)):
+def read_notification(data:ReadRequest,user:str=Depends(get_current_user),
+                      background_tasks:BackgroundTasks=None):
     # Bound storage: an attacker must not grow this document without limit.
     get_db().notification_state.update_one({"user_id":user},
         {"$push":{"read":{"$each":[data.id],"$slice":-2000}}},upsert=True)
+    publish_to_users([user],"notifications",background_tasks)
     return {"read":True}

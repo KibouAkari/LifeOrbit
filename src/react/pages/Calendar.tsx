@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
+import { REALTIME_ENABLED } from "../services/realtime";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { hasSession, request } from "../data/api";
@@ -60,6 +61,7 @@ export default function Calendar(){
  const [feeds,setFeeds]=useState<{id:string;name:string;last_synced:string|null;count:number}[]>([]);
  const input=useRef<HTMLInputElement>(null);
  const calendarColors=useRef(new Map<string,string>());
+ const ownEventRefreshVersion=useRef(0),ownEventMutations=useRef(0),calendarMounted=useRef(false);
  const gesture=useRef<{id:string;mode:"move"|"resize";startX:number;startY:number;pointerId:number;original:CalendarEvent;captureTarget:HTMLElement;target:HTMLElement;dragging:boolean}|null>(null);
  const [dragging,setDragging]=useState(false);
  function beginGesture(e:React.PointerEvent<HTMLElement>,event:CalendarEvent,mode:"move"|"resize"){
@@ -121,21 +123,27 @@ export default function Calendar(){
    return Array.from({length},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+i);return d;});
  },[base,view]);
  const source=(event:CalendarEvent)=>event.source_id||event.source||"mongodb";
- async function refreshCalendarData(){const [events,feedList]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof feeds>("/calendar/feeds")]);patch("events",events);setFeeds(feedList);}
- async function subscribeFeed(e:FormEvent){e.preventDefault();setImporting(true);try{await request("/calendar/feeds",{method:"POST",body:JSON.stringify({name:feedName,url:feedUrl})});await refreshCalendarData();setFeedName("");setFeedUrl("");setFeedForm(false);setMessage("Calendar link connected. Use Refresh to check for changes.")}catch(error){setMessage(error instanceof Error?error.message:"Could not connect feed")}finally{setImporting(false)}}
- async function refreshFeed(id:string){setImporting(true);try{await request(`/calendar/feeds/${id}/refresh`,{method:"POST"});await refreshCalendarData();setMessage("Calendar refreshed")}catch(error){setMessage(error instanceof Error?error.message:"Refresh failed")}finally{setImporting(false)}}
- async function removeFeed(id:string){if(!window.confirm("Remove this calendar link and imported events?"))return;try{await request(`/calendar/feeds/${id}`,{method:"DELETE"});await refreshCalendarData();setMessage("Calendar link removed")}catch(error){setMessage(error instanceof Error?error.message:"Could not remove calendar")}}
+ function refreshOwn(){if(!online||!calendarMounted.current||ownEventMutations.current)return;const version=++ownEventRefreshVersion.current;void request<CalendarEvent[]>("/calendar/events").then(events=>{if(calendarMounted.current&&version===ownEventRefreshVersion.current&&!ownEventMutations.current)patch("events",events)}).catch(()=>undefined)}
+ function beginEventMutation(){ownEventMutations.current++;ownEventRefreshVersion.current++;let finished=false;return()=>{if(finished)return;finished=true;ownEventMutations.current--;if(!ownEventMutations.current)refreshOwn()};}
+ async function refreshCalendarData(){setFeeds(await request<typeof feeds>("/calendar/feeds"));refreshOwn();}
+ async function subscribeFeed(e:FormEvent){e.preventDefault();const finish=beginEventMutation();setImporting(true);try{await request("/calendar/feeds",{method:"POST",body:JSON.stringify({name:feedName,url:feedUrl})});await refreshCalendarData();setFeedName("");setFeedUrl("");setFeedForm(false);setMessage("Calendar link connected. Use Refresh to check for changes.")}catch(error){setMessage(error instanceof Error?error.message:"Could not connect feed")}finally{finish();setImporting(false)}}
+ async function refreshFeed(id:string){const finish=beginEventMutation();setImporting(true);try{await request(`/calendar/feeds/${id}/refresh`,{method:"POST"});await refreshCalendarData();setMessage("Calendar refreshed")}catch(error){setMessage(error instanceof Error?error.message:"Refresh failed")}finally{finish();setImporting(false)}}
+ async function removeFeed(id:string){if(!window.confirm("Remove this calendar link and imported events?"))return;const finish=beginEventMutation();try{await request(`/calendar/feeds/${id}`,{method:"DELETE"});await refreshCalendarData();setMessage("Calendar link removed")}catch(error){setMessage(error instanceof Error?error.message:"Could not remove calendar")}finally{finish()}}
 
  useEffect(()=>{if(!online)return;void Promise.all([request<typeof imports>("/calendar/imports"),request<{friends:typeof friends}>("/friends"),request<CalendarEvent[]>("/sharing/events"),request<typeof feeds>("/calendar/feeds")]).then(([sources,data,events,subscriptions])=>{setImports(sources);setFriends(data.friends);setInvited(events);setFeeds(subscriptions)}).catch(()=>undefined);},[online]);
  useEffect(()=>{
   if(!online)return;
   let alive=true;
-  const refresh=()=>{void Promise.all([request<CalendarEvent[]>("/sharing/events"),request<{friends:typeof friends}>("/friends")])
+  calendarMounted.current=true;
+  ownEventRefreshVersion.current++;
+  const refresh=()=>{refreshOwn();void Promise.all([request<CalendarEvent[]>("/sharing/events"),request<{friends:typeof friends}>("/friends")])
    .then(([items,people])=>{if(alive){setInvited(items);setFriends(people.friends)}}).catch(()=>undefined)};
-  const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},5000);
+  void refresh();
+  const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},REALTIME_ENABLED?60000:5000);
   window.addEventListener("lifeorbit:remote-updated",refresh);
+  window.addEventListener("lifeorbit:calendar-updated",refresh);
   window.addEventListener("focus",refresh);
-  return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("focus",refresh)};
+  return()=>{alive=false;calendarMounted.current=false;ownEventRefreshVersion.current++;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("lifeorbit:calendar-updated",refresh);window.removeEventListener("focus",refresh)};
  },[online]);
  function showMenu(e:React.MouseEvent<HTMLElement>,item:CalendarEvent){
   e.preventDefault();e.stopPropagation();
@@ -194,6 +202,7 @@ export default function Calendar(){
  async function save(e:FormEvent){
    e.preventDefault();if(!title.trim()||end<=start){setMessage("Choose an end time after the start time.");return;}
    const body=JSON.stringify({title:title.trim(),date,start_time:start,end_time:end});
+   const finish=beginEventMutation();
    try{
      if(editing){
        if(online)await request(`/calendar/events/${editing}`,{method:"PUT",body});
@@ -204,45 +213,50 @@ export default function Calendar(){
        patch("events",old=>[...old,item]);setMessage("Event created");
      }
      setCreating(false);
-   }catch(error){setMessage(error instanceof Error?error.message:"Could not save event");}
+   }catch(error){setMessage(error instanceof Error?error.message:"Could not save event");}finally{finish()}
  }
  async function remove(item:CalendarEvent){
+   const finish=beginEventMutation();
    try{if(online)await request(`/calendar/events/${item.id}`,{method:"DELETE"});patch("events",rows=>rows.filter(e=>e.id!==item.id));setCreating(false);setMessage("Event removed");}
-   catch(error){setMessage(error instanceof Error?error.message:"Unable to remove event");}
+   catch(error){setMessage(error instanceof Error?error.message:"Unable to remove event");}finally{finish()}
  }
  async function shiftEvent(item:CalendarEvent,day:string,delta=0){
    const start_time=item.start_time?advance(item.start_time,delta):null;
    const end_time=item.end_time?advance(item.end_time,delta):null;
    if((item.start_time&&!start_time)||(item.end_time&&!end_time)){setMessage("Events must stay within the same day.");return;}
    const updated={...item,date:day,start_time,end_time};
+   const finish=beginEventMutation();
    try{
      if(online)await request(`/calendar/events/${item.id}`,{method:"PUT",body:JSON.stringify({title:item.title,date:day,start_time,end_time})});
      patch("events",rows=>rows.map(e=>e.id===item.id?updated:e));setMessage("Event moved");
-   }catch(error){setMessage(error instanceof Error?error.message:"Move failed");}
+   }catch(error){setMessage(error instanceof Error?error.message:"Move failed");}finally{finish()}
  }
  async function resizeEvent(item:CalendarEvent,delta:number){
   if(!item.start_time||!item.end_time)return;
   const end_time=advance(item.end_time,delta);
   if(!end_time){setMessage("The event must stay within the same day.");return;}
   if(end_time<=item.start_time){setMessage("The event must have a positive duration.");return;}
+  const finish=beginEventMutation();
   try{
    if(online)await request(`/calendar/events/${item.id}`,{method:"PUT",body:JSON.stringify({title:item.title,date:item.date,start_time:item.start_time,end_time})});
    patch("events",rows=>rows.map(e=>e.id===item.id?{...e,end_time}:e));setMessage("Event duration updated");
-  }catch(error){setMessage(error instanceof Error?error.message:"Could not resize event");}
+  }catch(error){setMessage(error instanceof Error?error.message:"Could not resize event");}finally{finish()}
  }
  async function importIcs(file?:File){
    if(!file)return;
    if(file.size>1e6){setMessage("Choose an .ics file below 1 MB");return;}
    if(!online){setMessage("Sign in to import a calendar.");return;}
+   const finish=beginEventMutation();
    setImporting(true);try{
     const result=await request<{imported:number;total:number}>("/calendar/ical-import",{method:"POST",body:JSON.stringify({content:await file.text(),name:file.name.replace(/\\.ics$/i,""),time_zone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"})});
-    const [events, sources]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof imports>("/calendar/imports")]);patch("events",events);setImports(sources);setMessage(`Added ${result.imported} events. ${result.total-result.imported} already existed.`);
-   }catch(error){setMessage(error instanceof Error?error.message:"Import failed");}finally{setImporting(false);}
+    const sources=await request<typeof imports>("/calendar/imports");setImports(sources);setMessage(`Added ${result.imported} events. ${result.total-result.imported} already existed.`);
+   }catch(error){setMessage(error instanceof Error?error.message:"Import failed");}finally{finish();setImporting(false);}
  }
  async function removeImport(id:string){
   if(!window.confirm("Remove all events from this imported calendar?"))return;
-  try{await request(`/calendar/imports/${id}`,{method:"DELETE"});const [events,sources]=await Promise.all([request<CalendarEvent[]>("/calendar/events"),request<typeof imports>("/calendar/imports")]);patch("events",events);setImports(sources);setMessage("Imported calendar removed");}
-  catch(error){setMessage(error instanceof Error?error.message:"Unable to remove calendar");}
+  const finish=beginEventMutation();
+  try{await request(`/calendar/imports/${id}`,{method:"DELETE"});setImports(await request<typeof imports>("/calendar/imports"));setMessage("Imported calendar removed");}
+  catch(error){setMessage(error instanceof Error?error.message:"Unable to remove calendar");}finally{finish()}
  }
  function drop(e:DragEvent<HTMLElement>,day:string){
    e.preventDefault();

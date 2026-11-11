@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useState} from "react";
 import {UserPlus,Check,X,Users} from "lucide-react";
 import {hasSession,request} from "../data/api";
+import { REALTIME_ENABLED } from "../services/realtime";
 type Person={id:string;name:string;request_id?:string};
 type FriendsData={friends:Person[];incoming:Person[];outgoing:Person[];pending_count:number};
 const empty:FriendsData={friends:[],incoming:[],outgoing:[],pending_count:0};
@@ -13,7 +14,7 @@ export function useFriends(){
    try{setData(await request<FriendsData>("/friends"));setError("");}
    catch(e){setError(e instanceof Error?e.message:"Could not load friends");}
  },[]);
- useEffect(()=>{void reload();const handler=()=>void reload();const onFocus=()=>void reload();window.addEventListener("focus",onFocus);window.addEventListener("lifeorbit:friends-changed",handler);const poll=setInterval(handler,5000);return()=>{window.removeEventListener("lifeorbit:friends-changed",handler);clearInterval(poll);window.removeEventListener("focus",onFocus)}},[reload]);
+ useEffect(()=>{void reload();const handler=()=>void reload();const onFocus=()=>void reload();window.addEventListener("focus",onFocus);window.addEventListener("lifeorbit:friends-changed",handler);const poll=setInterval(handler,REALTIME_ENABLED?60000:5000);return()=>{window.removeEventListener("lifeorbit:friends-changed",handler);clearInterval(poll);window.removeEventListener("focus",onFocus)}},[reload]);
  return {data,error,reload};
 }
 export function FriendsPanel(){
@@ -29,7 +30,7 @@ export function FriendsPanel(){
    return()=>{active=false;clearTimeout(timeout)};
  },[q]);
  async function action(path:string,method:"POST"|"DELETE"){
-   setBusy(true);try{await request(path,{method});setMessage("Friends updated");await reload();window.dispatchEvent(new Event("lifeorbit:friends-changed"));}
+   setBusy(true);try{await request(path,{method});setMessage("Friends updated");await reload();window.dispatchEvent(new Event("lifeorbit:friends-changed"));window.dispatchEvent(new Event("lifeorbit:remote-updated"));}
    catch(e){setMessage(e instanceof Error?e.message:"Could not update friends");}
    finally{setBusy(false);}
  }

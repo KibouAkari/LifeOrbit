@@ -118,8 +118,9 @@ class SessionTests(unittest.TestCase):
     def test_friend_removal_revokes_notebooks(self):
         from_id, to_id = USER_ID, "507f191e810c19729de860ea"
         with patch("backend.api.routes.friends.get_db") as db:
-            db.return_value.friendships.find_one_and_delete.return_value = {
-                "sender": from_id, "recipient": to_id}
+            db.return_value.friendships.find_one.side_effect = [
+                {"sender": from_id, "recipient": to_id},
+                {"sender": from_id, "recipient": to_id}, None]
             self.assertEqual(
                 friends.reject_or_remove("507f1f77bcf86cd799439012", user=from_id),
                 {"removed": True})
