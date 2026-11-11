@@ -12,27 +12,47 @@ export default function SharedNotebooks(){
  const [title,setTitle]=useState(""),[body,setBody]=useState("");
  const [dirty,setDirty]=useState(false);
  const editVersion=useRef(0);
+ const refreshVersion=useRef(0);
  const [newTitle,setNewTitle]=useState("");
  const [invite,setInvite]=useState("");
  const [notice,setNotice]=useState("");
  const [busy,setBusy]=useState(false);
  const refresh=useCallback(async()=>{
+  const generation=++refreshVersion.current;
   try{
-   const peopleRequest=request<{friends:Friend[]}>("/friends");
    const items:SharedBook[]=[];
    let offset=0;
    while(true){
-    const page=await request<{items:SharedBook[];next_offset:number|null}>(`/shared-notebooks?offset=${offset}`);
-    items.push(...page.items);
-    if(page.next_offset===null)break;
-    offset=page.next_offset;
+    const response=await request<{items:SharedBook[];next_offset:number|null}>(`/shared-notebooks?offset=${offset}`);
+    items.push(...response.items);
+    if(response.next_offset===null)break;
+    offset=response.next_offset;
    }
-   const people=await peopleRequest;
-   setBooks(items);setFriends(people.friends)
+   // Update authorization-sensitive content first. A separate failure in
+   // /friends must never leave a previously revoked notebook on screen.
+   if(generation!==refreshVersion.current)return;
+   setBooks(items);
+   setSelected(current=>items.some(item=>item.id===current)?current:"");
+   try{
+    const people=await request<{friends:Friend[]}>("/friends");
+    if(generation===refreshVersion.current)setFriends(people.friends);
+   }catch{
+    if(generation===refreshVersion.current)setFriends([]);
+   }
+  }catch(err){
+   if(generation!==refreshVersion.current)return;
+   // Fail closed: do not keep displaying private documents if their current
+   // membership cannot be verified. No server documents are deleted.
+   setBooks([]);setFriends([]);setSelected("");
+   setNotice(err instanceof Error?err.message:"Unable to verify notebook access");
   }
-  catch(err){setNotice(err instanceof Error?err.message:"Unable to load shared notebooks")}
  },[]);
- useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);return()=>{window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus)}},[refresh]);
+ useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);window.addEventListener("lifeorbit:friends-changed",focus);return()=>{refreshVersion.current++;window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus);window.removeEventListener("lifeorbit:friends-changed",focus)}},[refresh]);
+ // A revoked or deleted notebook must not leave its last page in local state.
+ useEffect(()=>{
+  if(selected&&books.some(item=>item.id===selected))return;
+  setPage("");setTitle("");setBody("");setDirty(false);editVersion.current+=1;
+ },[books,selected]);
  const book=books.find(x=>x.id===selected);
  useEffect(()=>{
   if(!page||dirty)return;

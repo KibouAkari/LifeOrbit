@@ -29,7 +29,7 @@ export function FriendsPanel(){
    return()=>{active=false;clearTimeout(timeout)};
  },[q]);
  async function action(path:string,method:"POST"|"DELETE"){
-   setBusy(true);try{await request(path,{method});setMessage("Friends updated");await reload();window.dispatchEvent(new Event("lifeorbit:friends-changed"));}
+   setBusy(true);try{await request(path,{method});setMessage("Friends updated");await reload();window.dispatchEvent(new Event("lifeorbit:friends-changed"));window.dispatchEvent(new Event("lifeorbit:remote-updated"));}
    catch(e){setMessage(e instanceof Error?e.message:"Could not update friends");}
    finally{setBusy(false);}
  }
