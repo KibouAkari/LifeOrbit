@@ -74,11 +74,11 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(denied.exception.status_code, 404)
 
     def test_calendar_parser_compatible_with_secured_version(self):
-        sample = (b"BEGIN:VCALENDAR\\r\\nVERSION:2.0\\r\\n"
-                  b"BEGIN:VEVENT\\r\\nUID:test-event\\r\\n"
-                  b"DTSTART;VALUE=DATE:20261111\\r\\n"
-                  b"SUMMARY:Test calendar event\\r\\n"
-                  b"END:VEVENT\\r\\nEND:VCALENDAR\\r\\n")
+        sample = (b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
+                  b"BEGIN:VEVENT\r\nUID:test-event\r\n"
+                  b"DTSTART;VALUE=DATE:20261111\r\n"
+                  b"SUMMARY:Test calendar event\r\n"
+                  b"END:VEVENT\r\nEND:VCALENDAR\r\n")
         # The feed parser must still work after the major iCalendar upgrade.
         with patch("backend.api.routes.calendar_feeds.fetch_calendar_bytes",
                    return_value=sample):
