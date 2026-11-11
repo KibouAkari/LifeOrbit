@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Plus, Trophy, RefreshCw, CheckCircle2, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { request, hasSession } from "../data/api";
@@ -44,6 +44,7 @@ export default function Challenges(){
  const [period,setPeriod]=useState<"daily"|"weekly">("daily");
  const [rank,setRank]=useState<Ranked[]>([]);
  const [friendRank,setFriendRank]=useState<Ranked[]>([]);
+ const rankingRequest=useRef(0);
  const [now]=useState(()=>new Date());
  const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
  const [received,setReceived]=useState<{id:string;title:string;target:number;unit:string;period?:"daily"|"weekly";shared_by:string;share_id?:string}[]>([]);
@@ -79,10 +80,13 @@ export default function Challenges(){
  },[refresh,state.templates]);
  async function loadRanking(){
   if(!hasSession())return;
+  const requestId=++rankingRequest.current;
   try{
    const data=await request<{participants:Ranked[];friends:Ranked[]}>("/leaderboard");
+   if(requestId!==rankingRequest.current)return;
    setRank(data.participants);setFriendRank(data.friends||[]);
   }catch{
+   if(requestId!==rankingRequest.current)return;
    // Avoid retaining formerly visible friend scores after authorization errors.
    setRank([]);setFriendRank([]);
    setMessage("Leaderboard could not be refreshed.");
@@ -95,7 +99,12 @@ export default function Challenges(){
    window.addEventListener("lifeorbit:friends-changed",refresh);
    window.addEventListener("focus",refresh);
    void loadRanking();
+   const poll=window.setInterval(()=>{
+    if(document.visibilityState==="visible")refresh();
+   },15000);
    return()=>{
+    rankingRequest.current++;
+    window.clearInterval(poll);
     window.removeEventListener("lifeorbit:workspace-saved",refresh);
     window.removeEventListener("lifeorbit:profile-updated",refresh);
     window.removeEventListener("lifeorbit:friends-changed",refresh);

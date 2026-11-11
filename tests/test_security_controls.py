@@ -101,6 +101,28 @@ class SessionTests(unittest.TestCase):
             args = db.return_value.notification_state.update_one.call_args
             self.assertEqual(args.args[1]["$push"]["read"]["$slice"], -2000)
 
+    def test_notebook_notifications_batch_current_friendship_checks(self):
+        friend = "507f191e810c19729de860ea"
+        removed = "507f1f77bcf86cd799439013"
+        accepted_book = {"_id": ObjectId("507f1f77bcf86cd799439014"),
+                         "owner": friend, "title": "Current"}
+        removed_book = {"_id": ObjectId("507f1f77bcf86cd799439015"),
+                        "owner": removed, "title": "Private"}
+        db = MagicMock()
+        db.notification_state.find_one.return_value = {"read": []}
+        db.shares.find.return_value.sort.return_value.batch_size.return_value = []
+        db.shared_notebooks.find.return_value.limit.return_value = [
+            accepted_book, removed_book]
+        db.friendships.find.return_value = [{"pair": "-".join(sorted((friend, USER_ID)))}]
+        db.users.find.return_value = [{"_id": ObjectId(friend), "name": "Friend"}]
+        db.tasks.find.return_value.batch_size.return_value = []
+        with patch("backend.api.routes.notifications.get_db", return_value=db):
+            result = notifications.list_notifications(user=USER_ID)
+        db.friendships.find.assert_called_once()
+        self.assertEqual([item["title"] for item in result["items"]],
+                         ["Friend invited you to Current"])
+        self.assertNotIn("Private", str(result))
+
     def test_friends_always_see_each_other_even_without_public_opt_in(self):
         friend = "507f191e810c19729de860ea"
         stranger = "507f1f77bcf86cd799439013"
@@ -289,6 +311,21 @@ class RateLimitTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as error:
                 enforce_limit(request_for(), "test", maximum=10, window_seconds=60)
         self.assertEqual(error.exception.status_code, 503)
+
+    def test_ip_limit_rejects_before_charging_named_account(self):
+        calls = []
+        def update(query, operation, **kwargs):
+            calls.append(query["_id"])
+            return {"hits": 2}
+        with patch.dict(os.environ, {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as db:
+            db.return_value.rate_limits.find_one_and_update.side_effect = update
+            with self.assertRaises(HTTPException) as error:
+                enforce_limit(request_for(), "password-login", maximum=1,
+                              window_seconds=900, identity="arbitrary@example.org",
+                              account_maximum=20)
+        self.assertEqual(error.exception.status_code, 429)
+        self.assertEqual(len(calls), 1)
 
     def test_bad_platform_ip_falls_back_to_socket_peer(self):
         req=request_for()

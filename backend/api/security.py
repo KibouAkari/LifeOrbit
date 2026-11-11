@@ -64,8 +64,8 @@ def enforce_limit(request: Request, category: str, *, maximum: int,
                 {"_id": key}, {"$inc": {"hits": 1}},
                 return_document=ReturnDocument.AFTER,
             )
-        # Both buckets are deliberately checked, even when the first exceeds
-        # its allowance. This prevents bypasses across account and IP changes.
+        # Check the account bucket only when the IP bucket permits the attempt,
+        # preventing blocked clients from exhausting arbitrary accounts.
         if not row or not isinstance(row.get("hits"), int):
             # Fail closed if the database cannot confirm that an attempt was
             # counted, instead of silently bypassing the limiter.
@@ -74,6 +74,12 @@ def enforce_limit(request: Request, category: str, *, maximum: int,
                      account_maximum if account_maximum is not None else
                      max(4, maximum // 3))
         exceeded = exceeded or row["hits"] > threshold
+        if dimension == "ip" and exceeded:
+            retry_after = window_seconds - (int(time.time()) % window_seconds)
+            raise HTTPException(
+                status_code=429, detail="Too many requests. Please try again later.",
+                headers={"Retry-After": str(retry_after)},
+            )
     if exceeded:
         retry_after = window_seconds - (int(time.time()) % window_seconds)
         raise HTTPException(
