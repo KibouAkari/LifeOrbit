@@ -164,6 +164,8 @@ def queue_acl_revocation(db, book):
 
 def retry_acl_revocations(db, limit=50):
     """Retry durable room reconciliations; failures remain queued for later runs."""
+    if not configured():
+        return
     for pending in db.realtime_acl_outbox.find({}).limit(limit):
         notebook_id = pending.get("notebook_id")
         if not ObjectId.is_valid(notebook_id):
@@ -188,7 +190,11 @@ def retry_acl_revocations(db, limit=50):
 
 
 def revoke_book_access(book, *, locked=False):
+    db = get_db()
     if not configured():
+        if db.realtime_notebooks.find_one(
+                {"_id": notebook_room(str(book["_id"]))}):
+            raise HTTPException(503, "Realtime access cannot be revoked while the service is unavailable")
         return
 
     def revoke():
@@ -204,7 +210,7 @@ def revoke_book_access(book, *, locked=False):
     if locked:
         revoke()
     else:
-        with notebook_lock(get_db(), str(book["_id"])):
+        with notebook_lock(db, str(book["_id"])):
             revoke()
 
 
@@ -373,23 +379,24 @@ def snapshot_notebook(book_id: str, user: str = Depends(get_current_user)):
     require_enabled()
     from backend.api.routes.shared_notebooks import locate
     db = get_db()
-    book = locate(db, book_id, user)
-    room_id = notebook_room(book_id)
-    if not (db.realtime_notebooks.find_one({"_id": room_id}) or {}).get("status") == "ready":
-        raise HTTPException(409, "Notebook is not ready")
-    live = api("GET", "/rooms/" + encoded(room_id) + "/ydoc")
-    updated = 0
-    for page in book.get("pages", []):
-        pid = str(page.get("id", ""))
-        title = live.get("page:" + pid + ":title")
-        body = live.get("page:" + pid + ":body")
-        if not isinstance(title, str) or not isinstance(body, str):
-            continue
-        if page.get("title")==title[:120] and page.get("body")==body[:50000]:
-            continue
-        db.shared_notebooks.update_one(
-            {"_id": book["_id"], "pages.id": pid},
-            {"$set": {"pages.$.title": title[:120],
-                      "pages.$.body": body[:50000]}})
-        updated += 1
-    return {"snapshotted": updated}
+    with notebook_lock(db, book_id):
+        book = locate(db, book_id, user)
+        room_id = notebook_room(book_id)
+        if not (db.realtime_notebooks.find_one({"_id": room_id}) or {}).get("status") == "ready":
+            raise HTTPException(409, "Notebook is not ready")
+        live = api("GET", "/rooms/" + encoded(room_id) + "/ydoc")
+        updated = 0
+        for page in book.get("pages", []):
+            pid = str(page.get("id", ""))
+            title = live.get("page:" + pid + ":title")
+            body = live.get("page:" + pid + ":body")
+            if not isinstance(title, str) or not isinstance(body, str):
+                continue
+            if page.get("title") == title[:120] and page.get("body") == body[:50000]:
+                continue
+            db.shared_notebooks.update_one(
+                {"_id": book["_id"], "pages.id": pid},
+                {"$set": {"pages.$.title": title[:120],
+                          "pages.$.body": body[:50000]}})
+            updated += 1
+        return {"snapshotted": updated}

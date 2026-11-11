@@ -93,9 +93,64 @@ class YjsMigrationTests(unittest.TestCase):
         db.shared_notebooks.find_one.return_value = {
             "_id": ObjectId(BOOK), "owner": OWNER, "members": [OTHER]
         }
-        with patch.object(realtime, "api", side_effect=HTTPException(503, "provider down")):
+        with patch.object(realtime, "configured", return_value=True), \
+             patch.object(realtime, "api", side_effect=HTTPException(503, "provider down")):
             realtime.retry_acl_revocations(db)
         db.realtime_acl_outbox.delete_one.assert_not_called()
+
+    def test_acl_retry_waits_for_realtime_configuration(self):
+        db = MagicMock()
+        with patch.object(realtime, "configured", return_value=False), \
+             patch.object(realtime, "api") as provider:
+            realtime.retry_acl_revocations(db)
+        provider.assert_not_called()
+        db.realtime_acl_outbox.find.assert_not_called()
+
+    def test_migrated_notebook_deletion_fails_closed_without_provider(self):
+        db = MagicMock()
+        db.realtime_notebooks.find_one.return_value = {"status": "ready"}
+        book = {"_id": ObjectId(BOOK)}
+        with patch.object(realtime, "get_db", return_value=db), \
+             patch.object(realtime, "configured", return_value=False):
+            with self.assertRaises(HTTPException) as raised:
+                realtime.revoke_book_access(book, locked=True)
+        self.assertEqual(raised.exception.status_code, 503)
+
+    def test_snapshot_reads_and_writes_under_notebook_lock(self):
+        db = MagicMock()
+        book = {"_id": ObjectId(BOOK), "pages": [
+            {"id": "page1", "title": "Old title", "body": "Old body"}]}
+        order = []
+
+        @contextmanager
+        def lock(_db, _book_id):
+            order.append("lock")
+            yield
+            order.append("unlock")
+
+        def locate(_db, _book_id, _user):
+            order.append("locate")
+            return book
+
+        def provider(*_args, **_kwargs):
+            order.append("provider-read")
+            return {"page:page1:title": "New title", "page:page1:body": "New body"}
+
+        def update(*_args, **_kwargs):
+            order.append("preview-write")
+
+        db.realtime_notebooks.find_one.return_value = {"status": "ready"}
+        db.shared_notebooks.update_one.side_effect = update
+        with patch.object(realtime, "require_enabled"), \
+             patch.object(realtime, "get_db", return_value=db), \
+             patch.object(realtime, "notebook_lock", side_effect=lock), \
+             patch("backend.api.routes.shared_notebooks.locate", side_effect=locate), \
+             patch.object(realtime, "api", side_effect=provider):
+            result = realtime.snapshot_notebook(BOOK, user=OWNER)
+
+        self.assertEqual(result, {"snapshotted": 1})
+        self.assertEqual(order, [
+            "lock", "locate", "provider-read", "preview-write", "unlock"])
 
     def test_python_yjs_update_preserves_legacy_page(self):
         book = {"pages": [{"id": "page1", "title": "My title",

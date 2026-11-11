@@ -113,12 +113,11 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user),
             locks.enter_context(notebook_lock(db,str(book["_id"])))
         impacted=list(db.shared_notebooks.find({"$or":[
             {"owner":user,"members":other},{"owner":other,"members":user}]}))
-        if configured():
-            # Record revocations before membership changes so provider outages
-            # cannot permanently strand stale access.
-            for book in impacted:
-                if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
-                    queue_acl_revocation(db,book)
+        # Record revocations before membership changes so provider outages or
+        # disabled realtime cannot permanently strand stale access.
+        for book in impacted:
+            if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                queue_acl_revocation(db,book)
         db.friendships.delete_many({"$or":[
             {"pair":key},
             {"sender":user,"recipient":other},
@@ -140,7 +139,7 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user),
                         # The durable outbox retries after the response and on
                         # subsequent realtime authorization requests.
                         pass
-    if background_tasks is not None and configured():
+    if background_tasks is not None:
         background_tasks.add_task(retry_acl_revocations, db)
     # Existing browser rooms must reauthorize even if already connected.
     publish_to_users([user,other],"access-revoked",background_tasks)

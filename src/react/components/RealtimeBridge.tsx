@@ -40,11 +40,9 @@ export default function RealtimeBridge() {
           notify(event.kind);
         }
       });
-      let seenConnection = false;
       const offStatus = room.subscribe("status", (status) => {
         if (status === "connected") {
-          if (seenConnection) notify("notifications");
-          seenConnection = true;
+          notify("friends");
         }
       });
       release = () => { offEvent(); offStatus(); leave(); };

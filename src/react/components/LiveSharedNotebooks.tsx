@@ -24,14 +24,26 @@ const bodyKey = (page: string) => `page:${page}:body`;
 export function patchYText(text: Y.Text, next: string) {
   const previous = text.toString();
   if (previous === next) return;
+  const splitsCodePoint = (value: string, index: number) => {
+    if (index <= 0 || index >= value.length) return false;
+    const before = value.charCodeAt(index - 1);
+    const after = value.charCodeAt(index);
+    return before >= 0xd800 && before <= 0xdbff &&
+      after >= 0xdc00 && after <= 0xdfff;
+  };
   let start = 0;
   while (start < previous.length && start < next.length &&
          previous[start] === next[start]) start++;
+  if (splitsCodePoint(previous, start) || splitsCodePoint(next, start)) start--;
   let oldEnd = previous.length, newEnd = next.length;
   while (oldEnd > start && newEnd > start &&
          previous[oldEnd - 1] === next[newEnd - 1]) {
     oldEnd--;
     newEnd--;
+  }
+  if (splitsCodePoint(previous, oldEnd) || splitsCodePoint(next, newEnd)) {
+    oldEnd++;
+    newEnd++;
   }
   text.doc?.transact(() => {
     if (oldEnd > start) text.delete(start, oldEnd - start);
