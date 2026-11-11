@@ -1,0 +1,43 @@
+/** One private room per signed-in user, used only for invalidation signals. */
+import { useEffect } from "react";
+import { currentUser, hasSession } from "../data/api";
+import { REALTIME_ENABLED, accountRoom, realtimeClient } from "../services/realtime";
+
+const kinds = new Set(["friends", "calendar", "notebooks", "notes", "notifications", "challenges"]);
+
+export default function RealtimeBridge() {
+  useEffect(() => {
+    if (!REALTIME_ENABLED || !hasSession()) return;
+    let cancelled = false;
+    let release: (() => void) | undefined;
+    void currentUser().then((user) => {
+      if (cancelled) return;
+      const client = realtimeClient();
+      if (!client) return;
+      const { room, leave } = client.enterRoom(accountRoom(user.id), { initialPresence: {} });
+      const notify = (kind: string) => {
+        window.dispatchEvent(new CustomEvent("lifeorbit:remote-updated", { detail: kind }));
+        window.dispatchEvent(new Event("lifeorbit:notifications-updated"));
+        if (kind === "friends") window.dispatchEvent(new Event("lifeorbit:friends-changed"));
+        if (kind === "calendar") window.dispatchEvent(new Event("lifeorbit:calendar-updated"));
+      };
+      const offEvent = room.subscribe("event", ({ event }) => {
+        if (event && typeof event === "object" && "type" in event &&
+            event.type === "INVALIDATE" && "kind" in event &&
+            typeof event.kind === "string" && kinds.has(event.kind)) {
+          notify(event.kind);
+        }
+      });
+      let seenConnection = false;
+      const offStatus = room.subscribe("status", (status) => {
+        if (status === "connected") {
+          if (seenConnection) notify("notifications");
+          seenConnection = true;
+        }
+      });
+      release = () => { offEvent(); offStatus(); leave(); };
+    }).catch(() => undefined);
+    return () => { cancelled = true; release?.(); };
+  }, []);
+  return null;
+}

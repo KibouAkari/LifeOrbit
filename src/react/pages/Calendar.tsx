@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent } from "react";
+import { REALTIME_ENABLED } from "../services/realtime";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Upload, Clock, Eye, EyeOff, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { hasSession, request } from "../data/api";
@@ -132,10 +133,12 @@ export default function Calendar(){
   let alive=true;
   const refresh=()=>{void Promise.all([request<CalendarEvent[]>("/sharing/events"),request<{friends:typeof friends}>("/friends")])
    .then(([items,people])=>{if(alive){setInvited(items);setFriends(people.friends)}}).catch(()=>undefined)};
-  const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},5000);
+  const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},REALTIME_ENABLED?60000:5000);
   window.addEventListener("lifeorbit:remote-updated",refresh);
+    const refreshOwn=()=>{void request<CalendarEvent[]>("/calendar/events").then(events=>{if(alive)patch("events",events)}).catch(()=>undefined)};
+    window.addEventListener("lifeorbit:calendar-updated",refreshOwn);
   window.addEventListener("focus",refresh);
-  return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("focus",refresh)};
+  return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("lifeorbit:calendar-updated",refreshOwn);window.removeEventListener("focus",refresh)};
  },[online]);
  function showMenu(e:React.MouseEvent<HTMLElement>,item:CalendarEvent){
   e.preventDefault();e.stopPropagation();

@@ -4,6 +4,8 @@ import { hasSession,request } from "../data/api";
 import { useFriends } from "./FriendsPanel";
 import { useApp } from "../context/AppContext";
 import type { Section } from "../types";
+import RealtimeBridge from "./RealtimeBridge";
+import { REALTIME_ENABLED } from "../services/realtime";
 
 const navigation = [
   ["dashboard", "Dashboard", LayoutGrid],
@@ -64,11 +66,12 @@ export function Layout({ section, dark, children }: { section: Section; dark: bo
       }catch{}
     };
     void refresh();
-    const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},4000);
+    const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},REALTIME_ENABLED?60000:4000);
     const focus=()=>void refresh();
     window.addEventListener("focus",focus);
     window.addEventListener("lifeorbit:friends-changed",focus);
-    return()=>{alive=false;clearInterval(timer);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:friends-changed",focus)};
+    window.addEventListener("lifeorbit:notifications-updated",focus);
+    return()=>{alive=false;clearInterval(timer);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:friends-changed",focus);window.removeEventListener("lifeorbit:notifications-updated",focus)};
   },[]);
   useEffect(()=>{if(!toast)return;const handle=window.setTimeout(()=>setToast(""),5000);return()=>clearTimeout(handle)},[toast]);
   useEffect(()=>{
@@ -81,7 +84,7 @@ export function Layout({ section, dark, children }: { section: Section; dark: bo
   async function readAlert(id:string){try{await request("/notifications/read",{method:"POST",body:JSON.stringify({id})});setAlerts(old=>old.filter(x=>x.id!==id))}catch{}}
 
   if (section === "login") return <>{children}</>;
-  return <div className={`shell ${open ? "menu-open" : ""}`}>
+  return <div className={`shell ${open ? "menu-open" : ""}`}><RealtimeBridge/>
     {open && <button className="mobile-backdrop" aria-label="Close navigation" onClick={() => setOpen(false)}/>}
     <aside className="sidebar" aria-label="Main navigation">
       <a className="brand" href="#/dashboard" onClick={() => setOpen(false)}><img src="/assets/icon.svg" alt=""/>LifeOrbit</a>

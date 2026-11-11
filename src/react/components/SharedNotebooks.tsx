@@ -1,10 +1,15 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import {Plus,Users,BookOpen,Trash2} from "lucide-react";
 import {request} from "../data/api";
+import { REALTIME_ENABLED } from "../services/realtime";
+import LiveSharedNotebooks from "./LiveSharedNotebooks";
 type Page={id:string;title:string;body:string};
 type SharedBook={id:string;title:string;owner:string;is_owner:boolean;owner_name:string;members:{id:string;name:string}[];pages:Page[]};
 type Friend={id:string;name:string};
 export default function SharedNotebooks(){
+ return REALTIME_ENABLED?<LiveSharedNotebooks/>:<LegacySharedNotebooks/>;
+}
+function LegacySharedNotebooks(){
  const [books,setBooks]=useState<SharedBook[]>([]);
  const [friends,setFriends]=useState<Friend[]>([]);
  const [selected,setSelected]=useState("");
