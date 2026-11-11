@@ -30,7 +30,7 @@ LifeOrbit brings schedules, tasks, notebooks, recurring expenses and small daily
 | **Challenges** | Choose up to three personal and two shared active challenges and view the community ranking |
 | **Settings** | Manage your profile, theme, account and data export |
 
-**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. Shared notebook updates use polling and are not conflict-free simultaneous editing. Calendar gestures and mobile layouts still require cross-browser regression testing.
+**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. Shared notebook updates use polling unless the optional Liveblocks/Yjs realtime service is configured and tested; realtime mode supports concurrent collaborative text and automatic synchronization. Calendar gestures and mobile layouts still require cross-browser regression testing.
 
 ## Screenshots
 
@@ -114,6 +114,7 @@ The project history, technical decisions and implemented functionality are descr
 | [Roadmap](docs/ROADMAP.md) | Planned work and known limitations |
 | [Release checklist](docs/RELEASING.md) | Quality gates and publishing procedure |
 | [Security review](docs/SECURITY_AUDIT.md) | Mitigations, open risks and hardening work |
+| [Realtime collaboration](docs/REALTIME_COLLABORATION.md) | Optional Liveblocks/Yjs setup, migration, recovery and privacy |
 
 ## Contributing
 

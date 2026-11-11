@@ -29,6 +29,15 @@ Targeted pattern checks covered 32 current tracked Markdown files, hackathon doc
 
 **Limitations:** Pattern matching cannot establish that every secret is absent. Past Git history, branches outside the reviewed tree, Vercel environment variables, MongoDB, private communications and build artifacts were not audited. Public documentation intentionally references the project and its domain. Rotate and revoke any credential previously committed, even if its current copy was later deleted.
 
+## Additional realtime rollout risks (proposed branch)
+
+- Hosted Liveblocks will process shared notebook content and participant names when realtime is enabled. Reconcile the privacy policy, controller/processor agreements, region, retention, incident handling and costs before enabling it.
+- Server-side notebook ACLs are synchronized from MongoDB. Validate immediate removal of already-connected editors after unfriend, invitation revocation, notebook deletion and account-session revocation using real Liveblocks accounts; a disconnected FastAPI session does not automatically revoke an existing provider connection.
+- MongoDB is metadata/legacy preview storage after a notebook migrates. The Liveblocks Yjs document is authoritative for edits; maintain a tested export, backup and restoration plan for provider outages and deletion requests.
+- Operations are best-effort notifications rather than a durable event queue. Offline clients catch up from MongoDB after reconnect; lost broadcasts must not be treated as lost saved records.
+- Document/page deletion must also be reconciled with Liveblocks retention and version history to meet privacy deletion requirements; removing a MongoDB entry does not alone erase hosted CRDT history.
+- A private, authorized, two-account E2E test for simultaneous edits, cursor behavior, snapshots, network outages, migrations and revoked permissions is a release blocker. Provider flags are disabled by default.
+
 ## Remaining important risks
 
 1. Build verified email enrollment, email-change confirmation, password recovery and secure account deletion before a public rollout handling sensitive personal data.

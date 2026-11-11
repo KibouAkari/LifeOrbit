@@ -14,8 +14,13 @@ LifeOrbit deploys the Vite/React frontend and the Python FastAPI backend in **on
 | `FRONTEND_ORIGINS` | Server only | Exact allowed frontend origin(s) |
 | `AUTH_COOKIE_SAMESITE` | Server only | Use strict for the normal same-origin deployment |
 | `VITE_API_BASE_URL` | Public | Leave empty for same-origin API |
+| `ENABLE_REALTIME` | Server only | Enable Liveblocks authorization and events only after configuration and tests |
+| `LIVEBLOCKS_SECRET_KEY` | Server only, private | Liveblocks server key for room access and broadcast |
+| `VITE_REALTIME_ENABLED` | Public flag | Enables realtime client/editor. Keep false until the backend is ready |
 
-Do not expose `MONGODB_URI`, `JWT_SECRET_KEY` or provider secrets with a `VITE_` prefix.
+Do not expose `MONGODB_URI`, `JWT_SECRET_KEY`, `LIVEBLOCKS_SECRET_KEY` or provider secrets with a `VITE_` prefix.
+
+Realtime collaboration is optional and must be **separately provisioned**. Follow [Realtime collaboration](REALTIME_COLLABORATION.md) before enabling it. Both server and client flags default to false. Existing deployments continue using the legacy editor and polling when the flags are disabled.
 
 ## Deployment procedure
 

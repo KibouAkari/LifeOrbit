@@ -21,6 +21,10 @@ Tasks and calendar events use individual owner-scoped API endpoints. Notes, chap
 
 Friends, invitations and sharing use separate MongoDB `friendships` and `shares` collections. The server checks ownership and accepted friendships, including on subsequent read requests. Private note shares are read-only; shared notebooks allow invited members to edit pages with polling, but not conflict-free simultaneous editing.
 
+## Optional realtime architecture
+
+When `ENABLE_REALTIME` and `VITE_REALTIME_ENABLED` are both enabled, private Liveblocks rooms carry update notifications and Yjs CRDTs merge concurrent edits in shared notebooks. Existing MongoDB notebook metadata is retained, and the original notebook text is seeded server-side before the first realtime connection. A backend snapshot endpoint copies only server-observed Yjs state into MongoDB for preview and recovery; clients never overwrite CRDT pages with full text. See [Realtime collaboration](REALTIME_COLLABORATION.md).
+
 ## Calendar sources
 
 Manual .ics import creates an owned copy. A subscribed public HTTPS or webcal iCalendar link can be saved encrypted and refreshed on demand after public-IP validation and IP-pinned TLS. The server rejects private IP addresses and redirects, and caps file and event sizes. The feed link may contain a private access token; never log or expose it in API responses.
