@@ -127,7 +127,13 @@ function CollaborativeBook({
         }
       };
       const offStatus = room.subscribe("status", (value) => {
-        if (mounted) setStatus(value);
+        if (!mounted) return;
+        setStatus(value);
+        if (value === "disconnected") {
+          // Permission removal immediately disconnects the provider. Recheck
+          // MongoDB access and unmount the editor if membership was revoked.
+          void reload();
+        }
       });
       const offOthers = room.subscribe("others", (users) => {
         if (!mounted) return;

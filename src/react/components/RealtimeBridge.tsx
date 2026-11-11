@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { currentUser, hasSession } from "../data/api";
 import { REALTIME_ENABLED, accountRoom, realtimeClient } from "../services/realtime";
 
-const kinds = new Set(["friends", "calendar", "notebooks", "notes", "notifications", "challenges"]);
+const kinds = new Set(["friends", "calendar", "notebooks", "notes", "notifications", "challenges", "access-revoked"]);
 
 export default function RealtimeBridge() {
   useEffect(() => {
@@ -16,6 +16,11 @@ export default function RealtimeBridge() {
       if (!client) return;
       const { room, leave } = client.enterRoom(accountRoom(user.id), { initialPresence: {} });
       const notify = (kind: string) => {
+        if (kind === "access-revoked") {
+          // Drop cached provider credentials and force every joined room to
+          // reauthorize; a former friend must not remain in a live editor.
+          client.logout();
+        }
         window.dispatchEvent(new CustomEvent("lifeorbit:remote-updated", { detail: kind }));
         window.dispatchEvent(new Event("lifeorbit:notifications-updated"));
         if (kind === "friends") window.dispatchEvent(new Event("lifeorbit:friends-changed"));

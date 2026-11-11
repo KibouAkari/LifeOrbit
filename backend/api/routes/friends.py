@@ -107,6 +107,8 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
             fresh=db.shared_notebooks.find_one({"_id":book["_id"]})
             if fresh and (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
                 sync_book_access(db,fresh)
+    # Existing browser rooms must reauthorize even if already connected.
+    publish_to_users([user,other],"access-revoked")
     publish_to_users([user,other],"friends")
     publish_to_users([user,other],"notebooks")
     publish_to_users([user,other],"calendar")

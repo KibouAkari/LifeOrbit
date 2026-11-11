@@ -6,7 +6,7 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ### 2026-11-11 · Sharing revocation protection for realtime
 - Remove all matching friendship rows during unfriending so duplicate accepted relationships cannot preserve access to private notes or notebooks.
-- Reconcile Liveblocks room permissions after friendship cleanup; removing a member from the room ACL disconnects currently connected users.
+- Reconcile Liveblocks room permissions after friendship cleanup; removing a member from the room ACL disconnects currently connected users. On revocation, force browser provider token reauthorization and recheck notebook access after disconnection.
 - Broadcast invalidation for affected note shares and refetch authorized notebooks independently of friend-list loading.
 - Remove revoked notebooks from the realtime editor and fail closed when access cannot be reverified.
 - Add regression coverage for the revocation path before enabling provider-backed realtime.

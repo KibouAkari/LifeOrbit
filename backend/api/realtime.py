@@ -124,7 +124,7 @@ def publish_to_users(users, kind: str):
     """Best-effort invalidation after DB commits, never transmit private content."""
     if not configured():
         return
-    if kind not in {"friends", "calendar", "notebooks", "notes", "notifications", "challenges"}:
+    if kind not in {"friends", "calendar", "notebooks", "notes", "notifications", "challenges", "access-revoked"}:
         return
     for user in set(users):
         if not isinstance(user, str) or not ObjectId.is_valid(user):

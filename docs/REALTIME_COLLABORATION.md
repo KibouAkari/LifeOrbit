@@ -31,7 +31,7 @@ The FastAPI `/api/realtime/authorize` endpoint requires the existing HttpOnly se
 
 The provider's key is sent only to `api.liveblocks.io` over HTTPS on the server. Invalidation events include only a public type and a category, never the note, a user email or an event title.
 
-**Revocation caution:** once a browser has established a provider connection, authentication/permission changes may not terminate it at exactly the same instant. Confirm actual disconnection behavior with Liveblocks during rollout and establish a forced-disconnect/reconciliation process before treating access revocation as instantaneous. Existing private shares must still enforce permissions in the application API.
+**Revocation:** Liveblocks documents that changing a user permission to `null` disconnects the connected user immediately (see https://liveblocks.io/docs/use-cases/share-dialog). Unfriending removes all matching MongoDB relationship rows and notebook memberships, then reconciles room ACLs. A dedicated `access-revoked` account notification also causes Liveblocks clients to discard cached tokens and reauthorize joined rooms. The editor rechecks FastAPI on disconnection and unmounts revoked notebooks. Verify these behaviors with two real accounts in the provider preview. Previous plaintext already downloaded or exported by a former recipient cannot be erased remotely. If provider ACL updates fail, treat it as an urgent operational incident.
 
 ## Migration and data durability
 
