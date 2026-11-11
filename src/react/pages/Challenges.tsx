@@ -5,6 +5,7 @@ import { request, hasSession } from "../data/api";
 import { newId } from "../data/storage";
 import { Heading } from "../components/UI";
 import type { Challenge, ChallengeTemplate } from "../types";
+import { REALTIME_ENABLED } from "../services/realtime";
 
 const ideas:ChallengeTemplate[]=[
  {id:"drink-water",title:"Drink a glass of water",target:8,unit:"glasses",period:"daily"},
@@ -46,7 +47,18 @@ export default function Challenges(){
  const [now]=useState(()=>new Date());
  const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
  const [received,setReceived]=useState<{id:string;title:string;target:number;unit:string;period?:"daily"|"weekly";shared_by:string;share_id?:string}[]>([]);
- useEffect(()=>{if(!hasSession())return;void Promise.all([request<{friends:typeof friends}>("/friends"),request<typeof received>("/sharing/challenges")]).then(([f,c])=>{setFriends(f.friends);setReceived(c)}).catch(()=>undefined)},[]);
+ useEffect(()=>{
+  if(!hasSession())return;
+  let alive=true;
+  const refreshReceived=()=>{void Promise.all([
+   request<{friends:typeof friends}>("/friends"),request<typeof received>("/sharing/challenges")
+  ]).then(([f,c])=>{if(alive){setFriends(f.friends);setReceived(c)}}).catch(()=>undefined)};
+  void refreshReceived();
+  const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refreshReceived()},REALTIME_ENABLED?60000:5000);
+  window.addEventListener("lifeorbit:remote-updated",refreshReceived);
+  window.addEventListener("focus",refreshReceived);
+  return()=>{alive=false;window.clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refreshReceived);window.removeEventListener("focus",refreshReceived)};
+ },[]);
  async function shareChallenge(c:Challenge){if(!friends.length){setMessage("Add a friend in Settings first.");return;}const index=window.prompt("Share with: "+friends.map((p,i)=>`${i+1}. ${p.name}`).join(", ")+"\nEnter number");if(!index)return;const target=friends[Number(index)-1];if(!target){setMessage("Choose a valid friend.");return;}try{await request("/sharing/challenges",{method:"POST",body:JSON.stringify({resource_id:c.id,recipient_id:target.id})});setMessage("Challenge shared with "+target.name)}catch(e){setMessage(e instanceof Error?e.message:"Sharing failed")}}
  function acceptChallenge(c:typeof received[number]){
   const origin=c.share_id||`${c.shared_by}:${c.id}`;

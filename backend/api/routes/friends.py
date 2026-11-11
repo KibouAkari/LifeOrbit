@@ -1,13 +1,16 @@
 """Friend requests require explicit acceptance and never expose email addresses."""
 from datetime import datetime, timezone
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query
+from contextlib import ExitStack
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
 from backend.api.security import enforce_limit
-from backend.api.realtime import configured, notebook_room, publish_to_users, sync_book_access
+from backend.api.realtime import (configured, notebook_lock, notebook_room,
+                                  publish_to_users, queue_acl_revocation,
+                                  retry_acl_revocations, sync_book_access)
 from fastapi import Request
 
 router=APIRouter()
@@ -50,7 +53,8 @@ def list_friends(user:str=Depends(get_current_user)):
     return result
 
 @router.post("/requests",status_code=201)
-def request_friend(payload:FriendRequest,request:Request,user:str=Depends(get_current_user)):
+def request_friend(payload:FriendRequest,request:Request,user:str=Depends(get_current_user),
+                   background_tasks:BackgroundTasks=None):
     enforce_limit(request, "friend-request", maximum=30, window_seconds=3600, identity=user)
     db=get_db()
     if payload.user_id==user or not profile(db,payload.user_id):
@@ -64,21 +68,36 @@ def request_friend(payload:FriendRequest,request:Request,user:str=Depends(get_cu
                                    "status":"pending","created_at":datetime.now(timezone.utc)})
     except DuplicateKeyError:
         raise HTTPException(409,"Request already exists")
-    publish_to_users([payload.user_id,user],"friends")
+    publish_to_users([payload.user_id,user],"friends",background_tasks)
     return {"sent":True}
 
 @router.post("/requests/{request_id}/accept")
-def accept(request_id:str,user:str=Depends(get_current_user)):
+def accept(request_id:str,user:str=Depends(get_current_user),
+           background_tasks:BackgroundTasks=None):
     if not ObjectId.is_valid(request_id):raise HTTPException(400,"Invalid request")
-    result=get_db().friendships.update_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"},
-                                           {"$set":{"status":"accepted"}})
-    if not result.modified_count:raise HTTPException(404,"Request not found")
-    doc=get_db().friendships.find_one({"_id":ObjectId(request_id)})
-    publish_to_users([doc["sender"],doc["recipient"]],"friends")
+    db=get_db()
+    request=db.friendships.find_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"})
+    if not request:raise HTTPException(404,"Request not found")
+    impacted=list(db.shared_notebooks.find({"$or":[
+        {"owner":request["sender"],"members":request["recipient"]},
+        {"owner":request["recipient"],"members":request["sender"]}]}))
+    with ExitStack() as locks:
+        for book in sorted(impacted,key=lambda item:str(item["_id"])):
+            locks.enter_context(notebook_lock(db,str(book["_id"])))
+        result=db.friendships.update_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"},
+                                         {"$set":{"status":"accepted"}})
+        if not result.modified_count:raise HTTPException(404,"Request not found")
+        if configured():
+            for book in impacted:
+                if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                    sync_book_access(db,book,locked=True)
+    doc=db.friendships.find_one({"_id":ObjectId(request_id)})
+    publish_to_users([doc["sender"],doc["recipient"]],"friends",background_tasks)
     return {"accepted":True}
 
 @router.delete("/requests/{request_id}")
-def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
+def reject_or_remove(request_id:str,user:str=Depends(get_current_user),
+                     background_tasks:BackgroundTasks=None):
     if not ObjectId.is_valid(request_id):raise HTTPException(400,"Invalid request")
     db=get_db()
     friendship=db.friendships.find_one({"_id":ObjectId(request_id),
@@ -88,29 +107,45 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     # Revoke all duplicate or historical rows; a single remaining accepted
     # relationship would otherwise keep read-only and realtime access alive.
     key=pair(user,other)
-    db.friendships.delete_many({"$or":[
-        {"pair":key},
-        {"sender":user,"recipient":other},
-        {"sender":other,"recipient":user},
-    ]})
-    impacted=list(db.shared_notebooks.find({"$or":[
-        {"owner":user,"members":other},{"owner":other,"members":user}]}))
-    db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
-                                 {"owner":other,"recipient":user}]})
-    # Friendship revocation must also remove shared-notebook membership.
-    db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
-    db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
-    if db.friendships.find_one({"pair":key,"status":"accepted"}):
-        raise HTTPException(503,"Friendship revocation could not be verified")
-    if configured():
-        for book in impacted:
-            fresh=db.shared_notebooks.find_one({"_id":book["_id"]})
-            if fresh and (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
-                sync_book_access(db,fresh)
+    candidates=list(db.shared_notebooks.find({"owner":{"$in":[user,other]}}))
+    with ExitStack() as locks:
+        for book in sorted(candidates,key=lambda item:str(item["_id"])):
+            locks.enter_context(notebook_lock(db,str(book["_id"])))
+        impacted=list(db.shared_notebooks.find({"$or":[
+            {"owner":user,"members":other},{"owner":other,"members":user}]}))
+        if configured():
+            # Record revocations before membership changes so provider outages
+            # cannot permanently strand stale access.
+            for book in impacted:
+                if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                    queue_acl_revocation(db,book)
+        db.friendships.delete_many({"$or":[
+            {"pair":key},
+            {"sender":user,"recipient":other},
+            {"sender":other,"recipient":user},
+        ]})
+        db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
+                                     {"owner":other,"recipient":user}]})
+        # Friendship revocation must also remove shared-notebook membership.
+        db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
+        db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
+        if db.friendships.find_one({"pair":key,"status":"accepted"}):
+            raise HTTPException(503,"Friendship revocation could not be verified")
+        if configured():
+            for book in impacted:
+                if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                    try:
+                        sync_book_access(db,book,locked=True)
+                    except HTTPException:
+                        # The durable outbox retries after the response and on
+                        # subsequent realtime authorization requests.
+                        pass
+    if background_tasks is not None and configured():
+        background_tasks.add_task(retry_acl_revocations, db)
     # Existing browser rooms must reauthorize even if already connected.
-    publish_to_users([user,other],"access-revoked")
-    publish_to_users([user,other],"friends")
-    publish_to_users([user,other],"notebooks")
-    publish_to_users([user,other],"calendar")
-    publish_to_users([user,other],"notes")
+    publish_to_users([user,other],"access-revoked",background_tasks)
+    publish_to_users([user,other],"friends",background_tasks)
+    publish_to_users([user,other],"notebooks",background_tasks)
+    publish_to_users([user,other],"calendar",background_tasks)
+    publish_to_users([user,other],"notes",background_tasks)
     return {"removed":True}

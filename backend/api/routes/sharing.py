@@ -1,7 +1,7 @@
 """Private shares use authenticated friendships and explicit recipient IDs."""
 from datetime import datetime,timezone
 from bson import ObjectId
-from fastapi import APIRouter,Depends,HTTPException
+from fastapi import APIRouter,BackgroundTasks,Depends,HTTPException
 from pydantic import BaseModel,Field
 from pymongo import ReturnDocument
 from backend.api.database import get_db
@@ -30,13 +30,14 @@ def note_from_owner(db,owner,note_id):
     raise HTTPException(404,"Note not found")
 
 @router.post("/notes")
-def share_note(data:ShareRequest,user:str=Depends(get_current_user)):
+def share_note(data:ShareRequest,user:str=Depends(get_current_user),
+               background_tasks:BackgroundTasks=None):
     db=get_db();require_friend(db,user,data.recipient_id)
     note_from_owner(db,user,data.resource_id)
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"note","resource_id":data.resource_id},
                         {"$setOnInsert":{"created_at":datetime.now(timezone.utc)}},upsert=True)
-    publish_to_users([user,data.recipient_id],"notes")
-    publish_to_users([data.recipient_id],"notifications")
+    publish_to_users([user,data.recipient_id],"notes",background_tasks)
+    publish_to_users([data.recipient_id],"notifications",background_tasks)
     return {"shared":True}
 
 @router.get("/notes")
@@ -68,7 +69,8 @@ def shared_notes(user:str=Depends(get_current_user)):
     return result
 
 @router.post("/events")
-def invite_event(data:ShareRequest,user:str=Depends(get_current_user)):
+def invite_event(data:ShareRequest,user:str=Depends(get_current_user),
+                 background_tasks:BackgroundTasks=None):
     db=get_db();require_friend(db,user,data.recipient_id)
     if not ObjectId.is_valid(data.resource_id):
         raise HTTPException(400,"Invalid event")
@@ -76,12 +78,13 @@ def invite_event(data:ShareRequest,user:str=Depends(get_current_user)):
     if not item:raise HTTPException(404,"Event not found")
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"event","resource_id":data.resource_id},
                         {"$setOnInsert":{"created_at":datetime.now(timezone.utc),"status":"pending"}},upsert=True)
-    publish_to_users([user,data.recipient_id],"calendar")
-    publish_to_users([data.recipient_id],"notifications")
+    publish_to_users([user,data.recipient_id],"calendar",background_tasks)
+    publish_to_users([data.recipient_id],"notifications",background_tasks)
     return {"invited":True}
 
 @router.patch("/events/{share_id}/response")
-def respond_event(share_id:str,data:RSVPRequest,user:str=Depends(get_current_user)):
+def respond_event(share_id:str,data:RSVPRequest,user:str=Depends(get_current_user),
+                  background_tasks:BackgroundTasks=None):
     if not ObjectId.is_valid(share_id):raise HTTPException(400,"Invalid invitation")
     db=get_db()
     row=db.shares.find_one_and_update(
@@ -89,16 +92,17 @@ def respond_event(share_id:str,data:RSVPRequest,user:str=Depends(get_current_use
         {"$set":{"status":data.status,"responded_at":datetime.now(timezone.utc)}},
         return_document=ReturnDocument.AFTER)
     if not row:raise HTTPException(404,"Invitation not found")
-    publish_to_users([user,row["owner"]],"calendar")
+    publish_to_users([user,row["owner"]],"calendar",background_tasks)
     return {"status":row["status"]}
 
 @router.delete("/events/{share_id}")
-def remove_event_invitation(share_id:str,user:str=Depends(get_current_user)):
+def remove_event_invitation(share_id:str,user:str=Depends(get_current_user),
+                            background_tasks:BackgroundTasks=None):
     if not ObjectId.is_valid(share_id):raise HTTPException(400,"Invalid invitation")
     row=get_db().shares.find_one_and_delete(
         {"_id":ObjectId(share_id),"recipient":user,"kind":"event"})
     if not row:raise HTTPException(404,"Invitation not found")
-    publish_to_users([user,row["owner"]],"calendar")
+    publish_to_users([user,row["owner"]],"calendar",background_tasks)
     return {"removed":True}
 
 @router.get("/events/{event_id}/participants")
@@ -136,7 +140,8 @@ def invited_events(user:str=Depends(get_current_user)):
     return result
 
 @router.post("/challenges")
-def share_challenge(data:ShareRequest,user:str=Depends(get_current_user)):
+def share_challenge(data:ShareRequest,user:str=Depends(get_current_user),
+                    background_tasks:BackgroundTasks=None):
     db=get_db();require_friend(db,user,data.recipient_id)
     work=db.workspaces.find_one({"user_id":user},{"challenges":1}) or {}
     item=next((x for x in work.get("challenges",[]) if x.get("id")==data.resource_id),None)
@@ -144,7 +149,7 @@ def share_challenge(data:ShareRequest,user:str=Depends(get_current_user)):
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"challenge","resource_id":data.resource_id},
                         {"$set":{"snapshot":{k:item.get(k) for k in ("title","target","unit","period")}}},
                         upsert=True)
-    publish_to_users([user,data.recipient_id],"challenges")
+    publish_to_users([user,data.recipient_id],"challenges",background_tasks)
     return {"shared":True}
 
 @router.get("/challenges")

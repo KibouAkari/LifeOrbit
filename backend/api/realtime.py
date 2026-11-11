@@ -4,14 +4,16 @@ All room permissions are derived from MongoDB membership. The external secret
 never leaves the backend. Realtime remains disabled unless explicitly enabled.
 """
 from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager
 from urllib.parse import quote
 import logging
 import os
+import time
 import uuid
 
 import requests
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
@@ -69,6 +71,37 @@ def notebook_room(notebook: str):
     return "lo:notebook:" + str(ObjectId(notebook))
 
 
+@contextmanager
+def notebook_lock(db, notebook: str):
+    """Serialize notebook writes and provider ACL changes across API instances."""
+    if not ObjectId.is_valid(notebook):
+        raise HTTPException(400, "Invalid notebook")
+    room_id = notebook_room(notebook)
+    token = uuid.uuid4().hex
+    deadline = time.monotonic() + 10
+    while True:
+        now = datetime.now(timezone.utc)
+        try:
+            acquired = db.realtime_locks.find_one_and_update(
+                {"_id": room_id, "$or": [
+                    {"lease_until": {"$lte": now}},
+                    {"lease_until": {"$exists": False}},
+                ]},
+                {"$set": {"token": token, "lease_until": now + timedelta(minutes=3)}},
+                upsert=True, return_document=ReturnDocument.AFTER)
+        except DuplicateKeyError:
+            acquired = None
+        if acquired:
+            break
+        if time.monotonic() >= deadline:
+            raise HTTPException(409, "Notebook is busy; try again")
+        time.sleep(0.05)
+    try:
+        yield
+    finally:
+        db.realtime_locks.delete_one({"_id": room_id, "token": token})
+
+
 def _authorized_members(db, book):
     owner = book["owner"]
     members = {owner}
@@ -102,25 +135,80 @@ def ensure_account_room(user: str):
     _update_permissions(account_room(user), {user}, create=True)
 
 
-def sync_book_access(db, book):
+def sync_book_access(db, book, *, locked=False):
+    notebook_id = str(ObjectId(str(book["_id"])))
+
+    def reconcile():
+        fresh = db.shared_notebooks.find_one({"_id": ObjectId(notebook_id)})
+        if not fresh:
+            raise HTTPException(404, "Notebook not found")
+        room_id = notebook_room(notebook_id)
+        _update_permissions(room_id, _authorized_members(db, fresh), create=False)
+        db.realtime_acl_outbox.delete_one({"_id": room_id})
+
+    if locked:
+        reconcile()
+    else:
+        with notebook_lock(db, notebook_id):
+            reconcile()
+
+
+def queue_acl_revocation(db, book):
     room_id = notebook_room(str(book["_id"]))
-    _update_permissions(room_id, _authorized_members(db, book), create=False)
+    db.realtime_acl_outbox.update_one(
+        {"_id": room_id},
+        {"$set": {"notebook_id": str(ObjectId(str(book["_id"]))),
+                  "updated_at": datetime.now(timezone.utc)}},
+        upsert=True)
 
 
-def revoke_book_access(book):
+def retry_acl_revocations(db, limit=50):
+    """Retry durable room reconciliations; failures remain queued for later runs."""
+    for pending in db.realtime_acl_outbox.find({}).limit(limit):
+        notebook_id = pending.get("notebook_id")
+        if not ObjectId.is_valid(notebook_id):
+            continue
+        try:
+            with notebook_lock(db, notebook_id):
+                book = db.shared_notebooks.find_one({"_id": ObjectId(notebook_id)})
+                room_id = notebook_room(notebook_id)
+                if book:
+                    _update_permissions(room_id, _authorized_members(db, book), create=False)
+                else:
+                    current = api("GET", "/rooms/" + encoded(room_id), not_found=True)
+                    if current is not None:
+                        accesses = current.get("usersAccesses") or {}
+                        api("POST", "/rooms/" + encoded(room_id), data={
+                            "defaultAccesses": [],
+                            "usersAccesses": {uid: None for uid in accesses},
+                        })
+                db.realtime_acl_outbox.delete_one({"_id": room_id})
+        except (HTTPException, ValueError):
+            logger.warning("Could not reconcile pending notebook room access")
+
+
+def revoke_book_access(book, *, locked=False):
     if not configured():
         return
-    room_id = notebook_room(str(book["_id"]))
-    existing = api("GET", "/rooms/" + encoded(room_id), not_found=True)
-    if existing is not None:
-        current = existing.get("usersAccesses") or {}
-        api("POST", "/rooms/" + encoded(room_id), data={
-            "defaultAccesses": [],
-            "usersAccesses": {uid: None for uid in current},
-        })
+
+    def revoke():
+        room_id = notebook_room(str(book["_id"]))
+        existing = api("GET", "/rooms/" + encoded(room_id), not_found=True)
+        if existing is not None:
+            current = existing.get("usersAccesses") or {}
+            api("POST", "/rooms/" + encoded(room_id), data={
+                "defaultAccesses": [],
+                "usersAccesses": {uid: None for uid in current},
+            })
+
+    if locked:
+        revoke()
+    else:
+        with notebook_lock(get_db(), str(book["_id"])):
+            revoke()
 
 
-def publish_to_users(users, kind: str):
+def _publish_to_users(users, kind: str):
     """Best-effort invalidation after DB commits, never transmit private content."""
     if not configured():
         return
@@ -138,16 +226,26 @@ def publish_to_users(users, kind: str):
             logger.warning("Could not deliver realtime invalidation for %s", kind)
 
 
+def publish_to_users(users, kind: str, background_tasks: BackgroundTasks | None = None):
+    if background_tasks is not None:
+        background_tasks.add_task(_publish_to_users, list(set(users)), kind)
+    else:
+        _publish_to_users(users, kind)
+
+
 class RoomAuth(BaseModel):
     room: str = Field(min_length=1, max_length=140)
 
 
 @router.post("/authorize")
-def authorize(payload: RoomAuth, request: Request, user: str = Depends(get_current_user)):
+def authorize(payload: RoomAuth, request: Request, background_tasks: BackgroundTasks = None,
+              user: str = Depends(get_current_user)):
     require_enabled()
     enforce_limit(request, "realtime-authorize", maximum=300,
                   window_seconds=900, identity=user)
     db = get_db()
+    if background_tasks is not None:
+        background_tasks.add_task(retry_acl_revocations, db)
     if payload.room == account_room(user):
         ensure_account_room(user)
     elif payload.room.startswith("lo:notebook:"):
@@ -155,11 +253,13 @@ def authorize(payload: RoomAuth, request: Request, user: str = Depends(get_curre
         if not ObjectId.is_valid(raw_id):
             raise HTTPException(403, "Notebook access denied")
         from backend.api.routes.shared_notebooks import locate
-        book = locate(db, raw_id, user)
-        state = db.realtime_notebooks.find_one({"_id": payload.room})
-        if not state or state.get("status") != "ready":
-            raise HTTPException(409, "Notebook is not ready for collaboration")
-        sync_book_access(db, book)
+        room_id = notebook_room(raw_id)
+        with notebook_lock(db, raw_id):
+            book = locate(db, raw_id, user)
+            state = db.realtime_notebooks.find_one({"_id": room_id})
+            if not state or state.get("status") != "ready":
+                raise HTTPException(409, "Notebook is not ready for collaboration")
+            sync_book_access(db, book, locked=True)
     else:
         raise HTTPException(403, "Room access denied")
     person = find_user(user)
@@ -178,10 +278,17 @@ def prepare_notebook(book_id: str, request: Request, user: str = Depends(get_cur
     from backend.api.routes.shared_notebooks import locate
     db = get_db()
     book = locate(db, book_id, user)
-    room_id = notebook_room(book_id)
+    room_id = notebook_room(str(book["_id"]))
+    with notebook_lock(db, book_id):
+        book = locate(db, book_id, user)
+        return _prepare_notebook_locked(db, book_id, user, book, room_id)
+
+
+def _prepare_notebook_locked(db, book_id, user, book, room_id):
+    """Run migration while the same distributed lock fences legacy saves."""
     state = db.realtime_notebooks.find_one({"_id": room_id})
     if state and state.get("status") == "ready":
-        sync_book_access(db, book)
+        sync_book_access(db, book, locked=True)
         return {"room": room_id, "ready": True}
     now = datetime.now(timezone.utc)
     lease = now + timedelta(seconds=45)
@@ -239,12 +346,13 @@ def prepare_notebook(book_id: str, request: Request, user: str = Depends(get_cur
             if book.get("pages"):
                 api("PUT", endpoint + "/ydoc", binary=doc.get_update())
         # Do not grant access to a book that was deleted during migration.
-        book=locate(db, book_id, user)
+        from backend.api.routes.shared_notebooks import locate
+        book = locate(db, book_id, user)
         db.realtime_notebooks.update_one(
             {"_id": room_id, "nonce": nonce, "status": "initializing"},
             {"$set": {"status": "ready", "updated_at": datetime.now(timezone.utc)},
              "$unset": {"lease_until": "", "nonce": ""}})
-        sync_book_access(db, book)
+        sync_book_access(db, book, locked=True)
         return {"room": room_id, "ready": True}
     except Exception:
         # Do not discard a seeded Yjs room or any MongoDB content. A retry

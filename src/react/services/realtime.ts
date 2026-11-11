@@ -1,5 +1,6 @@
 /** Room connections are browser-only; access is authenticated by our own API. */
 import { createClient } from "@liveblocks/client";
+import { request } from "../data/api";
 
 export const REALTIME_ENABLED = import.meta.env.VITE_REALTIME_ENABLED === "true";
 
@@ -12,18 +13,17 @@ export function realtimeClient() {
       preventUnsavedChanges: true,
       authEndpoint: async (room) => {
         if (!room) throw new Error("A private collaboration room is required");
-        const response = await fetch("/api/realtime/authorize", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ room }),
+        return request<{ token: string }>("/realtime/authorize", {
+          method: "POST", body: JSON.stringify({ room }),
         });
-        if (!response.ok) throw new Error("Unable to authorize this collaboration room");
-        return response.json() as Promise<{ token: string }>;
       },
     });
   }
   return instance;
+}
+
+export function clearRealtimeAuth() {
+  instance?.logout();
 }
 
 export const accountRoom = (userId: string) => `lo:account:${userId}`;

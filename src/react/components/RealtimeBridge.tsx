@@ -1,7 +1,7 @@
 /** One private room per signed-in user, used only for invalidation signals. */
 import { useEffect } from "react";
 import { currentUser, hasSession } from "../data/api";
-import { REALTIME_ENABLED, accountRoom, realtimeClient } from "../services/realtime";
+import { REALTIME_ENABLED, accountRoom, clearRealtimeAuth, realtimeClient } from "../services/realtime";
 
 const kinds = new Set(["friends", "calendar", "notebooks", "notes", "notifications", "challenges", "access-revoked"]);
 
@@ -10,6 +10,13 @@ export default function RealtimeBridge() {
     if (!REALTIME_ENABLED || !hasSession()) return;
     let cancelled = false;
     let release: (() => void) | undefined;
+    const clearAuth = () => {
+      release?.();
+      release = undefined;
+      clearRealtimeAuth();
+    };
+    window.addEventListener("lifeorbit:logout-complete", clearAuth);
+    window.addEventListener("lifeorbit:auth-expired", clearAuth);
     void currentUser().then((user) => {
       if (cancelled) return;
       const client = realtimeClient();
@@ -42,7 +49,13 @@ export default function RealtimeBridge() {
       });
       release = () => { offEvent(); offStatus(); leave(); };
     }).catch(() => undefined);
-    return () => { cancelled = true; release?.(); };
+    return () => {
+      cancelled = true;
+      window.removeEventListener("lifeorbit:logout-complete", clearAuth);
+      window.removeEventListener("lifeorbit:auth-expired", clearAuth);
+      release?.();
+      clearRealtimeAuth();
+    };
   }, []);
   return null;
 }

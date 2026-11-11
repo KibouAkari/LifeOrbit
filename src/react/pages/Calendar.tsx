@@ -131,14 +131,15 @@ export default function Calendar(){
  useEffect(()=>{
   if(!online)return;
   let alive=true;
-  const refresh=()=>{void Promise.all([request<CalendarEvent[]>("/sharing/events"),request<{friends:typeof friends}>("/friends")])
+  const refreshOwn=()=>{void request<CalendarEvent[]>("/calendar/events").then(events=>{if(alive)patch("events",events)}).catch(()=>undefined)};
+  const refresh=()=>{refreshOwn();void Promise.all([request<CalendarEvent[]>("/sharing/events"),request<{friends:typeof friends}>("/friends")])
    .then(([items,people])=>{if(alive){setInvited(items);setFriends(people.friends)}}).catch(()=>undefined)};
+  void refresh();
   const timer=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},REALTIME_ENABLED?60000:5000);
   window.addEventListener("lifeorbit:remote-updated",refresh);
-    const refreshOwn=()=>{void request<CalendarEvent[]>("/calendar/events").then(events=>{if(alive)patch("events",events)}).catch(()=>undefined)};
-    window.addEventListener("lifeorbit:calendar-updated",refreshOwn);
+  window.addEventListener("lifeorbit:calendar-updated",refresh);
   window.addEventListener("focus",refresh);
-  return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("lifeorbit:calendar-updated",refreshOwn);window.removeEventListener("focus",refresh)};
+  return()=>{alive=false;clearInterval(timer);window.removeEventListener("lifeorbit:remote-updated",refresh);window.removeEventListener("lifeorbit:calendar-updated",refresh);window.removeEventListener("focus",refresh)};
  },[online]);
  function showMenu(e:React.MouseEvent<HTMLElement>,item:CalendarEvent){
   e.preventDefault();e.stopPropagation();

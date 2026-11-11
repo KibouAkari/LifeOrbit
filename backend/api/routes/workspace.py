@@ -4,7 +4,7 @@ This endpoint intentionally does not store UI theme or authentication details.
 Data is validated before replacing an account's workspace document.
 """
 from typing import Literal
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 from backend.api.database import database_error, get_db
@@ -72,7 +72,8 @@ def read_workspace(user: str = Depends(get_current_user)):
         database_error(exc)
 
 @router.put("", response_model=Workspace)
-def save_workspace(data: Workspace, user: str = Depends(get_current_user)):
+def save_workspace(data: Workspace, user: str = Depends(get_current_user),
+                   background_tasks:BackgroundTasks=None):
     try:
         value = data.model_dump()
         get_db().workspaces.update_one(
@@ -82,7 +83,7 @@ def save_workspace(data: Workspace, user: str = Depends(get_current_user)):
         recipients=[s["recipient"] for s in get_db().shares.find(
             {"owner":user,"kind":"note"},{"recipient":1})]
         if recipients:
-            publish_to_users(recipients,"notes")
+            publish_to_users(recipients,"notes",background_tasks)
         return data
     except PyMongoError as exc:
         database_error(exc)
