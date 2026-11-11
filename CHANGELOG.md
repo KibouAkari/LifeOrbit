@@ -4,6 +4,17 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-11 · Security hardening and vulnerability review
+- Raised the minimum Vite 6 version to 6.4.6 for GHSA-p4f5-76q4-ffq7, a critical advisory relevant to network-exposed development servers, and raised the minimum PyJWT version to 2.15.1.
+- Added MongoDB-backed authentication and friend-request throttling keyed by hashed client IP/account, with HTTP 429 responses and TTL cleanup.
+- Added server-validated session versions that invalidate previous sessions after logout or password changes.
+- Temporarily blocked unverified email changes and updated the account settings interface.
+- Closed stale notebook access when friendships are removed, including member list reads and page writes.
+- Added Origin validation for cookie-authenticated writes, disabled public production OpenAPI, improved malformed calendar URL handling and added Vercel CSP/HSTS/frame protections.
+- Added automated Python regression tests in CI and scheduled dependency update configuration.
+- Checked current tracked documentation and primary backend files for common credential and personal data patterns; recorded review scope, remaining risks and production verification actions in docs/SECURITY_AUDIT.md.
+- These changes are pending CI, two-account integration tests, live environment review and maintainer approval.
+
 ### 2026-10-24 · Factual English Zentral Hack documentation
 - Rewrote all nine retained Zentral Hack documents in English, based on a two-person team and the actual Miro-to-implementation project history.
 - Removed the standalone pitch document and presentation/submission-oriented framing.

@@ -25,6 +25,6 @@ Include the affected endpoint/version, minimal reproduction, potential impact an
 
 ## Known limitations
 
-Rate limits, new-email verification, session recovery/revocation, timezone-aware calendar recurrence, concurrent editing conflict prevention, account deletion and provider security configurations require further hardening and verification. The detailed, changing risk register is in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+Rate limiting and account-wide session revocation have proposed mitigations on the security branch, but independent verification is still required. New-email verification (email changes are temporarily disabled), password recovery, selective session management, timezone-aware recurrence, concurrent editing conflict prevention, account deletion and provider security configurations require further hardening and verification. The detailed, changing risk register is in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
 Review that register before public launch with personal data.

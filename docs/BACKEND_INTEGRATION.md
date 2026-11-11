@@ -19,7 +19,7 @@ User-owned tasks/events are filtered by JWT subject. New registrations use
 MongoDB IDs, including Google registration. Older records from the original
 Google-subject system may require migration before users can see them.
 
-**Not yet fully implemented:** new-email verification, password recovery, account deletion and fully server-authoritative challenge scoring. A real account leaderboard is implemented, but competitive actions are not independently verified. Challenge points are not server-authoritative.
+**Not yet fully implemented:** verified email changes (intentionally blocked), password recovery, account deletion and fully server-authoritative challenge scoring. A real account leaderboard is implemented, but competitive actions are not independently verified. Challenge points are not server-authoritative.
 
 ## OAuth and credentials
 
@@ -34,10 +34,13 @@ frontend/API pair (HTTPS is required).
 
 ## Production risks
 
-Short-lived tokens are now held in Secure HttpOnly SameSite cookies. They still need
-reviewed session invalidation, refresh/revocation, and XSS protections.
-Password endpoints need durable per-account and per-IP throttling,
-email verification and recovery flows. See security audit.
+Short-lived signed tokens are held in Secure HttpOnly SameSite cookies. A per-account
+session version revokes older tokens after logout and password changes; logging
+out currently invalidates all devices. MongoDB-backed rate limits guard public
+authentication endpoints, and cookie-authenticated writes require an allowed Origin.
+Email changes remain disabled until address verification exists.
+Password recovery, selective per-device revocation and independently verified
+XSS/CSP protection still require further work. See security audit.
 
 ## Additional live routes
 

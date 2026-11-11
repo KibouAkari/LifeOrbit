@@ -1,40 +1,44 @@
 # LifeOrbit security review
 
-Updated 24 October 2026.
+Updated 11 November 2026. Scope: static source and documentation review on the default branch, plus proposed changes on the security branch. This is not an independent penetration test, runtime scan or production certification.
 
-## Automated checks
+## Mitigations proposed
 
-GitHub Actions runs TypeScript/build validation, npm audit and pip-audit on pull requests. These checks are necessary but cannot prove that account authorization or the running app is secure.
-
-## Mitigations introduced
-
-- Email/password logins use password hashes; Google ID tokens are verified server-side.
-- Sessions are signed, short-lived, Secure, HttpOnly and SameSite.
-- MongoDB documents for tasks, events and workspaces are owner-scoped.
-- Friend requests are restricted to real accounts, and only their recipients can accept.
-- Shared notes, events and challenges can only be read by confirmed friends; removing a friendship disables access to an existing share.
-- Private iCal URL feeds accept public HTTPS hosts after DNS/IP validation, pin the verified TLS connection to the chosen public IP, reject redirects and enforce 1 MB response and 500 event limits. Stored private URLs are encrypted.
-- HTML and CSS motion respects reduced-motion accessibility settings.
-
-## Open risks and release blockers
-
-| Severity | Finding | Required action |
+| Severity | Finding | Proposed mitigation |
 | --- | --- | --- |
-| High | No durable rate limiting on public auth and friend-request endpoints | Apply per-IP/account limits and abuse controls |
-| High | Public email changes are not yet verified at the new email address | Confirm possession of new address before switching |
-| High | No comprehensive password recovery and session revocation | Build verification, recovery and session lifecycle |
-| High | Calendar feed SSRF defense requires ongoing review despite public-IP validation and TLS pinning | Add network-level egress filtering and regression tests for redirects, DNS changes and unusual hostnames |
-| High | Shared workspace writes replace the full document | Use revision checks and conflict management before real-time multi-author editing |
-| High | Shared calendars lack precise timezone/recurrence semantics | Normalize UTC instants, DST and RFC 5545 recurrence semantics |
-| Medium | Private feed encryption key is derived from JWT signing key | Introduce independent versioned encryption key and rotation |
-| Medium | Friend search can be enumerated | Rate limit, consider privacy settings and explicit discoverability |
-| Medium | Challenges are not server-authoritative | Add verified actions, anti-abuse controls before competitive rankings |
-| Medium | Shared note refresh is polling rather than true real-time sync | Build authenticated subscriptions with versioned writes if multi-editor collaboration is needed |
-| Medium | Cookies are restricted by SameSite but there is no comprehensive CSRF integration suite | Exercise cross-origin and forged-request tests |
-| Medium | Operator identity, data retention and legal notices still need completion | Verify actual entity/contact, processors and retention policies |
+| Critical, conditional | Vite <=6.4.5 is affected by GHSA-p4f5-76q4-ffq7 (10 November 2026). The reported RCE requires deliberate network exposure of the development server. | Require Vite >=6.4.6 on the 6.x line; keep the development server bound to loopback. This finding does not establish production exploitation. |
+| High | Broad PyJWT requirement permitted security-affected old releases. | Raise minimum to PyJWT 2.15.1 and monitor resolved dependencies. |
+| High | Authentication endpoints had no persistent throttling. | Use atomic MongoDB rate limits by trusted client IP and account identifier; store HMAC-based keys only, return 429 with Retry-After and provision TTL cleanup. |
+| High | Password changes/logouts left older JWTs valid until expiry. | Verify session versions against the account on every authenticated request; increment on logout/password change and issue a fresh cookie after a password change. |
+| High | Unfriending did not revoke shared-notebook memberships. | Remove memberships in both directions and revalidate friendship for notebook listing, reads and edits. |
+| High | Accounts could change to unverified email addresses. | Disable changes until a verified email-delivery challenge is available. This intentionally restricts functionality. |
+| Medium | Cookie-authenticated writes were not independently checked against cross-origin requests. | Require trusted Origin for cookie-backed POST, PATCH, PUT and DELETE. |
+| Medium | Production OpenAPI schema remained publicly accessible. | Disable OpenAPI in production. |
+| Medium | Missing explicit web response protections. | Add CSP tuned for Google Identity Services, HSTS, anti-framing and COOP. Browser compatibility must still be tested. |
+| Low | Certain malformed calendar URLs could raise an unhandled parse error. | Return HTTP 400 for URL parsing failures. |
+| Operational | Backend security regressions lacked CI execution and dependency update prompts. | Include backend unit tests in security CI, and configure Dependabot. |
 
-## Verification before merge or public use
+## Sensitive information and documentation
 
-Use two real test accounts. Verify friendship request, rejection and revocation; attempt forbidden shared-note and event access; validate calendar import and delete access; rotate/revoke accounts; test malformed feed URLs, redirects, slow/oversized downloads and timezone changes. Verify no secrets are in responses or logs. Run vulnerability scans and a complete end-to-end browser test against the new production domain.
+Targeted pattern checks covered 32 current tracked Markdown files, hackathon documentation, environment examples and major backend files. Checks included private-key markers, recognizable credential/token prefixes, non-placeholder MongoDB URIs, hard-coded credential assignments, email addresses, IPv4 strings and phone-like numbers. No matches requiring removal were identified in this checked current source.
 
-Do not treat a successful Vercel build or empty dependency scan as a security certification.
+**Limitations:** Pattern matching cannot establish that every secret is absent. Past Git history, branch contents outside this reviewed tree, Vercel environment variables, MongoDB, private communications, build artifacts and binary screenshots were not fully audited. Public documentation references the project and its domain intentionally. Review screenshot content manually before releasing new images. Rotate and revoke any credential if it was previously committed, even if its current copy has been deleted.
+
+## Remaining important risks
+
+1. Build verified email enrollment, email-change confirmation, password recovery and secure account deletion before a public rollout handling sensitive personal data.
+2. Add per-device session inventory and selective revocation. Present logout revokes *all* sessions for the account.
+3. Verify hosting security configuration directly: Vercel access, preview protection, MongoDB TLS and least-privilege users, secret rotation, audit logging, network egress and backups.
+4. Review iCalendar security further. Existing public-IP resolution, pinned TLS and redirect rejection remain application-level measures, not a network firewall. Test unusual DNS, slow streams, recurrence and timezones.
+5. Set real operator/contact, retention, privacy, export and deletion procedures. Do not imply these legal and operational controls are complete.
+6. Replace whole-workspace writes with revision-aware updates to prevent lost changes. Community ranking is based on user-controlled challenge values and is not fraud-resistant.
+7. Tune abuse limits with observed legitimate usage and add alerts, resource quotas and privacy-preserving security monitoring.
+8. Verify the Google Sign-In user journey in a browser with the new CSP. Do not relax the policy without examining reported violations.
+9. Add a reviewed lockfile. Existing npm/pip audits with ranged dependencies do not prove the exact dependency versions used in a past deployment.
+10. Run an authorized two-account authorization test matrix and a separate external security assessment before calling the app secure.
+
+## Required validation
+
+Run `python -m unittest discover -s tests -v`, `python -m compileall -q backend api`, `pip-audit -r backend/requirements.txt`, `npm audit --audit-level=high`, `npm run typecheck`, and `npm run build`. Confirm the installed version floors, provision the MongoDB indexes via `ensure_indexes()`, and verify CI results.
+
+On a nonproduction preview with test accounts, verify login throttling without stressing live users, cross-origin rejection, password-change/logout invalidation of another session, friendship and notebook access revocation, Google Sign-In, SSRF protections, error responses, CSP headers and all normal user workflows. A green pipeline is not a substitute for these tests.

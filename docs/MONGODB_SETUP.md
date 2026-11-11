@@ -15,8 +15,9 @@ cluster address. Frontend fixes cannot repair this configuration.
 5. Set `MONGODB_DATABASE` to the chosen database name.
 6. Redeploy Vercel after changing the variable.
 7. Check `/api/health/database`; it must return `{\"status\":\"connected\"}`.
-8. Create and check unique indexes using the documented `ensure_indexes()`
-   setup utility. Inspect old duplicate emails before creating a unique index.
+8. Create and check indexes using the documented `ensure_indexes()` utility.
+   The TTL index on `rate_limits.expires_at` ensures old throttling buckets
+   are deleted. Inspect duplicate emails before creating a unique index.
 9. Test registration and sign-in with dedicated test accounts; verify data
    isolation between two users.
 
