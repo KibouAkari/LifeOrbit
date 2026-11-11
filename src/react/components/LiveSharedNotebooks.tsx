@@ -136,7 +136,8 @@ function CollaborativeBook({
       const provider = getYjsProviderForRoom(room);
       const shared = provider.getYDoc();
       latestDoc.current = shared;
-      let roomStatus: RoomStatus = "connecting";
+      let roomStatus: RoomStatus = room.getStatus();
+      setStatus(roomStatus);
       let providerStatus = provider.getStatus();
       let lastUpdateAt = 0;
       let updateVersion = 0;
