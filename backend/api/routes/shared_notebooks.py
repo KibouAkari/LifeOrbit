@@ -59,6 +59,8 @@ def list_notebooks(user:str=Depends(get_current_user),offset:int=Query(0,ge=0),l
 @router.post("",status_code=201)
 def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user)):
     db=get_db()
+    if db.shared_notebooks.count_documents({"owner":user})>=50:
+        raise HTTPException(429,"Maximum of 50 owned notebooks")
     doc={"title":payload.title.strip(),"owner":user,"members":[],"pages":[],"updated_at":datetime.now(timezone.utc)}
     doc["_id"]=db.shared_notebooks.insert_one(doc).inserted_id
     return serialize(db,doc,user)

@@ -14,11 +14,12 @@ from urllib.parse import urlsplit
 import requests
 from bson import ObjectId
 from cryptography.fernet import Fernet, InvalidToken
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from icalendar import Calendar
 from pydantic import BaseModel, Field
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
+from backend.api.security import enforce_limit
 
 router=APIRouter()
 MAX_BYTES=1024*1024
@@ -127,7 +128,8 @@ def list_feeds(user:str=Depends(get_current_user)):
     return [output(doc) for doc in get_db().calendar_feeds.find({"user_id":user}).limit(20)]
 
 @router.post("",status_code=201)
-def create_feed(payload:FeedInput,user:str=Depends(get_current_user)):
+def create_feed(payload:FeedInput,request:Request,user:str=Depends(get_current_user)):
+    enforce_limit(request, "calendar-fetch", maximum=300, window_seconds=3600, identity=user)
     db=get_db()
     if db.calendar_feeds.count_documents({"user_id":user})>=10:
         raise HTTPException(400,"Maximum of ten subscribed calendars")
@@ -156,7 +158,8 @@ def apply_events(db,user,feed,events):
     db.calendar_feeds.update_one({"_id":feed["_id"]},{"$set":{"count":feed["count"],"last_synced":feed["last_synced"]}})
 
 @router.post("/{feed_id}/refresh")
-def refresh_feed(feed_id:str,user:str=Depends(get_current_user)):
+def refresh_feed(feed_id:str,request:Request,user:str=Depends(get_current_user)):
+    enforce_limit(request, "calendar-fetch", maximum=300, window_seconds=3600, identity=user)
     if not ObjectId.is_valid(feed_id):raise HTTPException(400,"Invalid subscription")
     db=get_db();feed=db.calendar_feeds.find_one({"_id":ObjectId(feed_id),"user_id":user})
     if not feed:raise HTTPException(404,"Subscribed calendar not found")

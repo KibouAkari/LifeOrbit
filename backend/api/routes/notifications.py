@@ -8,7 +8,7 @@ from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
 router=APIRouter()
 class ReadRequest(BaseModel):
-    id:str=Field(min_length=5,max_length=180)
+    id:str=Field(min_length=5,max_length=180,pattern=r"^(share|notebook|task):")
 @router.get("")
 def list_notifications(user:str=Depends(get_current_user)):
     db=get_db()
@@ -80,5 +80,7 @@ def list_notifications(user:str=Depends(get_current_user)):
     return {"items":results[:100],"count":min(len(results),100)}
 @router.post("/read")
 def read_notification(data:ReadRequest,user:str=Depends(get_current_user)):
-    get_db().notification_state.update_one({"user_id":user},{"$addToSet":{"read":data.id}},upsert=True)
+    # Bound storage: an attacker must not grow this document without limit.
+    get_db().notification_state.update_one({"user_id":user},
+        {"$push":{"read":{"$each":[data.id],"$slice":-2000}}},upsert=True)
     return {"read":True}

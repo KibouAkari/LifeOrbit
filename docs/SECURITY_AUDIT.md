@@ -8,6 +8,7 @@ Updated 11 November 2026. Scope: static source and documentation review on the d
 | --- | --- | --- |
 | Critical, conditional | Vite <=6.4.5 is affected by GHSA-p4f5-76q4-ffq7 (10 November 2026). The reported RCE requires deliberate network exposure of the development server. | Require Vite >=6.4.6 on the 6.x line; keep the development server bound to loopback. This finding does not establish production exploitation. |
 | High | Broad PyJWT requirement permitted security-affected old releases. | Raise minimum to PyJWT 2.15.1 and monitor resolved dependencies. |
+| Medium | iCalendar 6.x permitted known alarm-expansion resource exhaustion issues in other use patterns (GHSA-qjcq-q7h7-r74v). | Require iCalendar >=7.3.0 and add parsing compatibility tests. The current routes do not directly call the affected alarm expansion functionality. |
 | High | Authentication endpoints had no persistent throttling. | Use atomic MongoDB rate limits by trusted client IP and account identifier; store HMAC-based keys only, return 429 with Retry-After and provision TTL cleanup. |
 | High | Password changes/logouts left older JWTs valid until expiry. | Verify session versions against the account on every authenticated request; increment on logout/password change and issue a fresh cookie after a password change. |
 | High | Unfriending did not revoke shared-notebook memberships. | Remove memberships in both directions and revalidate friendship for notebook listing, reads and edits. |
@@ -17,6 +18,7 @@ Updated 11 November 2026. Scope: static source and documentation review on the d
 | Medium | Missing explicit web response protections. | Add CSP tuned for Google Identity Services, HSTS, anti-framing and COOP. Browser compatibility must still be tested. |
 | Low | Certain malformed calendar URLs could raise an unhandled parse error. | Return HTTP 400 for URL parsing failures. |
 | Operational | Backend security regressions lacked CI execution and dependency update prompts. | Include backend unit tests in security CI, and configure Dependabot. |
+| Medium | Some authenticated endpoints permitted unbounded growth or repeated remote calendar fetching. | Add notebook and notification-state bounds and persistent per-account/IP calendar-fetch limits. Further storage quotas remain necessary. |
 
 ## Sensitive information and documentation
 
