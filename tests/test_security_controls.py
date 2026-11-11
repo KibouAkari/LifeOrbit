@@ -127,7 +127,7 @@ class SessionTests(unittest.TestCase):
         friend = "507f191e810c19729de860ea"
         stranger = "507f1f77bcf86cd799439013"
         db = MagicMock()
-        db.friendships.find.return_value.limit.return_value = [
+        db.friendships.find.return_value = [
             {"sender": friend, "recipient": USER_ID, "status": "accepted"}
         ]
         private = [
@@ -172,7 +172,7 @@ class SessionTests(unittest.TestCase):
                                   "status": "pending"}]):
             with self.subTest(relationship=relationship):
                 db = MagicMock()
-                db.friendships.find.return_value.limit.return_value = relationship
+                db.friendships.find.return_value = relationship
                 db.workspaces.find.side_effect = [[], MagicMock(limit=MagicMock(return_value=[]))]
                 db.workspaces.find_one.return_value = {}
                 db.users.find.return_value = [{"_id": ObjectId(USER_ID), "name": "Me"}]
@@ -181,6 +181,28 @@ class SessionTests(unittest.TestCase):
                 self.assertEqual([row["name"] for row in result["friends"]], ["Me"])
                 query = db.friendships.find.call_args.args[0]
                 self.assertEqual(query["status"], "accepted")
+
+    def test_friend_ranking_includes_more_than_1000_accepted_friendships(self):
+        friends = [f"{i:024x}" for i in range(1001)]
+        relationships = [
+            {"sender": USER_ID, "recipient": friend, "status": "accepted"}
+            for friend in friends
+        ]
+        db = MagicMock()
+        db.friendships.find.return_value = relationships
+        public_cursor = MagicMock()
+        public_cursor.limit.return_value = []
+        db.workspaces.find.side_effect = [[], public_cursor]
+        db.workspaces.find_one.return_value = {}
+        db.users.find.return_value = [
+            {"_id": ObjectId(USER_ID), "name": "Me"},
+            *({"_id": ObjectId(friend), "name": f"Friend {i}"}
+              for i, friend in enumerate(friends)),
+        ]
+        with patch("backend.api.routes.leaderboard.get_db", return_value=db):
+            result = leaderboard.ranking(user_id=USER_ID)
+        self.assertEqual(sum(row["friend"] for row in result["friends"]), 1001)
+        self.assertEqual(len(result["friends"]), 1002)
 
     def test_legacy_challenge_values_cannot_break_or_inflate_ranking(self):
         self.assertEqual(leaderboard._points([

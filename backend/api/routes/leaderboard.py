@@ -55,7 +55,7 @@ def ranking(user_id: str = Depends(get_current_user)):
     relationships = db.friendships.find({
         "status": "accepted",
         "$or": [{"sender": user_id}, {"recipient": user_id}],
-    }, {"sender": 1, "recipient": 1}).limit(1000)
+    }, {"sender": 1, "recipient": 1})
     for friendship in relationships:
         other = (friendship.get("recipient") if friendship.get("sender") == user_id
                  else friendship.get("sender") if friendship.get("recipient") == user_id
