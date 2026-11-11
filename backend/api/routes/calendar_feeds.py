@@ -38,10 +38,14 @@ def validate_url(raw):
     raw = raw.strip()
     if raw.lower().startswith("webcal://"):
         raw = "https://" + raw[9:]
-    url = urlsplit(raw)
-    host = (url.hostname or "").rstrip(".").lower()
+    try:
+        url = urlsplit(raw)
+        host = (url.hostname or "").rstrip(".").lower()
+        port = url.port
+    except ValueError:
+        raise HTTPException(400, "Invalid calendar URL")
     if (url.scheme != "https" or not host or url.username or url.password
-            or url.port not in (None, 443) or url.fragment or len(raw) > 2048):
+            or port not in (None, 443) or url.fragment or len(raw) > 2048):
         raise HTTPException(400, "Use a valid public HTTPS or webcal calendar URL.")
     try:
         addresses = {entry[4][0] for entry in socket.getaddrinfo(

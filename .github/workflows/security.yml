@@ -17,6 +17,8 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip pip-audit
       - run: pip-audit -r backend/requirements.txt
+      - run: python -m pip install -r backend/requirements.txt
+      - run: python -m unittest discover -s tests -v
       - name: Compile Python
         run: python -m compileall -q backend api
   frontend-audit:

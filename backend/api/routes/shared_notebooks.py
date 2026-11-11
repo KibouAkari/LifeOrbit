@@ -44,8 +44,17 @@ def list_notebooks(user:str=Depends(get_current_user),offset:int=Query(0,ge=0),l
     db=get_db()
     books=list(db.shared_notebooks.find({"$or":[{"owner":user},{"members":user}]})
                .sort("_id",1).skip(offset).limit(limit+1))
+    # Never disclose notebook pages to former friends with stale memberships.
+    visible=[]
+    for book in books[:limit]:
+        if book["owner"]==user:
+            visible.append(serialize(db,book,user))
+            continue
+        pair="-".join(sorted((book["owner"],user)))
+        if db.friendships.find_one({"pair":pair,"status":"accepted"}):
+            visible.append(serialize(db,book,user))
     next_offset=offset+limit if len(books)>limit else None
-    return {"items":[serialize(db,b,user) for b in books[:limit]],"next_offset":next_offset}
+    return {"items":visible,"next_offset":next_offset}
 
 @router.post("",status_code=201)
 def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user)):
