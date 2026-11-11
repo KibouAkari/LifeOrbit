@@ -213,6 +213,20 @@ def prepare_notebook(book_id: str, request: Request, user: str = Depends(get_cur
             api("POST", "/rooms?idempotent=true",
                 data={"id": room_id, "defaultAccesses": []})
         existing = api("GET", endpoint + "/ydoc", not_found=True) or {}
+        # A prior initialization might have failed partway through. Never
+        # declare a partly seeded room ready and silently hide historic notes.
+        # Investigate and reconcile provider state manually if incomplete.
+        expected = {
+            key
+            for page in book.get("pages", [])
+            for key in ("page:" + str(page.get("id", "")) + ":title",
+                        "page:" + str(page.get("id", "")) + ":body")
+            if page.get("id")
+        }
+        if existing and (not isinstance(existing, dict) or expected - set(existing)):
+            raise HTTPException(
+                409, "Notebook migration requires manual recovery; original notes are safe"
+            )
         if not existing:
             from pycrdt import Doc, Text
             doc = Doc()
