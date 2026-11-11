@@ -1,6 +1,6 @@
 fastapi>=0.162.2,<1
 uvicorn>=0.54.0,<1
-pymongo>=4.9,<5
+pymongo>=4.19.0,<5
 pydantic>=2.10,<3
 email-validator>=2.3.0,<3
 google-auth>=2.62.1,<3
