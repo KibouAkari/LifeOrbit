@@ -35,6 +35,12 @@ Targeted pattern checks covered 32 current tracked Markdown files, hackathon doc
 
 **Limitations:** Pattern matching cannot establish that every secret is absent. Past Git history, branches outside the reviewed tree, Vercel environment variables, MongoDB, private communications and build artifacts were not audited. Public documentation intentionally references the project and its domain. Rotate and revoke any credential previously committed, even if its current copy was later deleted.
 
+## Shared-note access revocation hotfix (11 November 2026)
+
+A confirmed report describes previously shared note contents and subsequent notebook edits remaining visible after a friendship is removed. The hotfix removes *every* friendship row for the account pair rather than just the selected request ID, which also addresses older databases missing the pair uniqueness index. Existing note shares and notebook member entries are removed in both directions. API reads and edits still require a currently accepted friendship. The browser now hides notebooks when fresh permissions cannot be verified, and a failed friend-list request no longer leaves previously loaded notebook content in place. Regression tests are required before deployment.
+
+Already downloaded or copied content cannot be taken back from a former recipient's device. This hotfix is intended to prevent *subsequent server-authorized reads or writes* and to clear the active application's view. The separately proposed Liveblocks/Yjs integration also needs provider-side ACL removal to disconnect currently connected editors.
+
 ## Remaining important risks
 
 1. Build verified email enrollment, email-change confirmation, password recovery and secure account deletion before a public rollout handling sensitive personal data.

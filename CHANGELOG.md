@@ -7,8 +7,8 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 ### 2026-11-11 · Immediate revocation of shared-note access
 - On unfriending, remove all historical friendship records for the pair rather than only the clicked request, and verify that no accepted relationship remains.
 - Continue deleting both directions of note/event/challenge shares and removing the former friend from owned shared notebooks.
-- Fail closed in the shared notebook UI: discard cached pages, selected editor content, and stale request results whenever access cannot be verified.
-- Trigger a refresh after friendship changes, while retaining the usual fallback polling.
+- Fail closed in the shared notebook UI: discard cached pages, selected editor content, and stale request results whenever access cannot be verified. Refresh notebook authorization independently of the friend-list request.
+- Refresh open notebook views immediately after friendship changes, while retaining the usual fallback polling.
 - Added regression tests covering duplicate accepted friendships, former-friend read/write denial, and share cleanup.
 
 ### 2026-11-11 · Security hardening and vulnerability review

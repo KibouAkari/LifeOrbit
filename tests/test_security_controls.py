@@ -176,7 +176,6 @@ class SessionTests(unittest.TestCase):
         db.shared_notebooks.update_one.assert_not_called()
 
 
-
 class BrowserTests(unittest.IsolatedAsyncioTestCase):
     async def invoke(self, origin):
         async def next_response(_request):

@@ -81,24 +81,23 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
                          "$or":[{"sender":user},{"recipient":user}]})
     if not friendship:raise HTTPException(404,"Request not found")
     other=friendship["recipient"] if friendship["sender"]==user else friendship["sender"]
-    # Remove every historical or duplicate friendship row *before* cleaning
-    # shares. Removing only the selected request could leave an old accepted
-    # row that still authorized private content.
-    pair_key=pair(user,other)
+    relationship=pair(user,other)
+    # Revoke the authority first: every note/notebook read and write checks
+    # accepted friendship. Cleanup follows without granting a grace period.
     db.friendships.delete_many({"$or":[
-        {"pair":pair_key},
+        {"pair":relationship},
         {"sender":user,"recipient":other},
         {"sender":other,"recipient":user},
     ]})
     if db.friendships.find_one({"$or":[
-        {"pair":pair_key,"status":"accepted"},
+        {"pair":relationship,"status":"accepted"},
         {"sender":user,"recipient":other,"status":"accepted"},
         {"sender":other,"recipient":user,"status":"accepted"},
     ]}):
         raise HTTPException(503,"Could not verify friendship revocation")
     db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
                                  {"owner":other,"recipient":user}]})
-    # Friendship revocation must also remove shared-notebook membership.
     db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
     db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
+
     return {"removed":True}
