@@ -1,10 +1,15 @@
 """Shared notebooks are separate, owner-controlled workspaces."""
 from datetime import datetime,timezone
+from uuid import uuid4
 from bson import ObjectId
-from fastapi import APIRouter,Depends,HTTPException,Query
+from fastapi import APIRouter,BackgroundTasks,Depends,HTTPException,Query
 from pydantic import BaseModel,Field
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
+from backend.api.realtime import (configured, notebook_room, publish_to_users,
+                                  notebook_lock, revoke_book_access, sync_book_access,
+                                  realtime_access_lock,
+                                  assert_realtime_access_lock)
 
 router=APIRouter()
 class NotebookInput(BaseModel):
@@ -57,16 +62,19 @@ def list_notebooks(user:str=Depends(get_current_user),offset:int=Query(0,ge=0),l
     return {"items":visible,"next_offset":next_offset}
 
 @router.post("",status_code=201)
-def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user)):
+def create_notebook(payload:NotebookInput,user:str=Depends(get_current_user),
+                    background_tasks:BackgroundTasks=None):
     db=get_db()
     if db.shared_notebooks.count_documents({"owner":user})>=50:
         raise HTTPException(429,"Maximum of 50 owned notebooks")
     doc={"title":payload.title.strip(),"owner":user,"members":[],"pages":[],"updated_at":datetime.now(timezone.utc)}
     doc["_id"]=db.shared_notebooks.insert_one(doc).inserted_id
+    publish_to_users([user],"notebooks",background_tasks)
     return serialize(db,doc,user)
 
 @router.post("/from-note",status_code=201)
-def move_personal_note(data:MoveNoteInput,user:str=Depends(get_current_user)):
+def move_personal_note(data:MoveNoteInput,user:str=Depends(get_current_user),
+                       background_tasks:BackgroundTasks=None):
     """Copy first, then remove the personal source. Never delete source on failed copy."""
     db=get_db()
     existing=db.shared_notebooks.find_one({"owner":user,"origin_note_id":data.note_id})
@@ -79,53 +87,98 @@ def move_personal_note(data:MoveNoteInput,user:str=Depends(get_current_user)):
          "members":[],"pages":[page],"updated_at":datetime.now(timezone.utc)}
     result=db.shared_notebooks.insert_one(doc);doc["_id"]=result.inserted_id
     db.workspaces.update_one({"user_id":user},{"$pull":{"notes":{"id":data.note_id}}})
+    publish_to_users([user],"notebooks",background_tasks)
     return serialize(db,doc,user)
 
 @router.post("/{id}/members")
-def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user)):
-    db=get_db();book=locate(db,id,user)
-    if book["owner"]!=user:raise HTTPException(403,"Only the owner can invite members")
+def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user),
+                  background_tasks:BackgroundTasks=None):
+    db=get_db()
     target=payload.user_id
-    if target==user or not ObjectId.is_valid(target):raise HTTPException(400,"Invalid member")
-    pair="-".join(sorted((user,target)))
-    if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
-        raise HTTPException(403,"Only confirmed friends can be invited")
-    db.shared_notebooks.update_one({"_id":book["_id"],"owner":user},{"$addToSet":{"members":target}})
+    with realtime_access_lock(db,user,target), notebook_lock(db,id):
+        book=locate(db,id,user)
+        if book["owner"]!=user:raise HTTPException(403,"Only the owner can invite members")
+        if target==user or not ObjectId.is_valid(target):raise HTTPException(400,"Invalid member")
+        pair="-".join(sorted((user,target)))
+        if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
+            raise HTTPException(403,"Only confirmed friends can be invited")
+        assert_realtime_access_lock(db,user,target)
+        db.shared_notebooks.update_one({"_id":book["_id"],"owner":user},{"$addToSet":{"members":target}})
+        book=db.shared_notebooks.find_one({"_id":book["_id"]})
+        if configured() and (db.realtime_notebooks.find_one({"_id":notebook_room(id)}) or {}).get("status")=="ready":
+            sync_book_access(db,book,locked=True)
+    publish_to_users([user,target],"notebooks",background_tasks)
+    publish_to_users([target],"notifications",background_tasks)
     return {"invited":True}
 
-@router.put("/{id}/pages/{page_id}")
-def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_user)):
-    db=get_db();book=locate(db,id,user)
-    # Each write rechecks membership to prevent a stale authorization snapshot.
-    if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
-    member_scope={"_id":book["_id"],"$or":[{"owner":user},{"members":user}]}
-    document=db.shared_notebooks.update_one({**member_scope,"pages.id":page_id},
-       {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
-    if not document.matched_count:
-        inserted=db.shared_notebooks.update_one(
-            {**member_scope,"pages.id":{"$ne":page_id},
+@router.post("/{id}/pages",status_code=201)
+def create_page(id:str,user:str=Depends(get_current_user),
+                background_tasks:BackgroundTasks=None):
+    """Create only page metadata. Live text is edited via its Yjs CRDT."""
+    db=get_db()
+    with notebook_lock(db,id):
+        book=locate(db,id,user)
+        page={"id":uuid4().hex,"title":"Untitled page","body":""}
+        result=db.shared_notebooks.update_one(
+            {"_id":book["_id"],"$or":[{"owner":user},{"members":user}],
              "$expr":{"$lt":[{"$size":{"$ifNull":["$pages",[]]}},100]}},
-            {"$push":{"pages":{"id":page_id,"title":payload.title,"body":payload.body}},
-             "$set":{"updated_at":datetime.now(timezone.utc)}})
-        if not inserted.matched_count:
-            updated=db.shared_notebooks.update_one({**member_scope,"pages.id":page_id},
-                {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
-            if not updated.matched_count:raise HTTPException(400,"Notebook is full")
+            {"$push":{"pages":page},"$set":{"updated_at":datetime.now(timezone.utc)}})
+        if not result.matched_count:raise HTTPException(400,"Notebook is full")
+    publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)
+    return page
+
+
+@router.put("/{id}/pages/{page_id}")
+def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_user),
+              background_tasks:BackgroundTasks=None):
+    db=get_db()
+    # Migration and legacy writes share a distributed lock, so migration can
+    # safely reread the latest MongoDB document before seeding Yjs.
+    with notebook_lock(db,id):
+        book=locate(db,id,user)
+        if db.realtime_notebooks.find_one({"_id":notebook_room(id)}):
+            raise HTTPException(409,"This notebook is migrating or uses live collaboration")
+        # Each write rechecks membership while holding the serialization lock.
+        if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
+        member_scope={"_id":book["_id"],"$or":[{"owner":user},{"members":user}]}
+        document=db.shared_notebooks.update_one({**member_scope,"pages.id":page_id},
+           {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
+        if not document.matched_count:
+            inserted=db.shared_notebooks.update_one(
+                {**member_scope,"pages.id":{"$ne":page_id},
+                 "$expr":{"$lt":[{"$size":{"$ifNull":["$pages",[]]}},100]}},
+                {"$push":{"pages":{"id":page_id,"title":payload.title,"body":payload.body}},
+                 "$set":{"updated_at":datetime.now(timezone.utc)}})
+            if not inserted.matched_count:
+                updated=db.shared_notebooks.update_one({**member_scope,"pages.id":page_id},
+                    {"$set":{"pages.$.title":payload.title,"pages.$.body":payload.body,"updated_at":datetime.now(timezone.utc)}})
+                if not updated.matched_count:raise HTTPException(400,"Notebook is full")
+    publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)
     return {"saved":True}
 
 @router.delete("/{id}/pages/{page_id}")
-def delete_page(id:str,page_id:str,user:str=Depends(get_current_user)):
-    book=locate(get_db(),id,user)
-    if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
-    result=get_db().shared_notebooks.update_one(
-        {"_id":book["_id"],"$or":[{"owner":user},{"members":user}],"pages.id":page_id},
-        {"$pull":{"pages":{"id":page_id}},"$set":{"updated_at":datetime.now(timezone.utc)}})
-    if not result.modified_count:raise HTTPException(404,"Page not found")
+def delete_page(id:str,page_id:str,user:str=Depends(get_current_user),
+                background_tasks:BackgroundTasks=None):
+    db=get_db()
+    with notebook_lock(db,id):
+        book=locate(db,id,user)
+        if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
+        result=db.shared_notebooks.update_one(
+            {"_id":book["_id"],"$or":[{"owner":user},{"members":user}],"pages.id":page_id},
+            {"$pull":{"pages":{"id":page_id}},"$set":{"updated_at":datetime.now(timezone.utc)}})
+        if not result.modified_count:raise HTTPException(404,"Page not found")
+    publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)
     return {"removed":True}
 
 @router.delete("/{id}")
-def delete_notebook(id:str,user:str=Depends(get_current_user)):
-    db=get_db();book=locate(db,id,user)
-    if book["owner"]!=user:raise HTTPException(403,"Only the owner can delete this notebook")
-    db.shared_notebooks.delete_one({"_id":book["_id"],"owner":user})
+def delete_notebook(id:str,user:str=Depends(get_current_user),
+                    background_tasks:BackgroundTasks=None):
+    db=get_db()
+    with notebook_lock(db,id):
+        book=locate(db,id,user)
+        if book["owner"]!=user:raise HTTPException(403,"Only the owner can delete this notebook")
+        # Remove provider ACL before removing Mongo metadata, preserving safety on failure.
+        revoke_book_access(book,locked=True)
+        db.shared_notebooks.delete_one({"_id":book["_id"],"owner":user})
+    publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)
     return {"removed":True}

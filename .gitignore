@@ -11,6 +11,8 @@ dist/
 build/
 coverage/
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
 
 # Local config and secrets
 .env

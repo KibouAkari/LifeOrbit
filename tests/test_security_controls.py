@@ -115,10 +115,22 @@ class SessionTests(unittest.TestCase):
                 {"user_id": 1, "challenges": 1})
             self.assertFalse(result["opted_in"])
 
+    def test_friend_removal_revokes_notebooks(self):
+        from_id, to_id = USER_ID, "507f191e810c19729de860ea"
+        with patch("backend.api.routes.friends.get_db") as db:
+            db.return_value.friendships.find_one.side_effect = [
+                {"sender": from_id, "recipient": to_id},
+                {"sender": from_id, "recipient": to_id}, None]
+            self.assertEqual(
+                friends.reject_or_remove("507f1f77bcf86cd799439012", user=from_id),
+                {"removed": True})
+            self.assertEqual(db.return_value.shared_notebooks.update_many.call_count, 2)
+
     def test_unfriend_removes_all_duplicate_relationships_and_shares(self):
         owner, former = USER_ID, "507f191e810c19729de860ea"
         db = MagicMock()
         db.friendships.find_one.side_effect = [
+            {"sender": owner, "recipient": former},
             {"sender": owner, "recipient": former},
             None,  # no accepted relationship after delete_many
         ]
@@ -136,6 +148,7 @@ class SessionTests(unittest.TestCase):
     def test_unfriend_fails_closed_if_accepted_record_survives(self):
         db = MagicMock()
         db.friendships.find_one.side_effect = [
+            {"sender": USER_ID, "recipient": "507f191e810c19729de860ea"},
             {"sender": USER_ID, "recipient": "507f191e810c19729de860ea"},
             {"status": "accepted"},
         ]

@@ -4,11 +4,12 @@ The test database deliberately starts with duplicate *accepted* friendship
 records, as can happen when the unique MongoDB index was never installed.
 """
 import unittest
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from bson import ObjectId
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 
 from backend.api.routes import friends, sharing, shared_notebooks
 
@@ -120,6 +121,66 @@ class RevocationTests(unittest.TestCase):
                     user=FORMER_FRIEND)
         self.assertEqual(exc.exception.status_code, 404)
         self.db.shared_notebooks.update_one.assert_not_called()
+
+    def test_realtime_rooms_get_access_reconciled_after_unfriend(self):
+        self.db.realtime_notebooks.find_one.return_value = {"status": "ready"}
+        with patch.object(friends, "get_db", return_value=self.db), \
+             patch.object(friends, "configured", return_value=True), \
+             patch.object(friends, "sync_book_access") as reconcile, \
+             patch.object(friends, "publish_to_users"):
+            friends.reject_or_remove(str(REQUEST_A), user=OWNER)
+        reconcile.assert_called_once()
+        self.assertEqual(reconcile.call_args.args[1]["_id"], BOOK_ID)
+
+    def test_failed_provider_revocation_is_queued_before_membership_removal(self):
+        self.db.realtime_notebooks.find_one.return_value = {"status": "ready"}
+        operations = []
+        self.db.realtime_acl_outbox.update_one.side_effect = (
+            lambda *args, **kwargs: operations.append("queued"))
+        delete = self.db.friendships.delete_many
+
+        def delete_after_queuing(criteria):
+            operations.append("deleted")
+            return delete(criteria)
+
+        self.db.friendships.delete_many = delete_after_queuing
+        background = BackgroundTasks()
+        with patch.object(friends, "get_db", return_value=self.db), \
+             patch.object(friends, "configured", return_value=True), \
+             patch.object(friends, "sync_book_access",
+                          side_effect=HTTPException(503, "provider unavailable")), \
+             patch.object(friends, "publish_to_users"):
+            result = friends.reject_or_remove(
+                str(REQUEST_A), user=OWNER, background_tasks=background)
+
+        self.assertEqual(result, {"removed": True})
+        self.assertEqual(operations[:2], ["queued", "deleted"])
+        self.assertEqual(len(background.tasks), 1)
+
+    def test_revocation_is_queued_when_realtime_is_disabled(self):
+        self.db.realtime_notebooks.find_one.return_value = {"status": "ready"}
+        operations = []
+        self.db.realtime_acl_outbox.update_one.side_effect = (
+            lambda *args, **kwargs: operations.append("queued"))
+        delete = self.db.friendships.delete_many
+
+        def delete_after_queuing(criteria):
+            operations.append("deleted")
+            return delete(criteria)
+
+        self.db.friendships.delete_many = delete_after_queuing
+        background = BackgroundTasks()
+        with patch.object(friends, "get_db", return_value=self.db), \
+             patch.object(friends, "configured", return_value=False), \
+             patch.object(friends, "notebook_lock",
+                          side_effect=lambda *_: nullcontext()), \
+             patch.object(friends, "publish_to_users"):
+            result = friends.reject_or_remove(
+                str(REQUEST_A), user=OWNER, background_tasks=background)
+
+        self.assertEqual(result, {"removed": True})
+        self.assertEqual(operations[:2], ["queued", "deleted"])
+        self.assertEqual(len(background.tasks), 1)
 
     def test_an_unrelated_account_cannot_revoke_the_pair(self):
         other = "507f1f77bcf86cd799439088"
