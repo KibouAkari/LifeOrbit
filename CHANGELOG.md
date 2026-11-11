@@ -4,6 +4,14 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-11 · Login, injection review and friends leaderboard
+- Verified that `POST /api/auth/login` already counts attempts in MongoDB, with an effective policy of 60 attempts per IP and 20 per normalized email in a 15-minute fixed window. Improved fail-closed counter handling, IP parsing and regression coverage.
+- Added independent password-change throttling (30 per IP and 8 per account per 15 minutes) and a dummy password-hash check for missing or passwordless accounts to reduce login timing-based account enumeration.
+- Reviewed the current FastAPI and MongoDB routes for SQL/NoSQL operator injection, regex injection and command execution. No confirmed injection route was found; added validation and escaped-regex tests. An audit is not a guarantee against all injection defects.
+- Split leaderboard visibility into accepted-friends-only scores and explicitly opted-in public community scores. Pending or former friends receive no private ranking access.
+- Revalidated friendship before displaying notebook invitation notifications to avoid leaking stale private notebook titles.
+- Refreshed security, deployment, data-model, API, social, roadmap and release documentation; deployment and two-user verification remain required.
+
 ### 2026-11-11 · Immediate revocation of shared-note access
 - On unfriending, remove all historical friendship records for the pair rather than only the clicked request, and verify that no accepted relationship remains.
 - Continue deleting both directions of note/event/challenge shares and removing the former friend from owned shared notebooks.

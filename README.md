@@ -27,10 +27,12 @@ LifeOrbit brings schedules, tasks, notebooks, recurring expenses and small daily
 | **Notes** | Organise personal pages into chapters or move notes into shared notebooks |
 | **Friends & sharing** | Send friend requests, invite people to events and notebooks, manage event RSVPs |
 | **Subscriptions** | Track monthly and annual subscriptions and projected renewal dates |
-| **Challenges** | Choose up to three personal and two shared active challenges and view the community ranking |
+| **Challenges** | Choose personal or shared challenges, compare points with accepted friends, and optionally join the public community ranking |
 | **Settings** | Manage your profile, theme, account and data export |
 
-**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. Shared notebook updates use polling and are not conflict-free simultaneous editing. Calendar gestures and mobile layouts still require cross-browser regression testing.
+**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. Shared notebook updates use polling and are not conflict-free simultaneous editing. A separate realtime collaboration proposal is under review and is not enabled in this branch. Calendar gestures and mobile layouts still require cross-browser regression testing.
+
+**Leaderboard privacy:** accepted friends can see one another's points regardless of public settings. The separate community ranking requires explicit opt-in. Removing a friend revokes access to private scores.
 
 ## Screenshots
 
@@ -91,6 +93,7 @@ Useful checks:
 npm run typecheck
 npm run build
 python -m compileall -q backend api
+python -m unittest discover -s tests -v
 ```
 
 ## Zentral Hack project documentation

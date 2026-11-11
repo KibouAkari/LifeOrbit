@@ -8,6 +8,18 @@ A user reported retained access to shared notes after unfriending, including see
 
 This is a source-level mitigation, not proof of production behavior. Test with two real accounts and pre-existing duplicate friendship records. Historical content already copied, downloaded, cached or screenshotted by a former recipient cannot be remotely erased from that person's possession. The separately proposed Liveblocks integration must additionally revoke provider access on already-connected clients before production enablement.
 
+## Login abuse protection, injection and leaderboard review (11 November 2026)
+
+The `POST /api/auth/login` route already invoked a MongoDB-backed counter before authentication. The effective current limit is 60 attempts per IP and 20 per normalized email per fixed 15-minute window, with HTTP 429 and Retry-After. This branch validates counter writes before continuing, evaluates both buckets, and parses Vercel platform-forwarded addresses with a socket fallback. Password changes have a new limit of 30 per IP and 8 per account per 15 minutes. A cached dummy password hash reduces timing differences for nonexistent accounts. These are source-level checks; production behavior and the database TTL index still require verification.
+
+LifeOrbit uses MongoDB, not a SQL database. A review of the current FastAPI routes found typed Pydantic request models, server-chosen MongoDB operators, validated ObjectIds, and regex-escaped people searches. No confirmed SQL/NoSQL operator, MongoDB JavaScript or shell injection was found in the reviewed code. Added offline regression tests rejecting operator objects and checking regex escaping. This is not proof that all injection, parser, SSRF or XSS vulnerabilities have been eliminated.
+
+Accepted friends can always compare each other's challenge points in the private `friends` ranking. Unrelated users only see public community scores from accounts that have affirmatively opted in. Pending and removed friends cannot see private friend scores; already-public scores remain visible. Community ranking is bounded to the first 2,000 matching workspaces, not an exact global result if the service scales beyond that size. Challenge scores are self-reported.
+
+A stale shared-notebook membership no longer suffices to expose its title in notification results after friendship revocation. The standalone realtime collaboration proposal also requires provider-side disconnection checks before activation.
+
+**Release gates:** Verify login and password-change counters, trusted IP headers, TTL index, two-user friend privacy, stale-share revocation, authentication timing and input-validation tests on an isolated preview. Do not brute-force production. OWASP authentication and injection guidance should guide further review.
+
 ## Mitigations proposed
 
 | Severity | Finding | Proposed mitigation |
