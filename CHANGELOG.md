@@ -11,7 +11,6 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Remove revoked notebooks from the realtime editor and fail closed when access cannot be reverified.
 - Add regression coverage for the revocation path before enabling provider-backed realtime.
 
-
 ### 2026-11-11 · Optional realtime notebook collaboration
 - Implemented opt-in private Liveblocks account-room notifications for friendship, event, invitation, note and shared-notebook updates; periodic polling remains a slower recovery path.
 - Added a Yjs collaborative shared notebook editor that merges simultaneous character-level edits, shows who is online and automatically synchronizes content without requiring a Save button.
@@ -19,6 +18,13 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Preserved the original MongoDB content and legacy UI when the feature is disabled. Once a notebook is migrated, legacy full-document saves are rejected to protect concurrent edits.
 - Added server-sourced Yjs snapshots to keep MongoDB previews current and backend-authored invalidation signals without exposing personal content in broadcasts.
 - Realtime remains gated behind provider credentials and separate deployment flags; external provider configuration, permissions, retention and full two-user E2E tests are required before production enablement.
+
+### 2026-11-11 · Immediate revocation of shared-note access
+- On unfriending, remove all historical friendship records for the pair rather than only the clicked request, and verify that no accepted relationship remains.
+- Continue deleting both directions of note/event/challenge shares and removing the former friend from owned shared notebooks.
+- Fail closed in the shared notebook UI: discard cached pages, selected editor content, and stale request results whenever access cannot be verified. Refresh notebook authorization independently of the friend-list request.
+- Refresh open notebook views immediately after friendship changes, while retaining the usual fallback polling.
+- Added regression tests covering duplicate accepted friendships, former-friend read/write denial, and share cleanup.
 
 ### 2026-11-11 · Security hardening and vulnerability review
 - Raised the minimum Vite 6 version to 6.4.6 for GHSA-p4f5-76q4-ffq7, a critical advisory relevant to network-exposed development servers, the minimum PyJWT version to 2.15.1, and iCalendar to 7.3.0 to avoid known old-version advisories.

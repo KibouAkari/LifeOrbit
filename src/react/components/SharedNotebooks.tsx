@@ -18,11 +18,14 @@ function LegacySharedNotebooks(){
  const [dirty,setDirty]=useState(false);
  const editVersion=useRef(0);
  const refreshVersion=useRef(0);
+ const activeRefreshes=useRef(0);
  const [newTitle,setNewTitle]=useState("");
  const [invite,setInvite]=useState("");
  const [notice,setNotice]=useState("");
  const [busy,setBusy]=useState(false);
- const refresh=useCallback(async()=>{
+ const refresh=useCallback(async(force=true)=>{
+  if(!force&&activeRefreshes.current>0)return;
+  activeRefreshes.current+=1;
   const generation=++refreshVersion.current;
   try{
    const items:SharedBook[]=[];
@@ -38,6 +41,7 @@ function LegacySharedNotebooks(){
    if(generation!==refreshVersion.current)return;
    setBooks(items);
    setSelected(current=>items.some(item=>item.id===current)?current:"");
+   setNotice("");
    try{
     const people=await request<{friends:Friend[]}>("/friends");
     if(generation===refreshVersion.current)setFriends(people.friends);
@@ -48,11 +52,14 @@ function LegacySharedNotebooks(){
    if(generation!==refreshVersion.current)return;
    // Fail closed: do not keep displaying private documents if their current
    // membership cannot be verified. No server documents are deleted.
-   setBooks([]);setFriends([]);setSelected("");
+   setBooks([]);setFriends([]);setSelected("");setPage("");
+   setTitle("");setBody("");setDirty(false);editVersion.current+=1;
    setNotice(err instanceof Error?err.message:"Unable to verify notebook access");
+  }finally{
+   activeRefreshes.current-=1;
   }
  },[]);
- useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);window.addEventListener("lifeorbit:friends-changed",focus);return()=>{refreshVersion.current++;window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus);window.removeEventListener("lifeorbit:friends-changed",focus)}},[refresh]);
+ useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh(false)},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);window.addEventListener("lifeorbit:friends-changed",focus);return()=>{refreshVersion.current++;window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus);window.removeEventListener("lifeorbit:friends-changed",focus)}},[refresh]);
  // A revoked or deleted notebook must not leave its last page in local state.
  useEffect(()=>{
   if(selected&&books.some(item=>item.id===selected))return;
@@ -75,7 +82,10 @@ function LegacySharedNotebooks(){
   catch(e){setNotice(e instanceof Error?e.message:"Invite failed")}finally{setBusy(false)}
  }
  async function savePage(){
-  if(!book||!title.trim())return;setBusy(true);
+  if(!book||!title.trim())return;
+  // Force a fresh server authorization before submitting potentially stale
+  // editor content from an already-open revoked notebook.
+  setBusy(true);
   const id=page||crypto.randomUUID();
   const version=editVersion.current;
   setPage(id);

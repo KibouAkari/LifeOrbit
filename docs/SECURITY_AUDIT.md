@@ -2,6 +2,12 @@
 
 Updated 11 November 2026. Scope: static source and documentation review on the default branch, plus proposed changes on the security branch. This is not an independent penetration test, runtime scan or production certification.
 
+## Confirmed report and immediate revocation fix (11 November 2026)
+
+A user reported retained access to shared notes after unfriending, including seeing later edits. The hotfix removes *every* friendship row for the pair and cleans up both directions of shares and shared notebook memberships. API reads and writes continue checking accepted friendships; the frontend now clears cached private pages if verification fails rather than continuing to show stale copies.
+
+This is a source-level mitigation, not proof of production behavior. Test with two real accounts and pre-existing duplicate friendship records. Historical content already copied, downloaded, cached or screenshotted by a former recipient cannot be remotely erased from that person's possession. The separately proposed Liveblocks integration must additionally revoke provider access on already-connected clients before production enablement.
+
 ## Mitigations proposed
 
 | Severity | Finding | Proposed mitigation |
@@ -37,6 +43,12 @@ Targeted pattern checks covered 32 current tracked Markdown files, hackathon doc
 - Operations are best-effort notifications rather than a durable event queue. Offline clients catch up from MongoDB after reconnect; lost broadcasts must not be treated as lost saved records.
 - Document/page deletion must also be reconciled with Liveblocks retention and version history to meet privacy deletion requirements; removing a MongoDB entry does not alone erase hosted CRDT history.
 - A private, authorized, two-account E2E test for simultaneous edits, cursor behavior, snapshots, network outages, migrations and revoked permissions is a release blocker. Provider flags are disabled by default.
+
+## Shared-note access revocation hotfix (11 November 2026)
+
+A confirmed report describes previously shared note contents and subsequent notebook edits remaining visible after a friendship is removed. The hotfix removes *every* friendship row for the account pair rather than just the selected request ID, which also addresses older databases missing the pair uniqueness index. Existing note shares and notebook member entries are removed in both directions. API reads and edits still require a currently accepted friendship. The browser now hides notebooks when fresh permissions cannot be verified, and a failed friend-list request no longer leaves previously loaded notebook content in place. Regression tests are required before deployment.
+
+Already downloaded or copied content cannot be taken back from a former recipient's device. This hotfix is intended to prevent *subsequent server-authorized reads or writes* and to clear the active application's view. The separately proposed Liveblocks/Yjs integration also needs provider-side ACL removal to disconnect currently connected editors.
 
 ## Remaining important risks
 

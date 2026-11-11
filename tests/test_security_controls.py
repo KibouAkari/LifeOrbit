@@ -2,7 +2,7 @@
 import os
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import jwt
 from bson import ObjectId
@@ -10,7 +10,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from backend.api.index import protect_browser_requests
-from backend.api.routes import auth, friends, shared_notebooks, calendar_feeds, notifications, leaderboard, workspace
+from backend.api.routes import auth, friends, shared_notebooks, sharing, calendar_feeds, notifications, leaderboard, workspace
 from backend.api.security import _client_address, enforce_limit
 
 
@@ -125,6 +125,68 @@ class SessionTests(unittest.TestCase):
                 friends.reject_or_remove("507f1f77bcf86cd799439012", user=from_id),
                 {"removed": True})
             self.assertEqual(db.return_value.shared_notebooks.update_many.call_count, 2)
+
+    def test_unfriend_removes_all_duplicate_relationships_and_shares(self):
+        owner, former = USER_ID, "507f191e810c19729de860ea"
+        db = MagicMock()
+        db.friendships.find_one.side_effect = [
+            {"sender": owner, "recipient": former},
+            {"sender": owner, "recipient": former},
+            None,  # no accepted relationship after delete_many
+        ]
+        with patch("backend.api.routes.friends.get_db", return_value=db):
+            result = friends.reject_or_remove(
+                "507f1f77bcf86cd799439012", user=owner)
+        self.assertEqual(result, {"removed": True})
+        db.friendships.delete_many.assert_called_once()
+        query = db.friendships.delete_many.call_args.args[0]
+        self.assertIn({"sender": former, "recipient": owner}, query["$or"])
+        self.assertIn({"sender": owner, "recipient": former}, query["$or"])
+        self.assertEqual(db.shares.delete_many.call_count, 1)
+        self.assertEqual(db.shared_notebooks.update_many.call_count, 2)
+
+    def test_unfriend_fails_closed_if_accepted_record_survives(self):
+        db = MagicMock()
+        db.friendships.find_one.side_effect = [
+            {"sender": USER_ID, "recipient": "507f191e810c19729de860ea"},
+            {"sender": USER_ID, "recipient": "507f191e810c19729de860ea"},
+            {"status": "accepted"},
+        ]
+        with patch("backend.api.routes.friends.get_db", return_value=db):
+            with self.assertRaises(HTTPException) as error:
+                friends.reject_or_remove("507f1f77bcf86cd799439012", user=USER_ID)
+        self.assertEqual(error.exception.status_code, 503)
+
+    def test_stale_note_share_does_not_expose_new_edits(self):
+        owner, former = USER_ID, "507f191e810c19729de860ea"
+        db = MagicMock()
+        db.shares.find.return_value.limit.return_value = [
+            {"owner": owner, "recipient": former, "kind": "note",
+             "resource_id": "note1"},
+        ]
+        db.friendships.find.return_value = []
+        with patch("backend.api.routes.sharing.get_db", return_value=db):
+            self.assertEqual(sharing.shared_notes(user=former), [])
+        db.workspaces.find.assert_not_called()
+
+    def test_stale_notebook_member_cannot_list_or_edit_after_unfriend(self):
+        owner, former = USER_ID, "507f191e810c19729de860ea"
+        book_id = ObjectId("507f1f77bcf86cd799439099")
+        book = {"_id": book_id, "owner": owner,
+                "members": [former], "pages": [{"id": "note", "body": "secret"}]}
+        db = MagicMock()
+        db.shared_notebooks.find.return_value.sort.return_value.skip.return_value.limit.return_value = [book]
+        db.shared_notebooks.find_one.return_value = book
+        db.friendships.find_one.return_value = None
+        with patch("backend.api.routes.shared_notebooks.get_db", return_value=db):
+            items = shared_notebooks.list_notebooks(user=former, offset=0, limit=100)
+            self.assertEqual(items["items"], [])
+            with self.assertRaises(HTTPException) as error:
+                shared_notebooks.save_page(str(book_id), "note",
+                                           shared_notebooks.PageInput(title="Changed",body="leaked"),
+                                           user=former)
+        self.assertEqual(error.exception.status_code, 404)
+        db.shared_notebooks.update_one.assert_not_called()
 
 
 class BrowserTests(unittest.IsolatedAsyncioTestCase):

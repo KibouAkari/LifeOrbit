@@ -24,7 +24,7 @@ class PageInput(BaseModel):
     body:str=Field(default="",max_length=50000)
 
 def access(book,user):
-    return book and (book["owner"]==user or user in book.get("members",[]))
+    return bool(book) and (book["owner"]==user or user in book.get("members",[]))
 
 def locate(db,id,user):
     if not ObjectId.is_valid(id):raise HTTPException(400,"Invalid notebook")

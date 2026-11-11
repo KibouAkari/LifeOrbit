@@ -140,8 +140,12 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user),
             # Friendship revocation must also remove shared-notebook membership.
             db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
             db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
-            if db.friendships.find_one({"pair":key,"status":"accepted"}):
-                raise HTTPException(503,"Friendship revocation could not be verified")
+            if db.friendships.find_one({"$or":[
+                {"pair":key,"status":"accepted"},
+                {"sender":user,"recipient":other,"status":"accepted"},
+                {"sender":other,"recipient":user,"status":"accepted"},
+            ]}):
+                raise HTTPException(503,"Could not verify friendship revocation")
             if configured():
                 for book in impacted:
                     if (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":

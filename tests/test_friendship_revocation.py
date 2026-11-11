@@ -122,9 +122,7 @@ class RevocationTests(unittest.TestCase):
         self.assertEqual(exc.exception.status_code, 404)
         self.db.shared_notebooks.update_one.assert_not_called()
 
-
     def test_realtime_rooms_get_access_reconciled_after_unfriend(self):
-        from backend.api import realtime
         self.db.realtime_notebooks.find_one.return_value = {"status": "ready"}
         with patch.object(friends, "get_db", return_value=self.db), \
              patch.object(friends, "configured", return_value=True), \
