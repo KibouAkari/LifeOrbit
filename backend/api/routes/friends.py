@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
 from backend.api.security import enforce_limit
+from backend.api.realtime import configured, notebook_room, publish_to_users, sync_book_access
 from fastapi import Request
 
 router=APIRouter()
@@ -63,6 +64,7 @@ def request_friend(payload:FriendRequest,request:Request,user:str=Depends(get_cu
                                    "status":"pending","created_at":datetime.now(timezone.utc)})
     except DuplicateKeyError:
         raise HTTPException(409,"Request already exists")
+    publish_to_users([payload.user_id,user],"friends")
     return {"sent":True}
 
 @router.post("/requests/{request_id}/accept")
@@ -71,6 +73,8 @@ def accept(request_id:str,user:str=Depends(get_current_user)):
     result=get_db().friendships.update_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"},
                                            {"$set":{"status":"accepted"}})
     if not result.modified_count:raise HTTPException(404,"Request not found")
+    doc=get_db().friendships.find_one({"_id":ObjectId(request_id)})
+    publish_to_users([doc["sender"],doc["recipient"]],"friends")
     return {"accepted":True}
 
 @router.delete("/requests/{request_id}")
@@ -81,9 +85,19 @@ def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
                          "$or":[{"sender":user},{"recipient":user}]})
     if not friendship:raise HTTPException(404,"Request not found")
     other=friendship["recipient"] if friendship["sender"]==user else friendship["sender"]
+    impacted=list(db.shared_notebooks.find({"$or":[
+        {"owner":user,"members":other},{"owner":other,"members":user}]}))
     db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
                                  {"owner":other,"recipient":user}]})
     # Friendship revocation must also remove shared-notebook membership.
     db.shared_notebooks.update_many({"owner":user}, {"$pull":{"members":other}})
     db.shared_notebooks.update_many({"owner":other}, {"$pull":{"members":user}})
+    if configured():
+        for book in impacted:
+            fresh=db.shared_notebooks.find_one({"_id":book["_id"]})
+            if fresh and (db.realtime_notebooks.find_one({"_id":notebook_room(str(book["_id"]))}) or {}).get("status")=="ready":
+                sync_book_access(db,fresh)
+    publish_to_users([user,other],"friends")
+    publish_to_users([user,other],"notebooks")
+    publish_to_users([user,other],"calendar")
     return {"removed":True}

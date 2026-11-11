@@ -11,6 +11,12 @@ from pymongo.errors import DuplicateKeyError
 from backend.api.database import get_db
 from backend.api.models import CalendarEventRequest
 from backend.api.routes.auth import get_current_user
+from backend.api.realtime import publish_to_users
+
+def _notify_event(db, user, event_id):
+    guests=[x["recipient"] for x in db.shares.find(
+        {"owner":user,"kind":"event","resource_id":event_id},{"recipient":1})]
+    publish_to_users([user,*guests],"calendar")
 
 router = APIRouter()
 
@@ -37,6 +43,7 @@ def list_events(user: str = Depends(get_current_user)):
 def create_event(data: CalendarEventRequest, user: str = Depends(get_current_user)):
     doc = {"title": data.title, "date": data.date.isoformat(), "user_id": user, "source": "mongodb", "start_time": data.start_time.isoformat(timespec="minutes") if data.start_time else None, "end_time": data.end_time.isoformat(timespec="minutes") if data.end_time else None}
     outcome = get_db().events.insert_one(doc)
+    _notify_event(get_db(),user,str(outcome.inserted_id))
     return output({"_id": outcome.inserted_id, **doc})
 
 @router.put("/events/{event_id}")
@@ -56,6 +63,7 @@ def update_event(event_id: str, data: CalendarEventRequest, user: str = Depends(
     if result.matched_count == 0:
         raise HTTPException(404, "Event not found")
         
+    _notify_event(get_db(),user,event_id)
     return {"updated": True, "id": event_id, **update_data}
 
 @router.delete("/events/{event_id}")
@@ -67,6 +75,7 @@ def delete_event(event_id: str, user: str = Depends(get_current_user)):
     if count == 0:
         raise HTTPException(404, "Event not found")
         
+    _notify_event(get_db(),user,event_id)
     return {"deleted": True}
 
 @router.post("/ical-import")

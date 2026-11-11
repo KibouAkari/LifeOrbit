@@ -6,6 +6,7 @@ from pydantic import BaseModel,Field
 from pymongo import ReturnDocument
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
+from backend.api.realtime import publish_to_users
 
 router=APIRouter()
 
@@ -34,6 +35,8 @@ def share_note(data:ShareRequest,user:str=Depends(get_current_user)):
     note_from_owner(db,user,data.resource_id)
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"note","resource_id":data.resource_id},
                         {"$setOnInsert":{"created_at":datetime.now(timezone.utc)}},upsert=True)
+    publish_to_users([user,data.recipient_id],"notes")
+    publish_to_users([data.recipient_id],"notifications")
     return {"shared":True}
 
 @router.get("/notes")
@@ -73,6 +76,8 @@ def invite_event(data:ShareRequest,user:str=Depends(get_current_user)):
     if not item:raise HTTPException(404,"Event not found")
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"event","resource_id":data.resource_id},
                         {"$setOnInsert":{"created_at":datetime.now(timezone.utc),"status":"pending"}},upsert=True)
+    publish_to_users([user,data.recipient_id],"calendar")
+    publish_to_users([data.recipient_id],"notifications")
     return {"invited":True}
 
 @router.patch("/events/{share_id}/response")
@@ -84,13 +89,16 @@ def respond_event(share_id:str,data:RSVPRequest,user:str=Depends(get_current_use
         {"$set":{"status":data.status,"responded_at":datetime.now(timezone.utc)}},
         return_document=ReturnDocument.AFTER)
     if not row:raise HTTPException(404,"Invitation not found")
+    publish_to_users([user,row["owner"]],"calendar")
     return {"status":row["status"]}
 
 @router.delete("/events/{share_id}")
 def remove_event_invitation(share_id:str,user:str=Depends(get_current_user)):
     if not ObjectId.is_valid(share_id):raise HTTPException(400,"Invalid invitation")
-    if not get_db().shares.delete_one({"_id":ObjectId(share_id),"recipient":user,"kind":"event"}).deleted_count:
-        raise HTTPException(404,"Invitation not found")
+    row=get_db().shares.find_one_and_delete(
+        {"_id":ObjectId(share_id),"recipient":user,"kind":"event"})
+    if not row:raise HTTPException(404,"Invitation not found")
+    publish_to_users([user,row["owner"]],"calendar")
     return {"removed":True}
 
 @router.get("/events/{event_id}/participants")
@@ -136,6 +144,7 @@ def share_challenge(data:ShareRequest,user:str=Depends(get_current_user)):
     db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"challenge","resource_id":data.resource_id},
                         {"$set":{"snapshot":{k:item.get(k) for k in ("title","target","unit","period")}}},
                         upsert=True)
+    publish_to_users([user,data.recipient_id],"challenges")
     return {"shared":True}
 
 @router.get("/challenges")
