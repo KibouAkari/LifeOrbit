@@ -16,7 +16,10 @@ export default function SharedNotebooks(){
  const [invite,setInvite]=useState("");
  const [notice,setNotice]=useState("");
  const [busy,setBusy]=useState(false);
+ // A pending response must never restore content after a newer access check.
+ const refreshVersion=useRef(0);
  const refresh=useCallback(async()=>{
+  const version=++refreshVersion.current;
   try{
    const peopleRequest=request<{friends:Friend[]}>("/friends");
    const items:SharedBook[]=[];
@@ -28,11 +31,36 @@ export default function SharedNotebooks(){
     offset=page.next_offset;
    }
    const people=await peopleRequest;
-   setBooks(items);setFriends(people.friends)
+   if(version!==refreshVersion.current)return;
+   setBooks(items);setFriends(people.friends);
+   setSelected(current=>items.some(item=>item.id===current)?current:"");
+   setNotice("");
   }
-  catch(err){setNotice(err instanceof Error?err.message:"Unable to load shared notebooks")}
+  catch(err){
+   if(version!==refreshVersion.current)return;
+   // Fail closed. Do not leave previously fetched private pages visible after
+   // a failed authorization or connectivity check.
+   setBooks([]);setFriends([]);setSelected("");setPage("");
+   setTitle("");setBody("");setDirty(false);
+   editVersion.current+=1;
+   setNotice(err instanceof Error?err.message:"Unable to verify notebook access");
+  }
  },[]);
- useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);return()=>{window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus)}},[refresh]);
+ useEffect(()=>{
+  void refresh();
+  const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);
+  const focus=()=>void refresh();
+  window.addEventListener("focus",focus);
+  window.addEventListener("lifeorbit:remote-updated",focus);
+  window.addEventListener("lifeorbit:friends-changed",focus);
+  return()=>{
+   refreshVersion.current+=1;
+   window.clearInterval(poll);
+   window.removeEventListener("focus",focus);
+   window.removeEventListener("lifeorbit:remote-updated",focus);
+   window.removeEventListener("lifeorbit:friends-changed",focus);
+  };
+ },[refresh]);
  const book=books.find(x=>x.id===selected);
  useEffect(()=>{
   if(!page||dirty)return;
@@ -50,7 +78,10 @@ export default function SharedNotebooks(){
   catch(e){setNotice(e instanceof Error?e.message:"Invite failed")}finally{setBusy(false)}
  }
  async function savePage(){
-  if(!book||!title.trim())return;setBusy(true);
+  if(!book||!title.trim())return;
+  // Force a fresh server authorization before submitting potentially stale
+  // editor content from an already-open revoked notebook.
+  setBusy(true);
   const id=page||crypto.randomUUID();
   const version=editVersion.current;
   setPage(id);

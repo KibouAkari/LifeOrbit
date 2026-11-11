@@ -4,6 +4,13 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-11 · Immediate revocation of shared-note access
+- On unfriending, remove all historical friendship records for the pair rather than only the clicked request, and verify that no accepted relationship remains.
+- Continue deleting both directions of note/event/challenge shares and removing the former friend from owned shared notebooks.
+- Fail closed in the shared notebook UI: discard cached pages, selected editor content, and stale request results whenever access cannot be verified.
+- Trigger a refresh after friendship changes, while retaining the usual fallback polling.
+- Added regression tests covering duplicate accepted friendships, former-friend read/write denial, and share cleanup.
+
 ### 2026-11-11 · Security hardening and vulnerability review
 - Raised the minimum Vite 6 version to 6.4.6 for GHSA-p4f5-76q4-ffq7, a critical advisory relevant to network-exposed development servers, the minimum PyJWT version to 2.15.1, and iCalendar to 7.3.0 to avoid known old-version advisories.
 - Added MongoDB-backed authentication, calendar-feed and friend-request throttling keyed by hashed client IP/account, with HTTP 429 responses and TTL cleanup.

@@ -77,10 +77,25 @@ def accept(request_id:str,user:str=Depends(get_current_user)):
 def reject_or_remove(request_id:str,user:str=Depends(get_current_user)):
     if not ObjectId.is_valid(request_id):raise HTTPException(400,"Invalid request")
     db=get_db()
-    friendship=db.friendships.find_one_and_delete({"_id":ObjectId(request_id),
+    friendship=db.friendships.find_one({"_id":ObjectId(request_id),
                          "$or":[{"sender":user},{"recipient":user}]})
     if not friendship:raise HTTPException(404,"Request not found")
     other=friendship["recipient"] if friendship["sender"]==user else friendship["sender"]
+    # Remove every historical or duplicate friendship row *before* cleaning
+    # shares. Removing only the selected request could leave an old accepted
+    # row that still authorized private content.
+    pair_key=pair(user,other)
+    db.friendships.delete_many({"$or":[
+        {"pair":pair_key},
+        {"sender":user,"recipient":other},
+        {"sender":other,"recipient":user},
+    ]})
+    if db.friendships.find_one({"$or":[
+        {"pair":pair_key,"status":"accepted"},
+        {"sender":user,"recipient":other,"status":"accepted"},
+        {"sender":other,"recipient":user,"status":"accepted"},
+    ]}):
+        raise HTTPException(503,"Could not verify friendship revocation")
     db.shares.delete_many({"$or":[{"owner":user,"recipient":other},
                                  {"owner":other,"recipient":user}]})
     # Friendship revocation must also remove shared-notebook membership.
