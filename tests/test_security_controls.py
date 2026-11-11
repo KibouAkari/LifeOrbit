@@ -10,7 +10,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from backend.api.index import protect_browser_requests
-from backend.api.routes import auth, friends, shared_notebooks, calendar_feeds, notifications
+from backend.api.routes import auth, friends, shared_notebooks, calendar_feeds, notifications, leaderboard, workspace
 from backend.api.security import _client_address, enforce_limit
 
 
@@ -98,6 +98,22 @@ class SessionTests(unittest.TestCase):
                 user=USER_ID)
             args = db.return_value.notification_state.update_one.call_args
             self.assertEqual(args.args[1]["$push"]["read"]["$slice"], -2000)
+
+    def test_leaderboard_requires_renewed_explicit_consent(self):
+        defaults = workspace.Workspace()
+        self.assertFalse(defaults.leaderboard_opt_in)
+        self.assertFalse(defaults.leaderboard_consent_v1)
+        with patch("backend.api.routes.leaderboard.get_db") as db:
+            db.return_value.workspaces.find.return_value = []
+            db.return_value.workspaces.find_one.return_value = {
+                "leaderboard_opt_in": True, "leaderboard_consent_v1": False,
+                "challenges": []}
+            db.return_value.users.find.return_value = []
+            result = leaderboard.ranking(user_id=USER_ID)
+            db.return_value.workspaces.find.assert_called_once_with(
+                {"leaderboard_opt_in": True, "leaderboard_consent_v1": True},
+                {"user_id": 1, "challenges": 1})
+            self.assertFalse(result["opted_in"])
 
     def test_friend_removal_revokes_notebooks(self):
         from_id, to_id = USER_ID, "507f191e810c19729de860ea"
