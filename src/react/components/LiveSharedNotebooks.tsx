@@ -157,7 +157,7 @@ function CollaborativeBook({
     };
     document.addEventListener("visibilitychange", flushOnHide);
     return () => {
-      mounted = false; closeRoom(); latestDoc.current = null;
+      mounted = false; closeRoom?.(); latestDoc.current = null;
       if (snapshotTimer.current) clearTimeout(snapshotTimer.current);
       document.removeEventListener("visibilitychange", flushOnHide);
     };
