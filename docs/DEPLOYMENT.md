@@ -26,12 +26,12 @@ Do not expose `MONGODB_URI`, `JWT_SECRET_KEY` or provider secrets with a `VITE_`
 5. Deploy a **preview** from the PR and confirm `GET /api/health` responds with JSON.
 6. Check `GET /api/health/database` with valid credentials.
 7. Run the documented `ensure_indexes()` provisioning function using a database identity authorized to manage indexes. In addition to uniqueness constraints, it creates `rate_limits.expires_at` TTL cleanup. Resolve duplicate records before adding unique indexes.
-8. Test sign-in, registration, Google Sign-In, logout and cookie behaviour, including Origin checks and throttling. Password changes invalidate older sessions. Email changes are temporarily unavailable until verification is implemented.
-9. Test with **two real test accounts**: data isolation, friends, notes, RSVPs, notifications and permissions.
+8. Test sign-in, registration, Google Sign-In, logout and cookie behaviour, including Origin checks and throttling in a controlled preview only. Verify HTTP 429 with Retry-After after 60 IP or 20 account attempts against `/api/auth/login` in a 15-minute window, and 30 IP or 8 account attempts for password changes. Password changes invalidate older sessions. Email changes remain disabled pending verification.
+9. Test with **two real test accounts**: data isolation, friendships, notes, RSVPs, notifications and permissions. Verify accepted friends' rankings without public opt-in, exclusion of pending/removed friends, and opt-in isolation for unrelated community users.
 10. Test calendar import/subscription refresh, including public-address validation and denied private endpoints.
 11. Complete the [release checklist](RELEASING.md) before promoting or merging.
 
-**Vercel READY is a build result, not an authentication or database test.**
+**Vercel READY is a build result, not an authentication or database test.** The per-IP limit trusts Vercel's platform-provided forwarding information only when running on Vercel, not arbitrary caller-supplied proxy headers. Confirm the trusted runtime, database counter atomicity and TTL index on the actual preview. Never use brute-force or denial-of-service tests against production.
 
 ## Operations
 

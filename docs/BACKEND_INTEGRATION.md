@@ -9,6 +9,7 @@ Implemented routes:
 - POST /api/auth/register
 - POST /api/auth/login
 - POST /api/auth/google
+- PATCH /api/auth/password (throttled; revokes earlier sessions)
 - GET /api/auth/me; PATCH /api/auth/me for profile edits; GET /api/auth/export
 - GET /api/tasks, POST /api/tasks, PATCH/DELETE /api/tasks/{id}
 - GET /api/calendar/events, POST /api/calendar/events, DELETE /api/calendar/events/{id}
@@ -39,7 +40,7 @@ session version revokes older tokens after logout and password changes; logging
 out currently invalidates all devices. MongoDB-backed rate limits guard public
 authentication endpoints, and cookie-authenticated writes require an allowed Origin.
 Email changes remain disabled until address verification exists.
-Password recovery, selective per-device revocation and independently verified
+The current login policy allows 60 attempts per IP and 20 per email per 15 minutes. Password changes are separately limited to 30 per IP and 8 per account per 15 minutes. Counter failures must stop authorization instead of allowing uncounted requests. Pydantic rejects non-string credential/operator values; MongoDB queries do not interpolate untrusted operator objects. Password recovery, selective per-device revocation and independently verified
 XSS/CSP protection still require further work. See security audit.
 
 ## Additional live routes
@@ -49,6 +50,6 @@ XSS/CSP protection still require further work. See security audit.
 - `/api/shared-notebooks`: create notebooks, invite friends, save/delete pages and move a private note to a shared notebook.
 - `/api/calendar/feeds`: subscribe, refresh and remove validated public HTTPS iCalendar feeds.
 - `/api/notifications`: authenticated unread invitations and task reminders with dismissal.
-- `/api/leaderboard`: participant ranking based on stored user/challenge data.
+- `GET /api/leaderboard`: returns `friends` (accepted friends plus viewer, regardless of public opt-in), `participants` (community opt-ins plus viewer), and `opted_in`. Other users' account IDs and email addresses are not returned.
 
 See [Social & Calendar](SOCIAL_AND_CALENDAR.md) for access and synchronization details and [API implementation](../backend/api/index.py) for mounted routes.
