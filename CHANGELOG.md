@@ -14,7 +14,7 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Added Origin validation for cookie-authenticated writes, disabled public production OpenAPI, improved malformed calendar URL handling and added Vercel CSP/HSTS/frame protections.
 - Added limits on owned notebook creation and stored notification read markers to reduce unbounded growth.
 - Added automated Python regression tests in CI and scheduled dependency update configuration.
-- Checked current tracked documentation and primary backend files for common credential and personal data patterns; recorded review scope, remaining risks and production verification actions in docs/SECURITY_AUDIT.md.
+- Checked current tracked documentation and primary backend files for common credential and personal data patterns, and visually checked both tracked documentation screenshots; recorded review scope, remaining risks and production verification actions in docs/SECURITY_AUDIT.md.
 - These changes are pending CI, two-account integration tests, live environment review and maintainer approval.
 
 ### 2026-10-24 · Factual English Zentral Hack documentation

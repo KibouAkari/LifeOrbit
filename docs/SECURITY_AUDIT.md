@@ -25,7 +25,9 @@ Updated 11 November 2026. Scope: static source and documentation review on the d
 
 Targeted pattern checks covered 32 current tracked Markdown files, hackathon documentation, environment examples and major backend files. Checks included private-key markers, recognizable credential/token prefixes, non-placeholder MongoDB URIs, hard-coded credential assignments, email addresses, IPv4 strings and phone-like numbers. No matches requiring removal were identified in this checked current source.
 
-**Limitations:** Pattern matching cannot establish that every secret is absent. Past Git history, branch contents outside this reviewed tree, Vercel environment variables, MongoDB, private communications, build artifacts and binary screenshots were not fully audited. Public documentation references the project and its domain intentionally. Review screenshot content manually before releasing new images. Rotate and revoke any credential if it was previously committed, even if its current copy has been deleted.
+**Visual screenshot review:** Both tracked documentation screenshots, `docs/screenshots/dashboard.webp` and `docs/screenshots/login.webp`, were inspected. They show generic guest and login interfaces, without visible personal contact information or credentials. New screenshots still require a separate review before publication.
+
+**Limitations:** Pattern matching cannot establish that every secret is absent. Past Git history, branches outside the reviewed tree, Vercel environment variables, MongoDB, private communications and build artifacts were not audited. Public documentation intentionally references the project and its domain. Rotate and revoke any credential previously committed, even if its current copy was later deleted.
 
 ## Remaining important risks
 
