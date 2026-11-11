@@ -3,6 +3,8 @@ import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
+from pydantic import ValidationError
+import re
 
 import jwt
 from bson import ObjectId
@@ -99,21 +101,74 @@ class SessionTests(unittest.TestCase):
             args = db.return_value.notification_state.update_one.call_args
             self.assertEqual(args.args[1]["$push"]["read"]["$slice"], -2000)
 
-    def test_leaderboard_requires_renewed_explicit_consent(self):
-        defaults = workspace.Workspace()
-        self.assertFalse(defaults.leaderboard_opt_in)
-        self.assertFalse(defaults.leaderboard_consent_v1)
-        with patch("backend.api.routes.leaderboard.get_db") as db:
-            db.return_value.workspaces.find.return_value = []
-            db.return_value.workspaces.find_one.return_value = {
-                "leaderboard_opt_in": True, "leaderboard_consent_v1": False,
-                "challenges": []}
-            db.return_value.users.find.return_value = []
+    def test_friends_always_see_each_other_even_without_public_opt_in(self):
+        friend = "507f191e810c19729de860ea"
+        stranger = "507f1f77bcf86cd799439013"
+        db = MagicMock()
+        db.friendships.find.return_value.limit.return_value = [
+            {"sender": friend, "recipient": USER_ID, "status": "accepted"}
+        ]
+        private = [
+            {"user_id": USER_ID, "challenges": []},
+            {"user_id": friend, "challenges": [{"value": 3, "target": 5}]},
+        ]
+        public = [
+            {"user_id": stranger, "challenges": [{"value": 10, "target": 10}]}
+        ]
+        db.workspaces.find.side_effect = [
+            private, db.workspaces.find.return_value,  # replaced below
+        ]
+        public_cursor = MagicMock()
+        public_cursor.limit.return_value = public
+        db.workspaces.find.side_effect = [private, public_cursor]
+        db.workspaces.find_one.return_value = {
+            "leaderboard_opt_in": False, "leaderboard_consent_v1": False}
+        db.users.find.return_value = [
+            {"_id": ObjectId(USER_ID), "name": "Me"},
+            {"_id": ObjectId(friend), "name": "Friend"},
+            {"_id": ObjectId(stranger), "name": "Opted in"},
+        ]
+        with patch("backend.api.routes.leaderboard.get_db", return_value=db):
             result = leaderboard.ranking(user_id=USER_ID)
-            db.return_value.workspaces.find.assert_called_once_with(
-                {"leaderboard_opt_in": True, "leaderboard_consent_v1": True},
-                {"user_id": 1, "challenges": 1})
-            self.assertFalse(result["opted_in"])
+        self.assertFalse(result["opted_in"])
+        self.assertEqual({entry["name"] for entry in result["friends"]},
+                         {"Me", "Friend"})
+        self.assertEqual({entry["name"] for entry in result["participants"]},
+                         {"Me", "Opted in"})
+        self.assertTrue(next(row for row in result["friends"]
+                             if row["name"] == "Friend")["friend"])
+        self.assertIsNone(next(row for row in result["friends"]
+                               if row["name"] == "Friend")["id"])
+        community_query = db.workspaces.find.call_args_list[1].args[0]
+        self.assertEqual(community_query, {
+            "leaderboard_opt_in": True, "leaderboard_consent_v1": True})
+        self.assertEqual(result["friends"][0]["rank"], 1)
+
+    def test_pending_or_removed_friendship_grants_no_private_scores(self):
+        friend = "507f191e810c19729de860ea"
+        for relationship in ([], [{"sender": USER_ID, "recipient": friend,
+                                  "status": "pending"}]):
+            with self.subTest(relationship=relationship):
+                db = MagicMock()
+                db.friendships.find.return_value.limit.return_value = relationship
+                db.workspaces.find.side_effect = [[], MagicMock(limit=MagicMock(return_value=[]))]
+                db.workspaces.find_one.return_value = {}
+                db.users.find.return_value = [{"_id": ObjectId(USER_ID), "name": "Me"}]
+                with patch("backend.api.routes.leaderboard.get_db", return_value=db):
+                    result = leaderboard.ranking(user_id=USER_ID)
+                self.assertEqual([row["name"] for row in result["friends"]], ["Me"])
+                query = db.friendships.find.call_args.args[0]
+                self.assertEqual(query["status"], "accepted")
+
+    def test_legacy_challenge_values_cannot_break_or_inflate_ranking(self):
+        self.assertEqual(leaderboard._points([
+            {"value": "1000000", "target": "1"},
+            {"value": -3, "target": 10},
+            {"value": 5, "target": 2},
+            {"value": 1, "target": 3},
+            {"value": True, "target": 3},
+            {"value": 1000000000, "target": 1000000000},
+        ]), 1000030)
 
     def test_unfriend_removes_all_duplicate_relationships_and_shares(self):
         owner, former = USER_ID, "507f191e810c19729de860ea"
@@ -205,6 +260,91 @@ class RateLimitTests(unittest.TestCase):
         req.scope["headers"].append((b"x-vercel-forwarded-for", b"10.0.0.1"))
         with patch.dict(os.environ, {"VERCEL": "0"}):
             self.assertEqual(_client_address(req), "203.0.113.20")
+
+    def test_rate_limit_counts_both_account_and_ip_buckets(self):
+        counts = {}
+        def update(query, operation, **kwargs):
+            key = query["_id"]
+            counts[key] = counts.get(key, 0) + 1
+            return {"hits": counts[key]}
+        with patch.dict(os.environ, {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as db:
+            db.return_value.rate_limits.find_one_and_update.side_effect = update
+            enforce_limit(request_for(), "password-login", maximum=50,
+                          window_seconds=900, identity="test@example.org",
+                          account_maximum=1)
+            with self.assertRaises(HTTPException) as error:
+                enforce_limit(request_for(), "password-login", maximum=50,
+                              window_seconds=900, identity="TEST@example.org",
+                              account_maximum=1)
+        self.assertEqual(error.exception.status_code, 429)
+        self.assertEqual(len(counts), 2)
+        self.assertEqual(sorted(counts.values()), [2, 2])
+        self.assertIn("Retry-After", error.exception.headers)
+
+    def test_rate_limit_missing_database_confirmation_fails_closed(self):
+        with patch.dict(os.environ, {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as db:
+            db.return_value.rate_limits.find_one_and_update.return_value = None
+            with self.assertRaises(HTTPException) as error:
+                enforce_limit(request_for(), "test", maximum=10, window_seconds=60)
+        self.assertEqual(error.exception.status_code, 503)
+
+    def test_bad_platform_ip_falls_back_to_socket_peer(self):
+        req=request_for()
+        req.scope["headers"].append((b"x-vercel-forwarded-for", b"not-an-ip,also-bad"))
+        with patch.dict(os.environ, {"VERCEL": "1"}):
+            self.assertEqual(_client_address(req), "203.0.113.20")
+
+    def test_no_sql_operator_injection_is_rejected_by_request_models(self):
+        with self.assertRaises(ValidationError):
+            auth.LoginRequest.model_validate(
+                {"email": {"$ne": None}, "password": "anything"})
+        with self.assertRaises(ValidationError):
+            auth.LoginRequest.model_validate(
+                {"email": "someone@example.org", "password": {"$gt": ""}})
+        with self.assertRaises(ValidationError):
+            friends.FriendRequest.model_validate({"user_id": {"$ne": ""}})
+        with self.assertRaises(ValidationError):
+            sharing.ShareRequest.model_validate({
+                "recipient_id": {"$ne": ""}, "resource_id": "abc"})
+
+    def test_friend_search_escapes_regex_metacharacters(self):
+        db=MagicMock()
+        db.users.find.return_value.limit.return_value=[]
+        with patch("backend.api.routes.friends.get_db",return_value=db), \
+             patch("backend.api.routes.friends.enforce_limit"):
+            friends.find_people(request_for(), q=".*", user=USER_ID)
+        q=db.users.find.call_args.args[0]
+        self.assertEqual(q["name"]["$regex"], re.escape(".*"))
+        self.assertEqual(q["name"]["$options"], "i")
+
+    def test_login_uses_dummy_hash_for_nonexistent_account(self):
+        db=MagicMock()
+        db.users.find_one.return_value=None
+        response=MagicMock()
+        with patch("backend.api.routes.auth.enforce_limit"), \
+             patch("backend.api.routes.auth.get_db",return_value=db), \
+             patch("backend.api.routes.auth._dummy_password_hash",
+                   return_value="hashed-fake"), \
+             patch("backend.api.routes.auth.passwords.verify",
+                   return_value=False) as verify:
+            with self.assertRaises(HTTPException) as error:
+                auth.password_login(auth.LoginRequest(
+                    email="missing@example.org",password="test"),
+                    response=response,request=request_for())
+        self.assertEqual(error.exception.status_code,401)
+        verify.assert_called_once_with("test", "hashed-fake")
+
+    def test_password_change_is_rate_limited_before_password_verification(self):
+        with patch("backend.api.routes.auth.enforce_limit",
+                   side_effect=HTTPException(429,"Too many attempts")):
+            with self.assertRaises(HTTPException) as error:
+                auth.change_password(auth.PasswordChange(
+                    current_password="a",new_password="long-password-secret"),
+                    response=MagicMock(), request=request_for(),
+                    user_id=USER_ID)
+        self.assertEqual(error.exception.status_code,429)
 
     def test_shared_rate_limit_rejects_over_limit(self):
         counts = {}
