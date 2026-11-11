@@ -212,6 +212,14 @@ function CollaborativeBook({
     try {
       await request(`/shared-notebooks/${book.id}/pages/${encodeURIComponent(selected.id)}`,
         { method: "DELETE" });
+      if (doc && isLive) {
+        const yTitle = doc.getText(titleKey(selected.id));
+        const yBody = doc.getText(bodyKey(selected.id));
+        doc.transact(() => {
+          yTitle.delete(0, yTitle.length);
+          yBody.delete(0, yBody.length);
+        });
+      }
       setPages((prev) => prev.filter((page) => page.id !== selected.id));
       setActive("");
       await reload();

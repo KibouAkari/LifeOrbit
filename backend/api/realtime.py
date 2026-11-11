@@ -212,7 +212,7 @@ def prepare_notebook(book_id: str, request: Request, user: str = Depends(get_cur
             # Do NOT grant access until legacy text is safely seeded.
             api("POST", "/rooms?idempotent=true",
                 data={"id": room_id, "defaultAccesses": []})
-        existing = api("GET", endpoint + "/ydoc")
+        existing = api("GET", endpoint + "/ydoc", not_found=True) or {}
         if not existing:
             from pycrdt import Doc, Text
             doc = Doc()
@@ -224,6 +224,8 @@ def prepare_notebook(book_id: str, request: Request, user: str = Depends(get_cur
                 doc["page:" + pid + ":body"] = Text(str(page.get("body", ""))[:50000])
             if book.get("pages"):
                 api("PUT", endpoint + "/ydoc", binary=doc.get_update())
+        # Do not grant access to a book that was deleted during migration.
+        book=locate(db, book_id, user)
         db.realtime_notebooks.update_one(
             {"_id": room_id, "nonce": nonce, "status": "initializing"},
             {"$set": {"status": "ready", "updated_at": datetime.now(timezone.utc)},
@@ -260,6 +262,8 @@ def snapshot_notebook(book_id: str, user: str = Depends(get_current_user)):
         title = live.get("page:" + pid + ":title")
         body = live.get("page:" + pid + ":body")
         if not isinstance(title, str) or not isinstance(body, str):
+            continue
+        if page.get("title")==title[:120] and page.get("body")==body[:50000]:
             continue
         db.shared_notebooks.update_one(
             {"_id": book["_id"], "pages.id": pid},

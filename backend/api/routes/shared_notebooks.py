@@ -121,8 +121,8 @@ def create_page(id:str,user:str=Depends(get_current_user)):
 def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_user)):
     db=get_db();book=locate(db,id,user)
     # Old full-text saves must not overwrite a CRDT-backed collaborative page.
-    if (db.realtime_notebooks.find_one({"_id":notebook_room(id)}) or {}).get("status")=="ready":
-        raise HTTPException(409,"This notebook uses live collaboration")
+    if db.realtime_notebooks.find_one({"_id":notebook_room(id)}):
+        raise HTTPException(409,"This notebook is migrating or uses live collaboration")
     # Each write rechecks membership to prevent a stale authorization snapshot.
     if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
     member_scope={"_id":book["_id"],"$or":[{"owner":user},{"members":user}]}
