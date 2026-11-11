@@ -13,11 +13,14 @@ export default function SharedNotebooks(){
  const [dirty,setDirty]=useState(false);
  const editVersion=useRef(0);
  const refreshVersion=useRef(0);
+ const activeRefreshes=useRef(0);
  const [newTitle,setNewTitle]=useState("");
  const [invite,setInvite]=useState("");
  const [notice,setNotice]=useState("");
  const [busy,setBusy]=useState(false);
- const refresh=useCallback(async()=>{
+ const refresh=useCallback(async(force=true)=>{
+  if(!force&&activeRefreshes.current>0)return;
+  activeRefreshes.current+=1;
   const generation=++refreshVersion.current;
   try{
    const items:SharedBook[]=[];
@@ -45,9 +48,11 @@ export default function SharedNotebooks(){
    // membership cannot be verified. No server documents are deleted.
    setBooks([]);setFriends([]);setSelected("");
    setNotice(err instanceof Error?err.message:"Unable to verify notebook access");
+  }finally{
+   activeRefreshes.current-=1;
   }
  },[]);
- useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh()},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);window.addEventListener("lifeorbit:friends-changed",focus);return()=>{refreshVersion.current++;window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus);window.removeEventListener("lifeorbit:friends-changed",focus)}},[refresh]);
+ useEffect(()=>{void refresh();const poll=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh(false)},3000);const focus=()=>void refresh();window.addEventListener("focus",focus);window.addEventListener("lifeorbit:remote-updated",focus);window.addEventListener("lifeorbit:friends-changed",focus);return()=>{refreshVersion.current++;window.clearInterval(poll);window.removeEventListener("focus",focus);window.removeEventListener("lifeorbit:remote-updated",focus);window.removeEventListener("lifeorbit:friends-changed",focus)}},[refresh]);
  // A revoked or deleted notebook must not leave its last page in local state.
  useEffect(()=>{
   if(selected&&books.some(item=>item.id===selected))return;
