@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { request } from "../data/api";
 
@@ -7,6 +7,14 @@ export default function ResetPassword() {
     const query = location.hash.split("?")[1] || "";
     return new URLSearchParams(query).get("token") || "";
   });
+  useEffect(() => {
+    // Keep the token only in component memory after opening the emailed link.
+    // A URL fragment is omitted from HTTP requests, but can linger in
+    // screenshots or copied browser history until it is removed.
+    if (token && location.hash.includes("token=")) {
+      history.replaceState(null, "", location.pathname + location.search + "#/reset-password");
+    }
+  }, [token]);
   const [password,setPassword] = useState("");
   const [confirm,setConfirm] = useState("");
   const [show,setShow] = useState(false);

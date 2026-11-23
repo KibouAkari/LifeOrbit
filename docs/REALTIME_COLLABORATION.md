@@ -6,7 +6,7 @@ Updated 23 November 2026. PR #73 proposes native Yjs autosave without external c
 
 When `VITE_REALTIME_ENABLED=false`, PR #73 replaces the legacy manual Save editor with a native Yjs document stored as MongoDB Binary in `notebook_crdts`. Each authorized notebook initializes once from existing pages, retains the original MongoDB documents, and mirrors merged Yjs text back to page previews. Active editors poll the authenticated `GET /api/shared-notebooks/{id}/sync` endpoint about every 1.3 seconds and send local changes after a short debounce to the matching POST endpoint.
 
-The backend validates owner or current accepted friendship, serializes changes using distributed notebook locks and merges Yjs updates without stale full-page replacement. Unfriending prevents subsequent authorized reads and writes. The editor shows `Autosaved` after acknowledgement, retries failed writes and warns before closing a tab while edits are still pending.
+The backend validates owner or current accepted friendship, serializes changes using distributed notebook locks and merges Yjs updates without stale full-page replacement. Unfriending prevents subsequent authorized reads and writes. The editor shows `Autosaved` after acknowledgement, retries failed writes with bounded exponential backoff instead of flooding the backend, stops after confirmed authorization loss, and warns before closing a tab while edits are still pending.
 
 **This is near-live polling, not instant server push.** Network and database latency vary. Polling consumes Vercel and MongoDB requests, and remote edits in a basic textarea may move cursor selection. Use the separately configured Liveblocks WebSocket provider for faster push and online-presence features.
 

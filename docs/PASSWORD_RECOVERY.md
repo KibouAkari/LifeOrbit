@@ -20,7 +20,7 @@ Opening the link permits a new 12–72 character password. The backend atomicall
 
 ## Abuse and privacy safeguards
 
-Both request and consumption endpoints apply IP limits. Requests also have an independent normalized-email limit. The frontend never receives a reset token except via the intended email link, and the backend never logs it. Links are generated from the trusted `PUBLIC_APP_URL` rather than an attacker-controlled HTTP Host header. Reset links are placed in the URL fragment so browsers do not transmit the token as a server-side URL path or query.
+Both request and consumption endpoints apply IP limits. Requests also have an independent normalized-email limit. The frontend never receives a reset token except via the intended email link, and the backend never logs it. Links are generated from the trusted `PUBLIC_APP_URL` rather than an attacker-controlled HTTP Host header. Reset links are placed in the URL fragment so browsers do not transmit the token as a server-side URL path or query. The reset page now clears the fragment token from the address bar as soon as it loads, keeping the secret only in component memory until use or navigation away.
 
 Reset email delivery failures are logged without the destination address or secret. The generic public response prevents enumeration but may require support follow-up if a provider is unavailable. Add delivery monitoring, provider quota alerts and account-level abuse detection before broader public use.
 

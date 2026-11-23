@@ -73,15 +73,20 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
     let alive = true;
     const shared = new Y.Doc();
     let requestInFlight = false;
+    let failures = 0;
+    let retry = false;
     const merge = (data: Sync) => {
       if (!alive) return;
       if (data.update) Y.applyUpdate(shared, decode(data.update), "server");
       versionRef.current = Math.max(versionRef.current, data.version);
       setPages(data.pages);
     };
-    const schedule = () => {
+    const schedule = (afterFailure = false) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => flushRef.current(), 320);
+      // Back off during an outage rather than hammering the database every
+      // 320 ms, while still keeping the editor's unsaved state visible.
+      const delay = afterFailure ? Math.min(30000, 1000 * 2 ** Math.min(failures, 5)) : 320;
+      timerRef.current = setTimeout(() => flushRef.current(), delay);
     };
     const onUpdate = (_bytes: Uint8Array, origin: unknown) => {
       if (!alive) return;
@@ -112,7 +117,11 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
         setError(message);
         setStatus("Connection lost");
         if (/not found|denied|sign in|revoked|unauthorized/i.test(message)) {
-          // Never leave a former friend's fetched private content visible.
+          // Never leave a former friend's fetched private content visible or
+          // continue retrying a now unauthorized write.
+          dirtyRef.current = false;
+          if (timerRef.current) clearTimeout(timerRef.current);
+          onSavePendingChange(false);
           setDoc(null); setPages([]); setSelected("");
           void onRefresh();
         }
@@ -124,23 +133,36 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
       if (!alive || !dirtyRef.current || writingRef.current || versionRef.current < 0) return;
       writingRef.current = true;
       dirtyRef.current = false;
+      retry = false;
       const update = encode(Y.encodeStateAsUpdate(shared));
       void request<Sync>(`/shared-notebooks/${book.id}/sync`, {
         method: "POST", body: JSON.stringify({update}),
       }).then((result) => {
         if (!alive) return;
         merge(result);
+        failures = 0;
         setStatus(dirtyRef.current ? "Saving…" : "Autosaved");
         if (!dirtyRef.current) onSavePendingChange(false);
         setError("");
       }).catch((failure) => {
         if (!alive) return;
-        dirtyRef.current = true;
+        const message = failure instanceof Error ? failure.message : "Unable to save changes";
+        if (/not found|denied|sign in|revoked|unauthorized/i.test(message)) {
+          dirtyRef.current = false;
+          if (timerRef.current) clearTimeout(timerRef.current);
+          onSavePendingChange(false);
+          setDoc(null); setPages([]); setSelected("");
+          void onRefresh();
+        } else {
+          dirtyRef.current = true;
+          retry = true;
+          failures += 1;
+        }
         setStatus("Not saved yet");
-        setError(failure instanceof Error ? failure.message : "Unable to save changes");
+        setError(message);
       }).finally(() => {
         writingRef.current = false;
-        if (alive && dirtyRef.current) schedule();
+        if (alive && dirtyRef.current) schedule(retry);
       });
     };
     const refresh = () => void pull();
@@ -275,7 +297,7 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
         value={body} onChange={event => update("body", event.target.value)}/>
       <div className="shared-note-actions">
         <span className="muted">Changes save automatically. Other editors refresh in about one second.</span>
-        <button className="button" onClick={() => void deletePage()} disabled={busy}>
+        <button className="button" onClick={() => void deletePage()} disabled={busy || !doc || status !== "Autosaved"}>
           <Trash2 size={15}/> Delete page</button>
       </div>
     </> : <div className="quiet-empty">Choose a page or create a new one.</div>}

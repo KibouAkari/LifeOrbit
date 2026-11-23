@@ -10,6 +10,7 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Added password-reset pages, single-use 30-minute tokens stored as HMAC digests, atomic consumption, anti-enumeration responses, rate limits and revocation of all previous signed sessions. Resend handles delivery after a verified sending domain and server-only key are configured. No provider key is present in the currently inspected production environment.
 - Added a private friends leaderboard that shows confirmed friends regardless of community opt-in. Public community visibility stays optional; non-friends do not receive private score details.
 - Added automated regression checks and documented deployment requirements, recovery, concurrent editing, data retention and remaining security risks.
+- Hardened native autosave retries with bounded exponential backoff, stopped retries and cleared in-memory editor views on revoked access, prevented page deletion while a save is pending, and removed reset tokens from the browser address bar when the reset page loads.
 - Changes are proposed in PR #73, not yet verified in production. Provider setup and two-account end-to-end tests remain release gates.
 
 ### 2026-11-11 · Sharing revocation protection for realtime
