@@ -102,7 +102,7 @@ def build_welcome_email(name: str, origin: str) -> tuple[str, str]:
         </td></tr>
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;">
-        <tr><td align="center" style="padding:21px 25px 0;color:#8B8999;font-size:12px;line-height:1.8;">
+        <tr><td align="center" style="padding:21px 25px 0;color:#606071;font-size:12px;line-height:1.8;">
           This one-time message was sent because a LifeOrbit account was created with this email address.<br>
           <a href="{safe_app_url}" style="color:#7263D5;text-decoration:underline;">Visit LifeOrbit</a>
           &nbsp;&middot;&nbsp; &copy; 2026 LifeOrbit
@@ -137,13 +137,13 @@ def send_welcome_email(email: str, name: str) -> bool:
     A failure must not fail signup or trigger duplicate sends on normal login.
     """
     try:
-        key, sender, origin = _delivery_settings()
-    except HTTPException:
-        logger.warning("Welcome email skipped: provider configuration unavailable")
-        return False
+        try:
+            key, sender, origin = _delivery_settings()
+        except HTTPException:
+            logger.warning("Welcome email skipped: provider configuration unavailable")
+            return False
 
-    html, text = build_welcome_email(name, origin)
-    try:
+        html, text = build_welcome_email(name, origin)
         response = requests.post(
             "https://api.resend.com/emails",
             headers={"Authorization": "Bearer " + key,
@@ -157,6 +157,6 @@ def send_welcome_email(email: str, name: str) -> bool:
                            response.status_code)
             return False
         return True
-    except requests.RequestException:
+    except Exception:
         logger.warning("Welcome email delivery is unavailable")
         return False

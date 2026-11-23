@@ -1,4 +1,5 @@
 """New-account welcome message: content, safe delivery, and triggers."""
+import re
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -44,6 +45,23 @@ class WelcomeTemplateTests(unittest.TestCase):
             "", "https://www.lifeorbit.dev")
         self.assertIn("Hi there", fallback)
 
+    def test_footer_text_has_sufficient_contrast(self):
+        html, _ = welcome_email.build_welcome_email("Ada", "https://www.lifeorbit.dev")
+        color = re.search(
+            r'<td align="center" style="padding:21px 25px 0;color:(#[0-9A-Fa-f]{6});',
+            html,
+        ).group(1)
+
+        def luminance(hex_color):
+            channels = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+                      for c in channels]
+            return sum(c * weight for c, weight in zip(linear, (0.2126, 0.7152, 0.0722)))
+
+        self.assertIn('border-collapse:collapse;background:#F8F8FA;', html)
+        self.assertGreaterEqual((luminance("#F8F8FA") + 0.05) /
+                                (luminance(color) + 0.05), 4.5)
+
     def test_resend_receives_consistent_html_and_text_without_credentials_in_markup(self):
         response = MagicMock(status_code=201)
         with patch.object(welcome_email, "_delivery_settings", return_value=(
@@ -80,10 +98,42 @@ class WelcomeTemplateTests(unittest.TestCase):
     def test_missing_email_configuration_skips_delivery(self):
         with patch.object(welcome_email, "_delivery_settings",
                           side_effect=HTTPException(503, "not configured")), \
-             patch.object(welcome_email.requests, "post") as send:
+             patch.object(welcome_email.requests, "post") as send, \
+             self.assertLogs(welcome_email.logger, level="WARNING") as logs:
             self.assertFalse(welcome_email.send_welcome_email(
                 "someone@example.org", "Person"))
         send.assert_not_called()
+        self.assertEqual(logs.output, [
+            "WARNING:backend.api.welcome_email:Welcome email skipped: provider configuration unavailable"])
+
+    def test_unexpected_settings_and_template_errors_are_sanitized(self):
+        settings = ("test-key", "LifeOrbit <security@lifeorbit.dev>",
+                    "https://www.lifeorbit.dev")
+        for failing_function in ("_delivery_settings", "build_welcome_email"):
+            with self.subTest(failing_function=failing_function), \
+                 patch.object(welcome_email, "_delivery_settings", return_value=settings), \
+                 patch.object(welcome_email, failing_function,
+                              side_effect=ValueError("private@example.org test-key")), \
+                 patch.object(welcome_email.requests, "post") as send, \
+                 self.assertLogs(welcome_email.logger, level="WARNING") as logs:
+                self.assertFalse(welcome_email.send_welcome_email(
+                    "private@example.org", "Private Person"))
+                send.assert_not_called()
+                self.assertEqual(logs.output, [
+                    "WARNING:backend.api.welcome_email:Welcome email delivery is unavailable"])
+
+    def test_non_latin1_key_cannot_escape_delivery(self):
+        def encode_headers(request, **kwargs):
+            request.headers["Authorization"].encode("latin-1")
+
+        with patch.object(welcome_email, "_delivery_settings", return_value=(
+            "key-雪", "LifeOrbit <security@lifeorbit.dev>", "https://www.lifeorbit.dev",
+        )), patch.object(welcome_email.requests.Session, "send", side_effect=encode_headers), \
+             self.assertLogs(welcome_email.logger, level="WARNING") as logs:
+            self.assertFalse(welcome_email.send_welcome_email(
+                "private@example.org", "Private Person"))
+        self.assertEqual(logs.output, [
+            "WARNING:backend.api.welcome_email:Welcome email delivery is unavailable"])
 
 
 class RegistrationTriggerTests(unittest.TestCase):
