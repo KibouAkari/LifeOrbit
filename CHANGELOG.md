@@ -4,6 +4,14 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-23 · Welcome email delivery and brand corrections
+- Added `_dmarc.lifeorbit.dev` TXT (`v=DMARC1; p=none; adkim=r; aspf=r`) in authoritative Vercel DNS without changing existing Resend DKIM or sending-domain records.
+- Replaced the old purple email wordmark with a PNG raster of the exact blue LifeOrbit planet icon used by the site and GitHub; preserved the brand name as selectable text when images are blocked.
+- Changed new-user welcome sending from a detached background task to a bounded, observable Resend attempt within registration. Mail-provider failure does not undo account creation; HTTP 2xx acceptance is logged without recipient personal data.
+- Added account-specific Resend idempotency keys, and a secured, rate-limited self-service Settings action to resend the welcome email to the current account's own address.
+- Added regression tests and a deliverability troubleshooting guide that separates DNS/SPF/DKIM/DMARC readiness, Resend API acceptance and actual inbox delivery. No real recipient was emailed during this code review.
+
+
 ### 2026-11-23 · Welcome email onboarding (PR #74)
 - Added a one-time branded welcome email for newly created password accounts and first-time, email-verified Google accounts. Existing users signing in again do not receive another welcome.
 - Reused the actual LifeOrbit wordmark as a publicly hosted email-compatible PNG, with a white and lavender HTML layout, app CTA, product tips and an equivalent plain-text version.

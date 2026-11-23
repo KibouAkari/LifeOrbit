@@ -18,7 +18,8 @@ LifeOrbit is an open-source project under active development. **Publishing the G
 - [ ] Confirm `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` are set alongside a valid `RESEND_API_KEY` for the target environment; test a real message and expiry in a controlled mailbox.
 - [ ] Check `/api/health` and `/api/health/database` on the target Vercel deployment.
 - [ ] Test account registration, Google OAuth, login/logout, reset-email delivery, token expiration and replay prevention, generic unknown-account response, throttling and session invalidation.
-- [ ] Using a controlled mailbox, verify the new-user welcome email for password and first-time Google registration; no repeat on login, correct official logo, accessible HTML/text rendering, valid CTA and unaffected signup during provider failures.
+- [ ] Using a controlled mailbox, verify the new-user welcome email for password and first-time Google registration; no repeat on login, correct **blue planet icon matching the website**, accessible HTML/text rendering, valid CTA and unaffected signup during provider failures.
+- [ ] Verify the DMARC TXT record and SPF/DKIM alignment for the actual sender domain, the protected once-per-day resend button, Resend API status/logs and delivery or bounce status. An API success is not inbox delivery.
 - [ ] Test two users' data isolation on tasks, workspaces, calendar feeds, invitations and shared notebooks.
 - [ ] With two test accounts, type in the same note simultaneously without a Save button. Verify both characters converge, Autosaved appears, pending work survives reconnect, and a former friend loses read/write access.
 - [ ] Test the private Friends leaderboard when public opt-in is disabled, ensure non-friends do not see scores, and check the separate community setting.

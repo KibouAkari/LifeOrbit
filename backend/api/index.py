@@ -6,7 +6,9 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
 from backend.api.routes import auth, calendar, challenges, dashboard, tasks, workspace, leaderboard, friends, sharing, calendar_feeds, shared_notebooks, notifications
-from backend.api import realtime, native_collab, password_reset
+from backend.api import realtime, native_collab, password_reset, welcome_email
+
+welcome_email.configure_logging()
 
 app = FastAPI(title="LifeOrbital API", version="0.4.0",
               docs_url=None if os.getenv("VERCEL_ENV")=="production" else "/api/docs",

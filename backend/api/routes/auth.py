@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
@@ -94,8 +94,7 @@ def find_user(user_id: str):
 
 
 @router.post("/register", status_code=201)
-def register(payload: RegisterRequest, response: Response, request: Request,
-             background_tasks: BackgroundTasks):
+def register(payload: RegisterRequest, response: Response, request: Request):
     secret_key()
     enforce_limit(request, "register", maximum=10, window_seconds=3600, identity=payload.email)
     db = get_db()
@@ -113,9 +112,10 @@ def register(payload: RegisterRequest, response: Response, request: Request,
         raise HTTPException(status_code=409, detail="Email already registered")
     user["_id"] = outcome.inserted_id
     result = issue_token(user, response)
-    # A welcome message is a one-time registration side effect; it must
-    # never block account creation or be repeated during sign-in.
-    background_tasks.add_task(send_welcome_email, email, user["name"])
+    # Make a bounded, observable send attempt before the function returns.
+    # A detached background task can be lost when serverless execution ends.
+    # Provider failure must never undo a successfully created account.
+    send_welcome_email(email, user["name"], f"signup/{user['_id']}")
     return result
 
 
@@ -130,8 +130,7 @@ def password_login(payload: LoginRequest, response: Response, request: Request):
 
 
 @router.post("/google")
-def google_login(payload: GoogleAuthRequest, response: Response, request: Request,
-                 background_tasks: BackgroundTasks):
+def google_login(payload: GoogleAuthRequest, response: Response, request: Request):
     enforce_limit(request, "google-login", maximum=60, window_seconds=900)
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
@@ -179,8 +178,25 @@ def google_login(payload: GoogleAuthRequest, response: Response, request: Reques
     if newly_registered:
         # Google's verified email is already a trusted identity; existing
         # Google users signing in again should never be emailed a second time.
-        background_tasks.add_task(send_welcome_email, email, user["name"])
+        send_welcome_email(email, user["name"], f"signup/{user['_id']}")
     return result
+
+
+@router.post("/welcome/resend", status_code=202)
+def resend_welcome(request: Request, user_id: str = Depends(get_current_user)):
+    """Explicit self-service resend, limited to once per account/day.
+
+    Only the authenticated account's existing address may be used. The
+    response reports Resend acceptance, never mailbox delivery.
+    """
+    enforce_limit(request, "welcome-resend", maximum=3,
+                  account_maximum=1, window_seconds=86400, identity=user_id)
+    user = find_user(user_id)
+    event = f"resend/{user_id}/{datetime.now(timezone.utc).date().isoformat()}"
+    accepted = send_welcome_email(user["email"], user.get("name", ""), event)
+    if not accepted:
+        raise HTTPException(status_code=503, detail="Welcome email is currently unavailable")
+    return {"accepted": True, "delivered": False}
 
 
 @router.get("/me")
