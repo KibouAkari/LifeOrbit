@@ -40,22 +40,27 @@ def doc_with_text(body):
 class NativeCollaborationTests(unittest.TestCase):
     def test_native_sync_routes_match_frontend_urls(self):
         from fastapi import FastAPI
+        from fastapi.testclient import TestClient
         from pathlib import Path
-        # Verify the actual API router independently of import order in the
-        # other test modules (which patch auth and imported route objects).
+        # FastAPI >=0.137 uses lazy included routers, so included leaf
+        # operations are no longer directly listed in app.routes.
         app = FastAPI()
         app.include_router(native_collab.router, prefix="/api/shared-notebooks")
-        paths = {(route.path, method) for route in app.routes
-                 for method in getattr(route, "methods", set())}
         expected = "/api/shared-notebooks/{book_id}/sync"
-        self.assertIn((expected, "GET"), paths,
-                      msg=f"native routes={[(route.path,getattr(route,'methods',None)) for route in native_collab.router.routes]!r}; module={native_collab.__file__!r}")
-        self.assertIn((expected, "POST"), paths)
-        self.assertNotIn(("/api/shared-notebooks/notebooks/{book_id}/sync", "GET"), paths)
-        index_source = (Path(__file__).resolve().parent.parent /
-                        "backend/api/index.py").read_text()
+        published = app.openapi()["paths"]
+        self.assertIn(expected, published)
+        self.assertIn("get", published[expected])
+        self.assertIn("post", published[expected])
+        self.assertNotIn("/api/shared-notebooks/notebooks/{book_id}/sync",published)
+        # Exercise the actual route dispatch. Authentication must reject an
+        # anonymous client without contacting the database.
+        with TestClient(app) as client:
+            response=client.get("/api/shared-notebooks/" + BOOK + "/sync")
+        self.assertEqual(response.status_code, 401)
+        source=(Path(__file__).resolve().parent.parent /
+                "backend/api/index.py").read_text()
         self.assertIn('app.include_router(native_collab.router,prefix="/api/shared-notebooks")',
-                      index_source)
+                      source)
 
     def test_first_sync_migrates_existing_notes_without_removing_source(self):
         db = MagicMock()
