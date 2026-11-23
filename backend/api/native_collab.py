@@ -94,7 +94,15 @@ def read_sync(book_id: str, since: int = Query(default=-1, ge=-1),
               user: str = Depends(get_current_user)):
     from backend.api.routes.shared_notebooks import locate
     db = get_db()
-    with notebook_lock(db, book_id):
+    if not ObjectId.is_valid(book_id):
+        raise HTTPException(400, "Invalid notebook")
+    raw = db.shared_notebooks.find_one({"_id": ObjectId(book_id)}, {"owner": 1})
+    if not raw:
+        raise HTTPException(404, "Notebook not found")
+    owner = raw["owner"]
+    gate = realtime_access_lock(db, owner, user) if owner != user else nullcontext()
+    with gate, notebook_lock(db, book_id):
+        # Recheck accepted friendship *after* the revocation lock is acquired.
         book = locate(db, book_id, user)
         _allow_native(db, book_id)
         _, record = _from_database(db, book)

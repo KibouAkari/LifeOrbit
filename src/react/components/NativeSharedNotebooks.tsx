@@ -45,8 +45,9 @@ async function getBooks() {
   return result;
 }
 
-function NativeBook({book, friends, onRefresh}:{
+function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
   book: Book; friends: Friend[]; onRefresh: () => Promise<void>;
+  onSavePendingChange: (pending:boolean) => void;
 }) {
   const [pages, setPages] = useState<Page[]>(book.pages);
   const [selected, setSelected] = useState(book.pages[0]?.id ?? "");
@@ -87,6 +88,7 @@ function NativeBook({book, friends, onRefresh}:{
       setRevision(value => value + 1);
       if (origin !== "server") {
         dirtyRef.current = true;
+        onSavePendingChange(true);
         setStatus("Saving…");
         schedule();
       }
@@ -129,6 +131,7 @@ function NativeBook({book, friends, onRefresh}:{
         if (!alive) return;
         merge(result);
         setStatus(dirtyRef.current ? "Saving…" : "Autosaved");
+        if (!dirtyRef.current) onSavePendingChange(false);
         setError("");
       }).catch((failure) => {
         if (!alive) return;
@@ -156,7 +159,10 @@ function NativeBook({book, friends, onRefresh}:{
     const onRemote = () => void pull();
     window.addEventListener("lifeorbit:remote-updated", onRemote);
     return () => {
+      // Keep the in-flight save alive even if the editor is switched off.
+      if (dirtyRef.current && !writingRef.current) flushRef.current();
       alive = false;
+      onSavePendingChange(false);
       window.clearInterval(interval);
       if (timerRef.current) clearTimeout(timerRef.current);
       window.removeEventListener("focus", refresh);
@@ -165,7 +171,7 @@ function NativeBook({book, friends, onRefresh}:{
       shared.off("update", onUpdate);
       shared.destroy();
     };
-  }, [book.id, onRefresh]);
+  }, [book.id, onRefresh, onSavePendingChange]);
 
   // Keep a stable Yjs document while React renders the current shared state.
   void revision;
@@ -284,14 +290,17 @@ export default function NativeSharedNotebooks() {
   const [title,setTitle] = useState("");
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
+  const [savePending,setSavePending] = useState(false);
   const reload = useCallback(async() => {
     try {
       const items = await getBooks();
       setBooks(items);
       setSelected(current => items.some(book => book.id === current) ? current : "");
       setError("");
-      const data = await request<{friends: Friend[]}>("/friends");
-      setFriends(data.friends);
+      try {
+        const data = await request<{friends: Friend[]}>("/friends");
+        setFriends(data.friends);
+      } catch { setFriends([]); }
     } catch (failure) {
       // Clear sensitive cached notebooks if current authorization cannot be verified.
       setBooks([]);setSelected("");setFriends([]);
@@ -332,6 +341,8 @@ export default function NativeSharedNotebooks() {
     <aside className="shared-notebook-sidebar">
       <h3><Users size={17}/> Shared notebooks</h3>
       {books.map(item=><button key={item.id} className={selected===item.id?"selected":""}
+        disabled={savePending && selected!==item.id}
+        title={savePending && selected!==item.id?"Saving changes first":""}
         onClick={()=>setSelected(item.id)}><BookOpen size={16}/>
         <span>{item.title}<small>By {item.owner_name}</small></span></button>)}
       <form onSubmit={event=>{event.preventDefault();void createBook()}}>
@@ -340,7 +351,8 @@ export default function NativeSharedNotebooks() {
         <button className="button primary" disabled={busy||!title.trim()}><Plus size={16}/> Create</button>
       </form>
     </aside>
-    {book ? <NativeBook key={book.id} book={book} friends={friends} onRefresh={reload}/>
+    {book ? <NativeBook key={book.id} book={book} friends={friends}
+      onRefresh={reload} onSavePendingChange={setSavePending}/>
       : <div className="shared-notebook-content">
           <div className="quiet-empty"><BookOpen size={25}/><h2>Plan together</h2>
           <p>Create a shared notebook, invite a friend and edit together.</p></div>

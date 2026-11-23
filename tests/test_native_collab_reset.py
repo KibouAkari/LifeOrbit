@@ -94,6 +94,13 @@ class NativeCollaborationTests(unittest.TestCase):
         self.assertIn(" B", value)
         self.assertIn("Seed", value)
 
+    def test_password_hash_round_trip_works_with_installed_bcrypt(self):
+        from backend.api.routes.auth import passwords
+        phrase = "a-valid-testing-password-123"
+        hashed = passwords.hash(phrase)
+        self.assertTrue(passwords.verify(phrase, hashed))
+        self.assertFalse(passwords.verify("wrong-test-password", hashed))
+
     def test_revoked_member_cannot_fetch_native_document(self):
         db = MagicMock()
         with patch.object(native_collab, "get_db", return_value=db), \
