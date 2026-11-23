@@ -19,7 +19,7 @@ The initial audience is individuals and small groups who want a private, mobile-
 
 Dashboard, tasks, editable calendar, manual iCalendar imports/subscriptions, notes, shared notebooks, friend requests, notifications, subscriptions, challenges and authenticated profiles are implemented in the codebase.
 
-The current production release still uses manually saved shared notebooks. The pending [autosave, account recovery and ranking proposal](https://github.com/KibouAkari/LifeOrbit/pull/73) adds built-in Yjs autosave, password recovery via Resend, and always-visible scores for accepted friends. The PR is **not** proof of deployment.
+The autosave, account recovery and private friends-ranking implementation from [PR #73](https://github.com/KibouAkari/LifeOrbit/pull/73) was merged into main. Native Yjs syncing does not require a hosted realtime provider; it uses HTTP polling. Password recovery still requires verified Resend delivery. [PR #74](https://github.com/KibouAkari/LifeOrbit/pull/74) proposes a one-time welcome email using the same sender for newly created accounts. Merged code is not proof of real-world end-to-end verification.
 
 ## Not implemented or not verified
 

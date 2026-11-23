@@ -30,20 +30,23 @@ This is an actively maintained open-source application, **not a finished or inde
 | Challenges | Personal/shared goals and points; private friends ranking and optional community ranking |
 | Friends | Friend discovery, requests and accepted-friend invitations |
 | Subscriptions | Track billing amount, currency, schedule and renewal |
-| Account | Password/Google sign-in, profile, workspace export and account settings |
+| Account | Password/Google sign-in, password recovery, profile and workspace export; branded welcome email for new accounts proposed in [PR #74](https://github.com/KibouAkari/LifeOrbit/pull/74) |
 
-### Collaboration and account recovery status
+### Collaboration and account email status
 
-| Capability | Deployed production `main` | Proposed in [PR #73](https://github.com/KibouAkari/LifeOrbit/pull/73) |
-| --- | --- | --- |
-| Shared-notebook editing | Manual save; periodic updates | Built-in Yjs autosave, concurrent-merge HTTP synchronization |
-| Hosted realtime push | Not configured | Optional Liveblocks WebSockets with independent configuration |
-| Password reset via email | Not deployed | Single-use email reset links; Resend sender verification and real delivery test outstanding |
-| Friends leaderboard | Public opt-in ranking | Separate private friends ranking, public community still opt-in |
+| Capability | Source and deployment status |
+| --- | --- |
+| Shared notebook autosave | Merged via [PR #73](https://github.com/KibouAkari/LifeOrbit/pull/73); native Yjs synchronization over short HTTP polling, not instantaneous push |
+| Hosted realtime | Optional Liveblocks provider; not enabled without credentials and live permission tests |
+| Password recovery | Merged via PR #73; Resend variables exist in production, but sender verification and live delivery are not independently confirmed |
+| Leaderboard | Accepted friends can compare private scores, while community rankings still require explicit opt-in |
+| Welcome email | New in [PR #74](https://github.com/KibouAkari/LifeOrbit/pull/74); one time after a new password/Google account is created, pending review and release |
 
-Native autosave is **near-live**, not push realtime: active clients poll for changes roughly every 1.3 seconds. Neither it nor the password recovery flow should be considered production-verified until a controlled preview test succeeds.
+**Welcome email design:** The new message uses the existing LifeOrbit logo, lavender and white styling, a dashboard button, three onboarding tips and a plain-text alternative. It reuses the configured Resend credentials and does not block registration if sending fails. See [Welcome email](docs/WELCOME_EMAIL.md).
 
-**Email recovery configuration:** Vercel now lists all three production environment variable names: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. Their values were not retrieved or validated, and a real reset email has not been sent in this review. These settings do not activate the feature until the code is merged and deployed. Follow the [password recovery guide](docs/PASSWORD_RECOVERY.md) for sender-domain verification and safe testing.
+**Email configuration:** Vercel lists all three production variables, `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. Their secret values and real delivery have not been validated in this review. A successful API response does not prove inbox placement; test with your own account before release.
+
+Native autosave remains near-live polling (about 1.3 seconds) and collaboration still needs a two-account production integration test. See the [release checklist](docs/RELEASING.md).
 
 ## Technology
 

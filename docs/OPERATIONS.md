@@ -10,13 +10,13 @@ This document is for operators of the Vercel + MongoDB deployment. Do not run de
 
 Required infrastructure configuration is defined in [Deployment](DEPLOYMENT.md); Resend details in [Password recovery](PASSWORD_RECOVERY.md); collaboration flags in [Realtime collaboration](REALTIME_COLLABORATION.md).
 
-A subsequent 23 November 2026 Vercel check confirmed all three production variable names: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No secret values were decrypted. The sending domain, provider permissions and actual delivery still require confirmation with a controlled mailbox; the production `main` build does not yet contain PR #73's reset flow.
+A subsequent 23 November 2026 Vercel check confirmed all three production variable names: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No secret values were decrypted. The sending domain, provider permissions and actual delivery still require confirmation with a controlled mailbox; the production build now includes PR #73's reset flow. PR #74's new welcome email is not yet in production.
 
 ## Daily monitoring
 
 1. Check `/api/health` and `/api/health/database`; the first only confirms application process health.
 2. Review Vercel function failures and latency, MongoDB connection errors, storage/connection quotas and index health.
-3. Track password-reset delivery failures, account and IP rate-limit response counts and repeated authentication failures without logging tokens or passwords.
+3. Track password-reset and welcome-email delivery failures, account and IP rate-limit response counts and repeated authentication failures without logging addresses, tokens or passwords.
 4. Track notebook sync failures, 409 migration conflicts, 503 lock/database errors, unusually large CRDT updates and authorization failures.
 5. Maintain a private incident channel; do not expose personal notebook text in alerts or support tickets.
 
@@ -34,6 +34,7 @@ During recovery, suspend new collaborative writes until the authoritative CRDT i
 | --- | --- | --- |
 | Password reset returns 503 | Resend environment names, verified sender domain, Vercel target | Do not reveal account existence; repair provider config, test privately |
 | Emails accepted but not received | Provider delivery logs, SPF/DKIM, suppression and recipient mailbox | Check provider status; do not paste message tokens into tickets |
+| Welcome message missing | New-account registration path, preview vs production secrets and Resend logs | Check function logs and [welcome email guide](WELCOME_EMAIL.md); background delivery is best effort, not queued |
 | Notebook cannot sync | Auth, friendship, MongoDB locks, network errors, CRDT document size/version | Preserve document, stop unsafe retry loops, avoid manual full-page writes |
 | Former friend sees current content | API friendship checks, cached pages, provider room ACLs | Treat as a privacy incident; revoke server and provider permissions, document scope |
 | MongoDB unavailable | Atlas connection and network configuration | Do not change credentials blindly; use verified rollback or planned recovery |

@@ -1,6 +1,6 @@
 # Password recovery by email
 
-Updated 23 November 2026. The code is implemented in PR #73, but production deployment and email delivery still require verification.
+Updated 23 November 2026. The password-reset routes were merged in PR #73; actual email delivery and sender-domain verification remain independent release checks.
 
 ## Setup
 
@@ -10,7 +10,9 @@ LifeOrbit uses the [Resend Email API](https://resend.com/docs/send-with-python) 
 - `PASSWORD_RESET_FROM_EMAIL`: verified sender, for example `LifeOrbit <security@lifeorbit.dev>` if that exact domain and sender are approved
 - `PUBLIC_APP_URL`: canonical HTTPS origin without path, e.g. `https://www.lifeorbit.dev`
 
-In the latest production Vercel variable-name listing on 23 November 2026, **all three required names are present**: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No secret values were read. This does not confirm that the Resend key is valid, that the sending domain is verified, or that an email will arrive. The routes are still in PR #73 and require an approved deployment and controlled mailbox test before being considered operational.
+In the latest production Vercel variable-name listing on 23 November 2026, **all three required names are present**: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No secret values were read. This does not confirm that the Resend key is valid, that the sending domain is verified, or that an email will arrive. The routes are included in main and require an approved production configuration and controlled mailbox test before being considered operational.
+
+The same sender and Resend key are reused for the [one-time welcome email](WELCOME_EMAIL.md), which is proposed separately in PR #74.
 
 ## User experience
 
