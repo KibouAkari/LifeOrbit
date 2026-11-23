@@ -1,80 +1,57 @@
-# LifeOrbit security review
+# Security assessment and risk register
 
-Updated 23 November 2026. Scope includes the proposed November autosave, recovery and friends-ranking changes in PR #73. This is a static code and test review, not a penetration test or proof of production deployment.
+Updated 23 November 2026. This is a source review and documented test plan. It does **not** constitute an independent penetration test or confirmation that proposed fixes run in production.
 
-## Findings and release risks added on 23 November 2026
+## Deployment boundary
 
-**Observed production issue:** The production Vercel build still displays the legacy Save page editor because `VITE_REALTIME_ENABLED` and `LIVEBLOCKS_SECRET_KEY` were not configured. The Liveblocks code being present in Git does not make it active. PR #73 replaces that fallback with native MongoDB-backed Yjs syncing. Concurrent text edits are merged using serialized CRDT updates, and the previous MongoDB pages remain available as previews. Updates reach other browsers through short HTTP polling, typically in 1–2 seconds, not instantaneous WebSocket push. An authenticated two-account preview test is still mandatory.
+- **Production:** current `main` commit, not necessarily the latest proposed functionality. The production shared notebook editor can still display a manual Save button.
+- **PR #73:** native Yjs autosave, email password recovery and private friend rankings are implemented in code and CI-checked, but require controlled integration testing and production promotion.
+- **Vercel settings checked 23 November:** the production variable names included `RESEND_API_KEY`, but **did not** include `PASSWORD_RESET_FROM_EMAIL` or `PUBLIC_APP_URL`. No provider key was decrypted or validated; no mail delivery was proven. No Liveblocks secret/flags were visible.
+- A READY deployment or passing unit test is not evidence of correct delivery, private data isolation, multi-user convergence or fully secure operation.
 
-**Password reset:** The new flow uses 256-bit random, one-use reset tokens stored only as HMAC digests with a 30-minute expiry, normalized account and IP request throttling, token consumption, and session version invalidation after successful reset. Email links use a trusted HTTPS origin from the server environment, not the caller's Host header. A Resend verified sending address, API key, and domain configuration are required. The inspected production Vercel project had no Resend variables; emails have not been sent or validated end to end.
+## Threat model
 
-**Friends ranking:** The `friends` response includes only the authenticated viewer and currently accepted friends, independent of public opt-in. The `participants` community ranking still requires explicit public consent for unrelated users. Unfriending removes private score visibility but cannot conceal scores deliberately published to the wider community.
+Assets include user identities, password hashes, private notes, calendar subscription URLs, events, friend relationships, shared CRDT state, session cookies, reset tokens and provider credentials. Trust boundaries are the browser, FastAPI, MongoDB Atlas, Vercel's proxy/runtime, external calendar hosts, Resend and optional Liveblocks.
 
-**Additional security and operational limits:** The built-in CRDT state is bounded in size, incurs recurring Vercel/MongoDB read costs, and uses a basic textarea rather than a cursor-aware editor. Switching a hosted Liveblocks document to the native store is refused to avoid two authoritative versions. Previously downloaded or exported document contents cannot be remotely erased. MongoDB previews are not a tested independent CRDT backup. Token-email delivery monitoring, restore tests, capacity limits, attachment scanning if added later, provider rate limits, network failure tests and an independent external review remain outstanding.
+Core threats are credential stuffing, account enumeration, token replay, broken object authorization, stale shares after unfriending, stored/cross-site script injection, NoSQL operator abuse, SSRF through calendar links, data loss on simultaneous edits, provider outages and excessive data retention.
 
-## Confirmed report and immediate revocation fix (11 November 2026)
+## Findings and controls
 
-A user reported retained access to shared notes after unfriending, including seeing later edits. The hotfix removes *every* friendship row for the pair and cleans up both directions of shares and shared notebook memberships. API reads and writes continue checking accepted friendships; the frontend now clears cached private pages if verification fails rather than continuing to show stale copies.
+| Priority | Area | Present controls | Remaining work |
+| --- | --- | --- | --- |
+| High | Login and recovery abuse | MongoDB-backed request counters, generic invalid-login response, HMAC reset tokens (PR #73), 30-minute expiry, atomic consume | Validate actual proxy IP trust, thresholds, rate-limit index, email delivery and all lockout paths; consider MFA and monitoring |
+| High | Sharing revocation | Remove accepted friendship grants and share memberships; recheck authorization in API | Test open browser/provider sessions and cached content with two accounts; copied data cannot be erased |
+| High | Concurrent writing/data loss | Proposed native Yjs text merge; authoritative CRDT; old full-page PUT rejected after migration | Verify reconnect, failure retries, same-page concurrent edits, deletion/restore and provider migration; personal `/workspace` still uses aggregate writes |
+| High | Resend secrets/tokens | Server-only key, trusted app URL, digest-only token storage, session version invalidation | Configure missing sender/origin variables, verify domain, test email, watch delivery failures and secure retention |
+| High | Provider migration and backups | Provider-authoritative rooms tracked separately; native sync rejects dual-authority rooms | Export/restore hosted Yjs and MongoDB CRDT state, verify provider ACL disconnection, define deletion/retention policy |
+| High | Privacy, account lifecycle | Community scores require explicit opt-in; private friends ranking uses accepted relationships | Verified email changes, account deletion, complete data export, legal/privacy policy review and deletion across providers |
+| Medium | Injection/XSS | Pydantic types, validated ObjectIds, server-chosen MongoDB operators, escaped search regex, CSP | Continue authorized NoSQL, browser XSS, CSP and dependency testing with each change |
+| Medium | Remote calendar SSRF | Public-IP DNS validation, pinned TLS, no redirects, response limits, stored URL encryption | Egress restrictions, unusual DNS/IPv6 cases, calendar parser resource limits and recurrence/timezone tests |
+| Medium | Dependencies and hosting | CI builds, Python tests, npm/pip audits, security headers, secure cookies, CSRF origin validation | Keep dependencies current, assess package and hosting changes, review previews and leaked secrets |
+| Operational | Incident readiness | Documentation, basic health endpoints and release checklist | Monitoring/alerting, secure incident contact, tested backups, migration rollback, quotas and recovery exercises |
 
-This is a source-level mitigation, not proof of production behavior. Test with two real accounts and pre-existing duplicate friendship records. Historical content already copied, downloaded, cached or screenshotted by a former recipient cannot be remotely erased from that person's possession. The separately proposed Liveblocks integration must additionally revoke provider access on already-connected clients before production enablement.
+### Details and historical mitigations
 
-## Mitigations proposed
+Earlier security work included minimum Vite/PyJWT/iCalendar version increases, CSRF Origin checks, production OpenAPI restrictions, session-version revocation, default-private community leaderboard settings and tightened note-sharing authorization. These controls are verifiable in source but require deployment checks. Date-sensitive vulnerability claims should be revalidated against current resolved dependency versions rather than assumed from this history.
 
-| Severity | Finding | Proposed mitigation |
-| --- | --- | --- |
-| Critical, conditional | Vite <=6.4.5 is affected by GHSA-p4f5-76q4-ffq7 (10 November 2026). The reported RCE requires deliberate network exposure of the development server. | Require Vite >=6.4.6 on the 6.x line; keep the development server bound to loopback. This finding does not establish production exploitation. |
-| High | Broad PyJWT requirement permitted security-affected old releases. | Raise minimum to PyJWT 2.15.1 and monitor resolved dependencies. |
-| Medium | iCalendar 6.x permitted known alarm-expansion resource exhaustion issues in other use patterns (GHSA-qjcq-q7h7-r74v). | Require iCalendar >=7.3.0 and add parsing compatibility tests. The current routes do not directly call the affected alarm expansion functionality. |
-| High | Authentication endpoints had no persistent throttling. | Use atomic MongoDB rate limits by trusted client IP and account identifier; store HMAC-based keys only, return 429 with Retry-After and provision TTL cleanup. |
-| High | Password changes/logouts left older JWTs valid until expiry. | Verify session versions against the account on every authenticated request; increment on logout/password change and issue a fresh cookie after a password change. |
-| High | Unfriending did not revoke shared-notebook memberships. | Remove memberships in both directions and revalidate friendship for notebook listing, reads and edits. |
-| High | Accounts could change to unverified email addresses. | Disable changes until a verified email-delivery challenge is available. This intentionally restricts functionality. |
-| High | The leaderboard previously enabled public participation for newly saved workspaces without affirmative consent. | Change defaults to off and require a new explicit consent flag. Existing implicitly enrolled accounts must reopt in manually. |
-| Medium | Cookie-authenticated writes were not independently checked against cross-origin requests. | Require trusted Origin for cookie-backed POST, PATCH, PUT and DELETE. |
-| Medium | Production OpenAPI schema remained publicly accessible. | Disable OpenAPI in production. |
-| Medium | Missing explicit web response protections. | Add CSP tuned for Google Identity Services, HSTS, anti-framing and COOP. Browser compatibility must still be tested. |
-| Low | Certain malformed calendar URLs could raise an unhandled parse error. | Return HTTP 400 for URL parsing failures. |
-| Operational | Backend security regressions lacked CI execution and dependency update prompts. | Include backend unit tests in security CI, and configure Dependabot. |
-| Medium | Some authenticated endpoints permitted unbounded growth or repeated remote calendar fetching. | Add notebook and notification-state bounds and persistent per-account/IP calendar-fetch limits. Further storage quotas remain necessary. |
+A confirmed report involved former friends retaining access to shared notes and subsequent edits after unfriending. The code removes duplicate historical friendship rows and both directions of shares, protects notebook reads and writes through current-friend checks, and clears the browser editor after access revocation. Hosted Liveblocks has a separate provider ACL and connection lifecycle. Treat a failure to revoke a connected editor as a potential privacy incident.
 
-## Sensitive information and documentation
+LifeOrbit uses MongoDB, **not a SQL engine**. Source-level review did not find a confirmed exploitable NoSQL injection in the inspected typed API routes, and tests reject operator objects and escape friend-search regex. This does not prove freedom from NoSQL/XSS/SSRF/logic vulnerabilities. User-originating calendar data remains a parser and networking risk even with current mitigations.
 
-Targeted pattern checks covered 32 current tracked Markdown files, hackathon documentation, environment examples and major backend files. Checks included private-key markers, recognizable credential/token prefixes, non-placeholder MongoDB URIs, hard-coded credential assignments, email addresses, IPv4 strings and phone-like numbers. No matches requiring removal were identified in this checked current source.
+## Secrets, logs and data handling
 
-**Visual screenshot review:** Both tracked documentation screenshots, `docs/screenshots/dashboard.webp` and `docs/screenshots/login.webp`, were inspected. They show generic guest and login interfaces, without visible personal contact information or credentials. New screenshots still require a separate review before publication.
+No provider secrets or database URI values belong in the repository or in documentation. Historical pattern scans were not a full secrets audit; old Git history, additional branches, hosting config and backups need separate review. Privacy-sensitive screenshots should use synthetic data and be rechecked before publication.
 
-**Limitations:** Pattern matching cannot establish that every secret is absent. Past Git history, branches outside the reviewed tree, Vercel environment variables, MongoDB, private communications and build artifacts were not audited. Public documentation intentionally references the project and its domain. Rotate and revoke any credential previously committed, even if its current copy was later deleted.
+Maintain provider domain authentication (e.g. SPF/DKIM), monitor email delivery status without logging reset links, use least-privilege MongoDB credentials and verify database TTL indexes. Backup both notebook metadata and binary `notebook_crdts` state. Hosted Liveblocks data needs a separate independently tested restore method.
 
-## Additional realtime rollout risks (proposed branch)
+## Required release verification
 
-- Hosted Liveblocks will process shared notebook content and participant names when realtime is enabled. Reconcile the privacy policy, controller/processor agreements, region, retention, incident handling and costs before enabling it.
-- Server-side notebook ACLs are synchronized from MongoDB. Validate immediate removal of already-connected editors after unfriend, invitation revocation, notebook deletion and account-session revocation using real Liveblocks accounts; a disconnected FastAPI session does not automatically revoke an existing provider connection.
-- MongoDB is metadata/legacy preview storage after a notebook migrates. The Liveblocks Yjs document is authoritative for edits; maintain a tested export, backup and restoration plan for provider outages and deletion requests.
-- Operations are best-effort notifications rather than a durable event queue. Offline clients catch up from MongoDB after reconnect; lost broadcasts must not be treated as lost saved records.
-- Document/page deletion must also be reconciled with Liveblocks retention and version history to meet privacy deletion requirements; removing a MongoDB entry does not alone erase hosted CRDT history.
-- A private, authorized, two-account E2E test for simultaneous edits, cursor behavior, snapshots, network outages, migrations and revoked permissions is a release blocker. Provider flags are disabled by default.
+1. Run frontend typecheck/build, Python tests/compile, dependency audits and internal documentation link validation.
+2. In a nonproduction preview, confirm `/api/health` and `/api/health/database`, correct server IP extraction and rate limiting, cookies, CSRF and CORS.
+3. Use two synthetic accounts: create friendship; share notes, event invitations and challenge scores; unfriend; confirm API and UI denial. Test a stale live session and private/public leaderboard separation.
+4. Concurrently edit the same page on two browsers; pause network, reconnect, close tabs during pending writes, delete pages, and restore documents from a backup without data loss.
+5. Verify reset emails from the actual sender with a controlled mailbox, token expiration and replay, invalid account response, password hash update and old-session invalidation. Do not test against unrelated users.
+6. Review Liveblocks provider access and retention before enabling it; test connected-client ACL revocation and authoritative document migration.
+7. Get an independent review and documented sign-off on open high-risk issues before broadening public access.
 
-## Shared-note access revocation hotfix (11 November 2026)
-
-A confirmed report describes previously shared note contents and subsequent notebook edits remaining visible after a friendship is removed. The hotfix removes *every* friendship row for the account pair rather than just the selected request ID, which also addresses older databases missing the pair uniqueness index. Existing note shares and notebook member entries are removed in both directions. API reads and edits still require a currently accepted friendship. The browser now hides notebooks when fresh permissions cannot be verified, and a failed friend-list request no longer leaves previously loaded notebook content in place. Regression tests are required before deployment.
-
-Already downloaded or copied content cannot be taken back from a former recipient's device. This hotfix is intended to prevent *subsequent server-authorized reads or writes* and to clear the active application's view. The separately proposed Liveblocks/Yjs integration also needs provider-side ACL removal to disconnect currently connected editors.
-
-## Remaining important risks
-
-1. Build verified email enrollment, email-change confirmation, password recovery and secure account deletion before a public rollout handling sensitive personal data.
-2. Add per-device session inventory and selective revocation. Present logout revokes *all* sessions for the account.
-3. Verify hosting security configuration directly: Vercel access, preview protection, MongoDB TLS and least-privilege users, secret rotation, audit logging, network egress and backups.
-4. Review iCalendar security further. Existing public-IP resolution, pinned TLS and redirect rejection remain application-level measures, not a network firewall. Test unusual DNS, slow streams, recurrence and timezones.
-5. Set real operator/contact, retention, privacy, export and deletion procedures. Do not imply these legal and operational controls are complete.
-6. Reconfirm user-facing leaderboard privacy and display names after existing accounts reopt in. Replace whole-workspace writes with revision-aware updates to prevent lost changes. Community ranking is based on user-controlled challenge values and is not fraud-resistant.
-7. Tune abuse limits with observed legitimate usage and add alerts, resource quotas and privacy-preserving security monitoring.
-8. Verify the Google Sign-In user journey in a browser with the new CSP. Do not relax the policy without examining reported violations.
-9. Add a reviewed lockfile. Existing npm/pip audits with ranged dependencies do not prove the exact dependency versions used in a past deployment.
-10. Run an authorized two-account authorization test matrix and a separate external security assessment before calling the app secure.
-
-## Required validation
-
-Run `python -m unittest discover -s tests -v`, `python -m compileall -q backend api`, `pip-audit -r backend/requirements.txt`, `npm audit --audit-level=high`, `npm run typecheck`, and `npm run build`. Confirm the installed version floors, provision the MongoDB indexes via `ensure_indexes()`, and verify CI results.
-
-On a nonproduction preview with test accounts, verify login throttling without stressing live users, cross-origin rejection, password-change/logout invalidation of another session, friendship and notebook access revocation, Google Sign-In, SSRF protections, error responses, CSP headers and all normal user workflows. A green pipeline is not a substitute for these tests.
+See [Security policy](../SECURITY.md), [Deployment](DEPLOYMENT.md), [Operations](OPERATIONS.md), [Realtime collaboration](REALTIME_COLLABORATION.md), [Password recovery](PASSWORD_RECOVERY.md) and [Release checklist](RELEASING.md).
