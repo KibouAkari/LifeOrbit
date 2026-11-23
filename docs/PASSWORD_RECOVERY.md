@@ -10,11 +10,11 @@ LifeOrbit uses the [Resend Email API](https://resend.com/docs/send-with-python) 
 - `PASSWORD_RESET_FROM_EMAIL`: verified sender, for example `LifeOrbit <security@lifeorbit.dev>` if that exact domain and sender are approved
 - `PUBLIC_APP_URL`: canonical HTTPS origin without path, e.g. `https://www.lifeorbit.dev`
 
-In the production Vercel variable-name listing checked on 23 November 2026, `RESEND_API_KEY` was present, but `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` were not. We did not read or test the key's value. With either required value missing, the proposed API returns HTTP 503 for all reset requests. Set these variables for the correct environment, verify the sender domain in Resend, then redeploy and test only with controlled mailboxes.
+In the latest production Vercel variable-name listing on 23 November 2026, **all three required names are present**: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No secret values were read. This does not confirm that the Resend key is valid, that the sending domain is verified, or that an email will arrive. The routes are still in PR #73 and require an approved deployment and controlled mailbox test before being considered operational.
 
 ## User experience
 
-The sign-in form links to `#/forgot-password`. A registered email/password user can request a message containing a link to `#/reset-password?token=...`. The server generates a 256-bit random token, stores only a keyed SHA-256 HMAC digest, and expires it after **30 minutes**. A request replaces previous reset tokens for that account. The UI always shows the same generic response for existing and nonexistent accounts to avoid ordinary account enumeration.
+The sign-in form links to `#/forgot-password`. A registered email/password user can request a message containing a link to `#/reset-password?token=...`. The server generates a 256-bit random token, stores only a keyed SHA-256 HMAC digest, and expires it after **30 minutes**. A request replaces previous reset tokens for that account. The public endpoint returns the same generic response for existing and nonexistent accounts to reduce account enumeration. Token generation and sending are scheduled as FastAPI background work; a successful 202 response confirms acceptance of the request, **not delivery of the message**. Confirm the sending provider's status separately.
 
 Opening the link permits a new 12–72 character password. The backend atomically consumes the token, rotates the stored password hash and increments the account session version, signing out all previously issued sessions. The same token cannot be used twice. Google-only accounts that have no password must continue using Google Sign-In.
 

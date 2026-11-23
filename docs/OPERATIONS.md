@@ -10,7 +10,7 @@ This document is for operators of the Vercel + MongoDB deployment. Do not run de
 
 Required infrastructure configuration is defined in [Deployment](DEPLOYMENT.md); Resend details in [Password recovery](PASSWORD_RECOVERY.md); collaboration flags in [Realtime collaboration](REALTIME_COLLABORATION.md).
 
-At the time of the 23 November review, Vercel's variable-name listing showed `RESEND_API_KEY` in production, but not `PASSWORD_RESET_FROM_EMAIL` or `PUBLIC_APP_URL`. No secrets were decrypted. Add missing values before exercising recovery. Presence of a key does not verify provider authorization or delivery.
+A subsequent 23 November 2026 Vercel check confirmed all three production variable names: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No secret values were decrypted. The sending domain, provider permissions and actual delivery still require confirmation with a controlled mailbox; the production `main` build does not yet contain PR #73's reset flow.
 
 ## Daily monitoring
 

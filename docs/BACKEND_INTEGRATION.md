@@ -30,9 +30,9 @@ Consult the source route decorators for precise request and response models. The
 - A signed, short-lived JWT lives in an HttpOnly, Secure cookie scoped to `/api`.
 - A MongoDB `session_version` invalidates prior cookies on logout, password change or successful reset; logout currently affects all devices.
 - Google login verifies Google identity; it does **not** authorize calendar access.
-- Password recovery requests respond generically for registered and unregistered emails, with abuse limits and 30-minute single-use tokens.
+- Password recovery requests respond generically for registered and unregistered emails, with abuse limits and 30-minute single-use tokens. Email delivery runs as background work, so HTTP 202 confirms request acceptance, not an email delivery receipt.
 - Backend MongoDB filters use typed request bodies, validated ObjectIds and server-selected operations. User-supplied MongoDB operators must never be interpreted as query documents.
-- The leaderboard's `friends` field is scoped to currently accepted friends; `participants` is opt-in community visibility. Scores are self-reported and limited.
+- The leaderboard's `friends` field is scoped to currently accepted friends; `participants` is opt-in community visibility. Scores are self-reported. The community query is no longer artificially truncated to a fixed 2,000 accounts; monitor performance as the number of consenting accounts grows.
 
 ## Error semantics and versioning
 

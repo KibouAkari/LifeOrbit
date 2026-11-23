@@ -5,8 +5,8 @@ Updated 23 November 2026. This is a source review and documented test plan. It d
 ## Deployment boundary
 
 - **Production:** current `main` commit, not necessarily the latest proposed functionality. The production shared notebook editor can still display a manual Save button.
-- **PR #73:** native Yjs autosave, email password recovery and private friend rankings are implemented in code and CI-checked, but require controlled integration testing and production promotion.
-- **Vercel settings checked 23 November:** the production variable names included `RESEND_API_KEY`, but **did not** include `PASSWORD_RESET_FROM_EMAIL` or `PUBLIC_APP_URL`. No provider key was decrypted or validated; no mail delivery was proven. No Liveblocks secret/flags were visible.
+- **PR #73:** native Yjs autosave, email password recovery and private friend rankings are implemented in code and CI-checked, but require controlled integration testing and production promotion. Additional review fixes persist CRDT tombstones for deleted pages, carry pending saves across navigation, and avoid truncating the consenting community leaderboard to an arbitrary first 2,000 records.
+- **Vercel settings checked 23 November:** the latest production variable-name listing includes **all three**: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No provider key was decrypted or validated; no mail delivery was proven. No Liveblocks secret/flags were visible.
 - A READY deployment or passing unit test is not evidence of correct delivery, private data isolation, multi-user convergence or fully secure operation.
 
 ## Threat model
@@ -22,7 +22,7 @@ Core threats are credential stuffing, account enumeration, token replay, broken 
 | High | Login and recovery abuse | MongoDB-backed request counters, generic invalid-login response, HMAC reset tokens (PR #73), 30-minute expiry, atomic consume | Validate actual proxy IP trust, thresholds, rate-limit index, email delivery and all lockout paths; consider MFA and monitoring |
 | High | Sharing revocation | Remove accepted friendship grants and share memberships; recheck authorization in API | Test open browser/provider sessions and cached content with two accounts; copied data cannot be erased |
 | High | Concurrent writing/data loss | Proposed native Yjs text merge; authoritative CRDT; old full-page PUT rejected after migration | Verify reconnect, failure retries, same-page concurrent edits, deletion/restore and provider migration; personal `/workspace` still uses aggregate writes |
-| High | Resend secrets/tokens | Server-only key, trusted app URL, digest-only token storage, session version invalidation | Configure missing sender/origin variables, verify domain, test email, watch delivery failures and secure retention |
+| High | Resend secrets/tokens | All required environment variable names are present, server-only key, trusted app URL, digest-only token storage, session version invalidation | Verify values and sender domain without exposing secrets, test actual email, watch delivery failures and secure retention |
 | High | Provider migration and backups | Provider-authoritative rooms tracked separately; native sync rejects dual-authority rooms | Export/restore hosted Yjs and MongoDB CRDT state, verify provider ACL disconnection, define deletion/retention policy |
 | High | Privacy, account lifecycle | Community scores require explicit opt-in; private friends ranking uses accepted relationships | Verified email changes, account deletion, complete data export, legal/privacy policy review and deletion across providers |
 | Medium | Injection/XSS | Pydantic types, validated ObjectIds, server-chosen MongoDB operators, escaped search regex, CSP | Continue authorized NoSQL, browser XSS, CSP and dependency testing with each change |

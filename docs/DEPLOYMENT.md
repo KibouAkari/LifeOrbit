@@ -39,7 +39,7 @@ Hosted realtime collaboration is optional and must be **separately provisioned**
 10. Test calendar import/subscription refresh, including public-address validation and denied private endpoints.
 11. Complete the [release checklist](RELEASING.md) before promoting or merging.
 
-**Vercel READY is a build result, not an authentication or database test.** The production variable-name listing checked on 23 November 2026 showed `RESEND_API_KEY` for production, while `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` were missing. No Liveblocks variables were found. We did not decrypt provider keys or prove real email delivery. Native autosave needs no external key once PR #73 is deployed; working password-reset email needs all three values, a verified Resend sender and a fresh deployment. Do not put private keys under a `VITE_` variable.
+**Vercel READY is a build result, not an authentication or database test.** The latest production variable-name listing on 23 November 2026 showed all three recovery variables: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No Liveblocks variables were found. We did not decrypt the secret values, confirm the configured sender domain or prove email delivery. Native autosave needs no external key once PR #73 is deployed; working password-reset email needs all three values, a verified Resend sender and a fresh deployment. Do not put private keys under a `VITE_` variable.
 
 ## Environment scopes and validation
 

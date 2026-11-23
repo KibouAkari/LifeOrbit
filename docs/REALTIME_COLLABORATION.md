@@ -10,6 +10,8 @@ The backend validates owner or current accepted friendship, serializes changes u
 
 **This is near-live polling, not instant server push.** Network and database latency vary. Polling consumes Vercel and MongoDB requests, and remote edits in a basic textarea may move cursor selection. Use the separately configured Liveblocks WebSocket provider for faster push and online-presence features.
 
+Native page deletion also clears Yjs title/body text and records a deleted-page marker, preventing later updates from restoring previously deleted content. Incoming full-state CRDT updates and stored document state share a 1.5 MB size bound; larger data needs an explicit migration plan.
+
 A notebook already migrated to hosted Liveblocks is not automatically converted back to native MongoDB. The built-in sync route returns HTTP 409 instead of risking conflicting authoritative documents. Do not remove migration flags to bypass this safeguard.
 
 ## Why and how it works

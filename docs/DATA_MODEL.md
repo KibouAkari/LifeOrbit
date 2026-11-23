@@ -13,7 +13,7 @@ Updated 23 November 2026. PR #73 collections exist in proposed source but may no
 | `friendships` | `pair`, sender, recipient, status | Acceptance establishes private friend scope |
 | `shares` | owner, recipient, kind, `resource_id`, optional RSVP | Requires valid owner resource and current accepted friendship |
 | `shared_notebooks` | `_id`, owner, members, pages, timestamps | Owner and explicitly invited accepted friends |
-| `notebook_crdts` (PR #73) | notebook ID, binary Yjs state, version, timestamp | Native collaborative source, server-only storage |
+| `notebook_crdts` (PR #73) | notebook ID, binary Yjs state, version, deleted-page markers, timestamp | Native collaborative source, server-only storage |
 | `realtime_notebooks` (optional) | room/migration status | Tracks provider-authoritative rooms; never mix with native state |
 | `calendar_feeds` | owner, encrypted URL, last refresh, count | Owner only; URL is secret |
 | `notification_state` | `user_id`, read identifiers | Owner only |
@@ -26,7 +26,7 @@ All strings from clients are validated through Pydantic. ObjectId values must be
 
 Personal notes are embedded in the user's workspace. Moving a note to a shared notebook copies it before removing its personal source.
 
-The native Yjs editor merges serialized CRDT updates under a distributed lock in `notebook_crdts`. Shared notebook page strings are **secondary previews** and should not overwrite CRDT state. Older browser versions trying to save whole pages after CRDT migration receive a conflict. Liveblocks-migrated notebooks remain provider-authoritative and are excluded from native updates.
+The native Yjs editor merges serialized CRDT updates under a distributed lock in `notebook_crdts`. Native deleted-page markers and cleared CRDT text protect against reappearance of deleted content after old updates arrive. Shared notebook page strings are **secondary previews** and should not overwrite CRDT state. Older browser versions trying to save whole pages after CRDT migration receive a conflict. Liveblocks-migrated notebooks remain provider-authoritative and are excluded from native updates.
 
 User membership and accepted friendship must be rechecked for *every* read/write. Deleting friendship rows removes shares and membership; external Liveblocks room ACL revocation is separately required if that feature is enabled.
 

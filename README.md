@@ -38,10 +38,12 @@ This is an actively maintained open-source application, **not a finished or inde
 | --- | --- | --- |
 | Shared-notebook editing | Manual save; periodic updates | Built-in Yjs autosave, concurrent-merge HTTP synchronization |
 | Hosted realtime push | Not configured | Optional Liveblocks WebSockets with independent configuration |
-| Password reset via email | Not deployed | Single-use email reset links, requires verified Resend sender |
+| Password reset via email | Not deployed | Single-use email reset links; Resend sender verification and real delivery test outstanding |
 | Friends leaderboard | Public opt-in ranking | Separate private friends ranking, public community still opt-in |
 
 Native autosave is **near-live**, not push realtime: active clients poll for changes roughly every 1.3 seconds. Neither it nor the password recovery flow should be considered production-verified until a controlled preview test succeeds.
+
+**Email recovery configuration:** Vercel now lists all three production environment variable names: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. Their values were not retrieved or validated, and a real reset email has not been sent in this review. These settings do not activate the feature until the code is merged and deployed. Follow the [password recovery guide](docs/PASSWORD_RECOVERY.md) for sender-domain verification and safe testing.
 
 ## Technology
 
