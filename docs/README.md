@@ -1,6 +1,6 @@
 # Documentation
 
-This is the current engineering and operations reference for LifeOrbit. Start at the top and follow only the guides relevant to your task. Source behavior and deployed behavior are not assumed to be identical; PR #73 contains features that still need a production release.
+This is the current engineering and operations reference for LifeOrbit. Start at the top and follow only the guides relevant to your task. Source behavior and deployed behavior are not assumed to be identical. PR #73 was merged into main, while the new transactional welcome-email feature is proposed in PR #74. Always verify the actual deployment commit.
 
 | Question | Document |
 | --- | --- |
@@ -12,6 +12,7 @@ This is the current engineering and operations reference for LifeOrbit. Start at
 | How do friends, notes, calendar sharing and rankings work? | [Collaboration and calendar](SOCIAL_AND_CALENDAR.md) |
 | How does autosave work, including CRDT migration? | [Realtime collaboration](REALTIME_COLLABORATION.md) |
 | How does password recovery work? | [Password recovery](PASSWORD_RECOVERY.md) |
+| How is the welcome email designed, triggered and delivered? | [Welcome email](WELCOME_EMAIL.md) |
 | How do I deploy it? | [Deployment](DEPLOYMENT.md), [MongoDB setup](MONGODB_SETUP.md) |
 | How do I operate, monitor, back up or recover it? | [Operations](OPERATIONS.md) |
 | What is required before release? | [Release checklist](RELEASING.md) |

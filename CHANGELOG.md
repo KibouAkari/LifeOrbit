@@ -4,6 +4,15 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-23 · Welcome email onboarding (PR #74)
+- Added a one-time branded welcome email for newly created password accounts and first-time, email-verified Google accounts. Existing users signing in again do not receive another welcome.
+- Reused the actual LifeOrbit wordmark as a publicly hosted email-compatible PNG, with a white and lavender HTML layout, app CTA, product tips and an equivalent plain-text version.
+- Reused existing server-only Resend variables, escaped user-controlled display names and trusted the configured canonical HTTPS application origin for email links.
+- Scheduled delivery as a best-effort FastAPI background task so provider failures cannot block registration; recorded the operational limitation that no durable mail retry queue exists yet.
+- Added regression coverage for rendering, escaping, configuration errors, provider failures, new registration triggers and repeated Google login.
+- Updated the README, documentation index, deployment, security and release guidance. This work is in PR #74 and is not production-verified.
+
+
 ### 2026-11-23 · Collaborative code review and regression hardening
 - Fixed deleted-page handling for native Yjs notebooks: remove obsolete title/body content from the CRDT, persist deleted-page tombstones, and prevent later collaborative updates from restoring deleted page text.
 - Harmonized the native sync update-size cap with the serialized document-size cap at 1.5 MB and added regression coverage.
