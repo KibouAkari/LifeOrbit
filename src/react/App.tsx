@@ -24,7 +24,9 @@ const pages: Record<Section, ComponentType> = {
 };
 type Route = Section | "not-found" | "privacy" | "terms" | "forgot-password" | "reset-password";
 const routeFromHash = (): Route => {
-  const route = location.hash.replace(/^#\/?/, "").split("/")[0] || "login";
+  // Keep query parameters out of the route name. Password-reset links use
+  // #/reset-password?token=... so the token remains in the URL fragment.
+  const route = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || "login";
   if (route === "privacy" || route === "terms" ||
       route === "forgot-password" || route === "reset-password") return route;
   return Object.prototype.hasOwnProperty.call(pages, route) ? route as Section : "not-found";
