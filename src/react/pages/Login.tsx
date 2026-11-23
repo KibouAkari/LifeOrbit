@@ -83,6 +83,7 @@ export default function Login(){
          <label className="form-label">Password<div className="password-field"><input className="input" type={showPassword?"text":"password"} minLength={mode==="register"?12:1} maxLength={72} autoComplete={mode==="register"?"new-password":"current-password"} required value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"At least 12 characters":""}/><button type="button" aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button></div></label>
          <button className="button primary login-submit" disabled={busy}>{busy?"Working…":mode==="register"?"Create account":"Sign in"}<ArrowRight size={17}/></button>
        </form>
+       {mode==="login"&&<a className="login-back" href="#/forgot-password">Forgot password?</a>}
        <button className="login-back" type="button" onClick={()=>{setEmailVisible(false);setError("");}}>Other sign-in options</button>
      </>}
      {!clientId&&!emailVisible&&<p className="auth-hint">Google login is temporarily unavailable.</p>}

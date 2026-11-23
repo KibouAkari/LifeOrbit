@@ -229,6 +229,20 @@ class YjsMigrationTests(unittest.TestCase):
         self.assertIn(" A", str(a.get("body", type=Text)))
         self.assertIn(" B", str(a.get("body", type=Text)))
 
+    def test_hosted_migration_refuses_existing_native_document(self):
+        db = MagicMock()
+        db.realtime_notebooks.find_one.return_value = None
+        db.notebook_crdts.find_one.return_value = {
+            "_id": BOOK, "version": 4, "state": b"preserved"}
+        book = {"_id": ObjectId(BOOK), "owner": OWNER, "pages": []}
+        with patch.object(realtime, "api") as provider:
+            with self.assertRaises(HTTPException) as raised:
+                realtime._prepare_notebook_locked(
+                    db, BOOK, OWNER, book, realtime.notebook_room(BOOK))
+        self.assertEqual(raised.exception.status_code, 409)
+        provider.assert_not_called()
+        db.realtime_notebooks.insert_one.assert_not_called()
+
     def test_authorize_rejects_arbitrary_room(self):
         with patch.object(realtime, "require_enabled"), \
              patch.object(realtime, "enforce_limit"), \

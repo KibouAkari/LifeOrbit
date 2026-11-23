@@ -1,70 +1,31 @@
 # LifeOrbit roadmap
 
-> Historical hackathon plan. The original MVP priorities below are retained as planning context. For implemented functionality, see the [README](../README.md); for incomplete or blocked areas, use the status section below.
+Updated 23 November 2026. This is a prioritized engineering plan, not a claim of released functionality. Current feature scope is in [Product](PRODUCT.md) and the [README](../README.md).
 
-## MVP · seven priorities
+## Priority 0: release safety and data integrity
 
-The team has identified seven core implementation blocks:
+- [ ] Verify email provider sender domain and the required `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` per Vercel environment.
+- [ ] Complete password recovery email delivery, expiry, one-use token, session invalidation and abuse-limit tests using controlled mailboxes.
+- [ ] Test native Yjs autosave between two browsers, including simultaneous same-page edits, reconnect, forced errors, deleted pages, restarts and recovery from backups.
+- [ ] Confirm every shared-note, notebook, event, notification and friend-score access is denied after unfriending, including users with previously open sessions.
+- [ ] Validate provider-side room revocation, backup/export and security before enabling Liveblocks.
+- [ ] Prove production/preview authentication, MongoDB indexes, origin controls, rate limits, error handling and rollback on target infrastructure.
+- [ ] Finalize account deletion, email verification, retention policies and a secure support channel for users with personal data.
 
-| Priority | Area | MVP acceptance criteria |
-| --- | --- | --- |
-| P0 | Notes | Create, view, edit and delete multiple notes with text; support images if capacity allows. |
-| P0 | Calendar | Create and view events in a clean monthly interface; day/week views can be iterated. |
-| P0 | Task planner | Create tasks, mark complete and clearly distinguish open from completed items. |
-| P0 | Dashboard | Show an at-a-glance view of upcoming events, open tasks, recent notes and challenges. |
-| P1 | Notifications / Focus | Basic in-app reminders and an optional distraction-reduced focus view. |
-| P1 | Challenges / Leaderboard | Daily, weekly and monthly challenges with points; leaderboard only for consenting participants. |
-| P1 | Subscription overview | Manually track active subscriptions, amount, currency and renewal cadence. |
+## Priority 1: reliability and maintainability
 
-## Foundation
+- [ ] Replace aggregate workspace saves with revision-aware or resource-specific operations so multiple devices cannot silently overwrite personal state.
+- [ ] Add automated authorized browser E2E tests with test MongoDB and synthetic email delivery.
+- [ ] Add Yjs document backup/export, tested restore procedures, deletion retention and corruption handling.
+- [ ] Improve monitoring for HTTP errors, delivery failures, latency, database quotas and unusual login/reset activity.
+- [ ] Confirm calendar timezone, daylight-saving and recurrence semantics across browsers and external feeds.
+- [ ] Verify accessibility and layout on narrow screens, touch devices, keyboard-only and reduced-motion configurations.
 
-- Friendly login and account experience, private user data and sign-out.
-- Reusable layout, navigation, forms and mobile-friendly components.
-- Accessible states for empty/loading/error/success.
-- Validation, safe defaults and timezone-aware dates.
-- Changelog updates on every user-visible change.
+## Priority 2: product improvements
 
-## Stretch goals · seven optional blocks
+- [ ] Optional scheduled calendar refresh with consent, quotas and provider authorization.
+- [ ] Background notifications only with user permission and a dependable delivery mechanism.
+- [ ] More accessible rich-text collaboration, including cursor stability and conflict presentation.
+- [ ] Privacy-safe screenshots and onboarding guidance verified against the deployed application.
 
-Only begin these after the MVP works end-to-end:
-
-1. External calendar synchronization.
-2. AI life manager / assistant, with explicit user control.
-3. Automated daily and weekly plans.
-4. Additional animations, hover effects and page transitions.
-5. Automated alarm manager.
-6. Customisable dashboard, appearance and preferences.
-7. Multiuser shared planning and collaboration.
-
-## Suggested build sequence
-
-1. App shell, login, navigation and data model.
-2. Notes and tasks, including persistence.
-3. Calendar and day/week/month views.
-4. Dashboard connecting data from existing features.
-5. Subscriptions, reminders and focus mode.
-6. Challenges, points and optional leaderboard.
-7. Polish, mobile, accessibility, testing and demo.
-8. Only then stretch goals.
-
-## Definition of done
-
-A feature is done only when it works with real persisted data, is usable
-on mobile, handles errors and empty states, respects account permissions,
-and has its changelog entry and basic validation documented.
-
-This roadmap is a team proposal, not a promise or shipped feature list.
-
-
-## Current status (October 2026)
-
-Implemented foundations include authenticated account workspaces, dashboard, task deadlines, calendar views and iCal feed imports, chapter-based notes, shared notebooks, subscriptions, challenge selection, friends and event invitations. Calendar providers are not connected by two-way OAuth synchronization, and notification delivery is currently foreground-only. Editing collaboration is polling-based without conflict-free multi-user writes.
-
-### Priority follow-ups
-
-- Complete two-account authorization and cross-browser interaction tests.
-- Improve password recovery, email verification, session revocation, account deletion and rate limiting.
-- Implement safe database concurrency/version checks for shared notebooks and multi-device settings.
-- Add automatic calendar feed scheduling and robust timezone/recurrence handling.
-- Introduce real background push only with explicit permission and reliable server scheduling.
-- Capture new, genuine, privacy-safe screenshots for the README.
+No milestone is complete solely because a pull request builds successfully. Use [Release checklist](RELEASING.md) for verification requirements.

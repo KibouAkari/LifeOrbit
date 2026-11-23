@@ -4,11 +4,11 @@ Thanks for helping build a calmer everyday planner. We welcome bug reports, smal
 
 ## Before contributing
 
-Read the [README](README.md), [product brief](docs/PRODUCT.md), [design system](docs/DESIGN_SYSTEM.md) and [architecture](docs/ARCHITECTURE.md). Search existing [issues](https://github.com/KibouAkari/LifeOrbit/issues) and open one before major API or architectural changes.
+Read the [README](README.md), [documentation index](docs/README.md), [product scope](docs/PRODUCT.md), [frontend standards](docs/DESIGN_SYSTEM.md) and [architecture](docs/ARCHITECTURE.md). Search existing [issues](https://github.com/KibouAkari/LifeOrbit/issues) and open one before major API or architectural changes.
 
 ## Development setup
 
-Use **Node.js 22** and **Python 3.12**. Follow the exact [local installation steps](README.md#get-started). Do not copy credentials into source files. Run `npm run typecheck`, `npm run build` and `python -m compileall -q backend api` before requesting review.
+Use **Node.js 22** and **Python 3.12**. Follow the exact [local installation steps](README.md#get-started). Do not copy credentials into source files. Run `npm run typecheck`, `npm run build`, `python -m compileall -q backend api`, and `python -m unittest discover -s tests -v` before requesting review.
 
 ## Branches and changes
 
@@ -29,7 +29,9 @@ Never claim a feature is implemented because it is merely planned or shown in a 
 - Empty, loading, error and success states are accessible.
 - Calendar operations behave in Chromium and Firefox-based browsers where relevant.
 - Sensitive data, API keys, tokens and private calendar URLs stay out of commits/logs.
-- README and detailed docs match actual implementation.
+- README and detailed docs match actual implementation, and local documentation links resolve.
+- Browser and API regressions for authentication, access revocation and concurrent editing are tested using only synthetic accounts.
+- If data formats or secrets change, the [operations runbook](docs/OPERATIONS.md) includes a rollback and backup plan.
 - At least one teammate reviews before merging to `main`.
 
 ## Community and security

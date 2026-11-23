@@ -1,33 +1,45 @@
-# LifeOrbital data model
+# MongoDB data model
 
-Updated 24 October 2026. This describes the implementation, not a proposed future model.
+Updated 23 November 2026. PR #73 collections exist in proposed source but may not exist in production until deployment and first use.
 
-## MongoDB collections
+## Collections and ownership
 
-| Collection | Principal fields | Ownership |
+| Collection | Key fields | Trust rule |
 | --- | --- | --- |
-| `users` | `_id`, name, email, Google identity, password hash | Account owner |
-| `tasks` | `_id`, user_id, title, done, order | Only matching user_id |
-| `events` | `_id`, user_id, date, start_time, end_time, source, source_id | Event owner |
-| `workspaces` | user_id, notes, chapters, subscriptions, challenges, templates, leaderboard_opt_in | One private workspace per user |
-| `friendships` | pair, sender, recipient, status, created_at | Either participant for removal, recipient for acceptance |
-| `shares` | owner, recipient, kind, resource_id, optional challenge snapshot | Explicit sharing between accepted friends |
-| `calendar_feeds` | user_id, name, encrypted URL, last_synced, count | Feed owner |
+| `users` | `_id`, `email`, `password_hash`, `google_id`, `session_version` | Private to the account and authentication services |
+| `tasks` | `_id`, `user_id`, `title`, `done`, `order`, `due_at` | Owner only |
+| `events` | `_id`, `user_id`, `date`, clock fields, source metadata | Event owner; invited read-only recipients are separate |
+| `workspaces` | `user_id`, notes, chapters, subscriptions, challenges, opt-in flags | Owner only |
+| `friendships` | `pair`, sender, recipient, status | Acceptance establishes private friend scope |
+| `shares` | owner, recipient, kind, `resource_id`, optional RSVP | Requires valid owner resource and current accepted friendship |
+| `shared_notebooks` | `_id`, owner, members, pages, timestamps | Owner and explicitly invited accepted friends |
+| `notebook_crdts` (PR #73) | notebook ID, binary Yjs state, version, deleted-page markers, timestamp | Native collaborative source, server-only storage |
+| `realtime_notebooks` (optional) | room/migration status | Tracks provider-authoritative rooms; never mix with native state |
+| `calendar_feeds` | owner, encrypted URL, last refresh, count | Owner only; URL is secret |
+| `notification_state` | `user_id`, read identifiers | Owner only |
+| `rate_limits` | HMAC bucket ID, hits, expiry | Private server-side abuse state |
+| `password_reset_tokens` (PR #73) | HMAC token digest, user ID, email, expiry | Private single-use token records with TTL expiry |
 
-`friends` searches by display name, not by email. Share reads check that the friendship remains accepted. No globally readable notes or invites are exposed.
+All strings from clients are validated through Pydantic. ObjectId values must be validated before MongoDB conversion. Index creation lives in `backend/api/database.py:ensure_indexes()` and must be executed with a database role authorized to create indexes; the app should normally run with least privilege.
 
-## Data conventions
+## Notes and collaboration data
 
-Notes reside inside the owner's workspace document. Shared notes are read on demand from the original owner, so modifications appear in the recipient's read-only view on its next refresh. Event invitations point to an existing event record and are displayed distinctly. Shared challenges contain a proposal snapshot; the recipient may choose whether to add it to personal progress.
+Personal notes are embedded in the user's workspace. Moving a note to a shared notebook copies it before removing its personal source.
 
-Private iCal feed URLs are encrypted before being stored in MongoDB. Keep the JWT signing secret stable during key migration, as the current feed encryption key is derived from it. Later rotate to an independently versioned encryption key.
+The native Yjs editor merges serialized CRDT updates under a distributed lock in `notebook_crdts`. Native deleted-page markers and cleared CRDT text protect against reappearance of deleted content after old updates arrive. Shared notebook page strings are **secondary previews** and should not overwrite CRDT state. Older browser versions trying to save whole pages after CRDT migration receive a conflict. Liveblocks-migrated notebooks remain provider-authoritative and are excluded from native updates.
 
-## Correctness limitations
+User membership and accepted friendship must be rechecked for *every* read/write. Deleting friendship rows removes shares and membership; external Liveblocks room ACL revocation is separately required if that feature is enabled.
 
-Workspace writes replace the whole workspace document. Concurrent edits on two devices can overwrite one another. Add revision-based optimistic concurrency or per-document CRUD before enabling true simultaneous collaborative editing.
+## Retention and backup
 
-Events currently store local clock strings and a date, rather than canonical timezone-aware instants. Provider sync requires strict timezone normalization, recurrence rules, DST handling, conflict resolution, deletion handling, and idempotency tests.
+- TTL indexes remove expired rate-limit buckets and password reset token records, but MongoDB TTL expiration is asynchronous; validation must also check token expiry at use.
+- Password reset links have 30-minute validity. Stored HMAC digests, not plaintext tokens, must be backed by server-only secrets.
+- Encrypt private calendar URLs; currently their encryption key is derived from the JWT secret, making rotation a migration concern.
+- Back up `notebook_crdts` binary state as well as metadata. Hosted Liveblocks requires its own export/restore plan; MongoDB backups alone cannot recover hosted CRDT state.
+- Account deletion, complete personal-data export, deletion of hosted documents and retention commitments are **not complete**.
 
-Leaderboard points are computed from account-owned challenge data and are not yet fraud-resistant. Only consenting users should appear to other members.
+## Known consistency constraints
 
-Run index provisioning explicitly before production migration, after checking uniqueness constraints and duplicates.
+`PUT /api/workspace` replaces an aggregate account workspace and may overwrite updates from another device. Calendar dates and local clock strings need careful timezone/recurrence handling. Leaderboard points come from user-saved challenge values and are not independently verified. Native Yjs convergence does not guarantee human-intent conflict freedom.
+
+See [Architecture](ARCHITECTURE.md), [Operations](OPERATIONS.md) and [Realtime collaboration](REALTIME_COLLABORATION.md).

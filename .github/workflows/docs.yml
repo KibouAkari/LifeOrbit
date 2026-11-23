@@ -8,6 +8,8 @@ on:
       - "**/*.yaml"
       - ".editorconfig"
       - "assets/**"
+      - "requirements.txt"
+      - "backend/requirements.txt"
   pull_request:
     paths:
       - "**/*.md"
@@ -15,6 +17,8 @@ on:
       - "**/*.yaml"
       - ".editorconfig"
       - "assets/**"
+      - "requirements.txt"
+      - "backend/requirements.txt"
 
 permissions:
   contents: read
@@ -24,14 +28,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Check required repository files
+      - name: Check required documentation
         shell: bash
         run: |
           set -euo pipefail
-          for file in README.md LICENSE CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md docs/ROADMAP.md docs/PRODUCT.md; do
+          for file in README.md LICENSE CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md docs/README.md docs/PRODUCT.md docs/ARCHITECTURE.md docs/DEPLOYMENT.md docs/OPERATIONS.md docs/ROADMAP.md docs/RELEASING.md docs/SECURITY_AUDIT.md; do
             test -s "$file" || { echo "Missing or empty: $file"; exit 1; }
           done
           grep -q '## \[Unreleased\]' CHANGELOG.md
           test -s assets/logo.svg
           test -s assets/icon.svg
-          echo "Required documentation and brand assets found."
+          echo "Core documentation and brand assets found."
+      - name: Check Vercel and backend Python dependency parity
+        shell: bash
+        run: |
+          cmp requirements.txt backend/requirements.txt || {
+            echo "Root and backend Python requirements must match."
+            exit 1
+          }
+      - name: Verify local documentation links
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          from urllib.parse import unquote, urlsplit
+
+          root = Path.cwd()
+          broken = []
+          checked = 0
+          pattern = re.compile(r'!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)')
+          for source in sorted(root.rglob("*.md")):
+              if any(p in {".git", "node_modules", ".venv"} for p in source.parts):
+                  continue
+              for match in pattern.finditer(source.read_text(encoding="utf-8")):
+                  raw = match.group(1).strip("<>")
+                  if raw.startswith(("#", "mailto:", "tel:", "data:", "//")):
+                      continue
+                  parsed = urlsplit(raw)
+                  if parsed.scheme or parsed.netloc:
+                      continue
+                  path = unquote(parsed.path)
+                  if not path:
+                      continue
+                  checked += 1
+                  # A leading slash means repo-root documentation, not OS root.
+                  target = (root / path.lstrip("/") if path.startswith("/")
+                            else source.parent / path).resolve()
+                  if not target.is_relative_to(root) or not target.exists():
+                      broken.append(f"{source.relative_to(root)}: {raw}")
+          if broken:
+              print("Broken local documentation references:")
+              for item in broken:
+                  print("  " + item)
+              raise SystemExit(1)
+          print(f"Validated {checked} local documentation links.")
+          PY

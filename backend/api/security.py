@@ -25,7 +25,8 @@ def _client_address(request: Request) -> str:
 
 
 def enforce_limit(request: Request, category: str, *, maximum: int,
-                  window_seconds: int, identity: str = "") -> None:
+                  window_seconds: int, identity: str = "",
+                  account_maximum: int | None = None) -> None:
     """Atomically account for attempts without storing raw IPs or email."""
     secret = os.getenv("JWT_SECRET_KEY", "")
     if len(secret) < 32:
@@ -52,7 +53,9 @@ def enforce_limit(request: Request, category: str, *, maximum: int,
             )
         # Both buckets are deliberately checked, even when the first exceeds
         # its allowance. This prevents bypasses across account and IP changes.
-        threshold = maximum if dimension == "ip" else max(4, maximum // 3)
+        threshold = (maximum if dimension == "ip" else
+                     account_maximum if account_maximum is not None else
+                     max(4, maximum // 3))
         if row and row.get("hits", 0) > threshold:
             retry_after = window_seconds - (int(time.time()) % window_seconds)
             raise HTTPException(

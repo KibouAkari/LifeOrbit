@@ -4,6 +4,36 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-23 · Collaborative code review and regression hardening
+- Fixed deleted-page handling for native Yjs notebooks: remove obsolete title/body content from the CRDT, persist deleted-page tombstones, and prevent later collaborative updates from restoring deleted page text.
+- Harmonized the native sync update-size cap with the serialized document-size cap at 1.5 MB and added regression coverage.
+- Improved saving across editor navigation, in-flight requests and authorization refreshes to avoid silent loss of pending changes or exposure of revoked notebook content.
+- Made password-reset email processing run as a server-side background task while preserving a generic public response, separate per-account and IP limits, and secret-free error logging. Delivery remains unverified until a controlled mailbox test.
+- Removed the arbitrary 2,000-workspace truncation of the opted-in community leaderboard; the backend now considers all consenting accounts, with query scalability still an operational concern.
+- Added tests for deleted-page safety, Yjs size compatibility, account-specific abuse thresholds and other collaborative edge cases.
+
+### 2026-11-23 · Documentation consolidation and current operations guidance
+- Removed obsolete event-specific reports, progress diaries and duplicate early design, frontend and workflow documentation from the active repository tree, retaining the project history in Git.
+- Reworked the README and documentation index to explain the current product, source versus production features, engineering ownership, API/data contracts and security expectations.
+- Added an operational incident, backup and rollback runbook, refreshed the security risk register, and clarified the exact Vercel configuration requirements for password recovery.
+- Added an automated local documentation link check to GitHub Actions so future file moves cannot silently break navigation.
+- Aligned the root Vercel `requirements.txt` with `backend/requirements.txt` to avoid dependency-version drift between local development, CI and deployment; added a CI check for future divergence.
+- Replaced a dated MongoDB incident narrative with reusable Atlas setup and disaster-recovery instructions, and removed unused historical preview screenshots.
+
+### 2026-11-23 · Autosaving collaborative notes, password recovery and friends leaderboard
+- Added a built-in MongoDB-backed Yjs editor when Liveblocks is not configured, replacing the visible manual Save page button. Text changes autosave after a short debounce and merge concurrent character-level edits; active viewers poll around every 1.3 seconds. Hosted WebSocket push still requires a configured Liveblocks provider.
+- One-time migration seeds existing notebook pages into `notebook_crdts`, retains the legacy source, serializes changes through server-side locks, validates current friendship on reads/writes, and refuses to mix native changes with already-hosted Liveblocks rooms.
+- Added password-reset pages, single-use 30-minute tokens stored as HMAC digests, atomic consumption, anti-enumeration responses, rate limits and revocation of all previous signed sessions. Resend handles delivery after a verified sending domain and server-only key are configured. At the latest production variable-name check, `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` were all present. Secret values, verified sender status and delivery have not been independently checked.
+- Added a private friends leaderboard that shows confirmed friends regardless of community opt-in. Public community visibility stays optional; non-friends do not receive private score details.
+- Added automated regression checks and documented deployment requirements, recovery, concurrent editing, data retention and remaining security risks.
+- Hardened native autosave retries with bounded exponential backoff, stopped retries and cleared in-memory editor views on revoked access, prevented page deletion while a save is pending, and removed reset tokens from the browser address bar when the reset page loads.
+- Changes are proposed in PR #73, not yet verified in production. Provider setup and two-account end-to-end tests remain release gates.
+
+### 2026-11-11 to 2026-11-20 · Dependency and maintenance updates
+- Merged automated dependency updates across Python and frontend tooling. Current declared Python constraints include PyMongo >=4.20.0, FastAPI >=0.162.2, Pydantic >=2.14.3, PyJWT >=2.15.1, Google Auth >=2.62.2, cryptography >=50.0.2, email-validator >=2.4.0 and pycrdt >=0.14.13.
+- Updated frontend declarations to React 19, Vite 8, TypeScript 7, current React/Vite plugin and icon dependencies; actual installed transitive versions remain determined by package resolution and the lockfile.
+- Re-ran frontend, Python and dependency vulnerability checks in CI; these checks do not replace end-to-end verification or third-party security review.
+
 ### 2026-11-11 · Sharing revocation protection for realtime
 - Remove all matching friendship rows during unfriending so duplicate accepted relationships cannot preserve access to private notes or notebooks.
 - Reconcile Liveblocks room permissions after friendship cleanup; removing a member from the room ACL disconnects currently connected users. On revocation, force browser provider token reauthorization and recheck notebook access after disconnection.
@@ -36,29 +66,8 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Added Origin validation for cookie-authenticated writes, disabled public production OpenAPI, improved malformed calendar URL handling and added Vercel CSP/HSTS/frame protections.
 - Added limits on owned notebook creation and stored notification read markers to reduce unbounded growth.
 - Added automated Python regression tests in CI and scheduled dependency update configuration.
-- Checked current tracked documentation and primary backend files for common credential and personal data patterns, and visually checked both tracked documentation screenshots; recorded review scope, remaining risks and production verification actions in docs/SECURITY_AUDIT.md.
-- These changes are pending CI, two-account integration tests, live environment review and maintainer approval.
-
-### 2026-10-24 · Factual English Zentral Hack documentation
-- Rewrote all nine retained Zentral Hack documents in English, based on a two-person team and the actual Miro-to-implementation project history.
-- Removed the standalone pitch document and presentation/submission-oriented framing.
-- Updated documentation links and kept project facts, technology decisions, limitations and AI usage transparent.
-
-
-### 2026-10-24 · Zentral Hack project documentation
-- Replaced the previous submission-oriented dossier with a cohesive German project narrative about Miro ideation, feature planning, role distribution, architecture, development and results.
-- Removed internal submission checklists, pending tables and jury-optimization framing from the project documentation.
-- Kept transparent descriptions of technical limitations, real source materials, open-source dependencies and ChatGPT assistance.
-
-
-### 2026-10-24 · Zentral Hack challenge documentation
-- Added a dedicated hackathon dossier mapping all MUST/SHOULD criteria, technical restrictions, resources and judging weights to evidence.
-- Documented the problem hypothesis, target audience, solution, business considerations and responsible project limitations.
-- Prepared a time-boxed 24-hour change log, measurable before/after evidence table, user testing protocol and reproducible demo.
-- Added a three-minute pitch script, likely jury questions and final deliverables checklist.
-- Disclosed actual ChatGPT-assisted development and documented core open-source dependencies with pending team licensing verification.
-- Explicitly kept unperformed tests, event contributions and interview results marked as pending instead of fabricating outcomes.
-
+- Reviewed tracked documentation and backend files for common credential and personal-data patterns; retained the scope and limitations in `docs/SECURITY_AUDIT.md`. Historical screenshots were subsequently retired from the active documentation tree.
+- These source protections were merged to `main`; production configuration, two-account integration tests and independent review remain necessary.
 
 ### 2026-10-24 · Public repository documentation review
 - Rebuilt the README around the current product, architecture, verified setup, capabilities and limitations.

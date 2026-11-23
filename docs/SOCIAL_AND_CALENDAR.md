@@ -1,96 +1,46 @@
-# LifeOrbital collaboration, calendar and sharing
+# Friends, notebooks, events and calendars
 
-## Implemented in this change
+This document describes behavior in the LifeOrbit codebase. The native autosave, password recovery and friends-ranking changes are being reviewed in [PR #73](https://github.com/KibouAkari/LifeOrbit/pull/73), not yet independently validated in production.
 
-The authenticated Friends panel lets a person search by display name, send a request, accept, decline, or remove a friendship. Account discovery never includes email addresses. The shared navbar shows a pending request badge.
+## Friendship and sharing
 
-The existing subscriptions panel now supports editing the name, amount, currency, renewal date and monthly/yearly period. These fields are included in the existing authenticated MongoDB workspace persistence.
+The Friends panel supports display-name search and pending, accepted or removed relationships. The backend stores pairs in `friendships`. Only an **accepted current friendship** allows new invitations or private friend data access.
 
-The calendar week is rendered as a time grid with one column per day, hourly guidelines, time-positioned appointments and drag-to-resize/move interactions. Events save through FastAPI. Invited events from friends are read-only and use a distinct colour.
+On unfriending, server logic revokes both directions of saved shares and notebook memberships. A stale member list does not authorize notebook reads or writes, and the editor must clear private data when access verification fails. For optional hosted collaboration, provider room ACLs also have to be revoked and the connected-client behavior tested. Downloaded copies cannot be remotely erased.
 
-Notes can be shared with confirmed friends. The recipient sees a read-only Shared section and the author's display name. The view polls for updated text every 15 seconds while the section is open. This is *not* real-time simultaneous editing; it is read-only near-live refresh.
+`/api/sharing/notes` provides read-only personal-note shares tied to the owner's current source note. Shared notebooks are separate resources: an owner invites accepted friends, who can edit specifically shared pages. Personal notes can be moved to a shared notebook by copying first, then deleting their private source.
 
-The sharing API supports sending challenges to friends. Challenge-sharing frontend discovery and accepting shared challenges into one's own workspace still require a follow-up interface.
+## Collaborative note editing
 
-## Data model
+Production `main` still has a manual shared-page Save action. PR #73 replaces the normal editor with Yjs synchronization backed by `notebook_crdts` and authenticated HTTP polling, with debounced autosave and server acknowledgment. Two editors' character-level changes can converge without last-writer-wins page replacement, but polling is **near-live**, not WebSocket push.
 
-New MongoDB collections:
-- `friendships`: sorted unique pair, sender, recipient, pending/accepted status
-- `shares`: owner, recipient, kind, resource_id and optional challenge snapshot
+Native CRDT changes do not automatically overwrite notebooks previously migrated to Liveblocks. The server returns a conflict instead of mixing two authoritative document stores. Hosted Liveblocks remains opt-in behind separate server/client flags. See [Realtime collaboration](REALTIME_COLLABORATION.md) for migrations, access controls, backups and operational limitations.
 
-The underlying resource remains owned by the creator. Every sharing API request checks the authenticated user and friendship. Friend acceptance is restricted to the original recipient. A declined request or removed friendship prevents new shares; existing shares should be revoked automatically when a friendship ends in a future hardening task.
+## Events and notifications
 
-Run the index provisioning utility after checking existing data.
+Event organizers create and edit their own appointments. Invited friends can accept or decline RSVP, see their permitted event details and remove their invitation. Invitees do not gain ownership of the source event. Participants and event access must be checked against current relationships.
 
-## Integration boundaries
+The UI polls for friend requests, calendar changes, shared-notebook updates and in-app reminders while open. It does not promise background push notification delivery when the browser is closed. Source calendar events use distinct visual styles; task reminders depend on configured deadlines and active sessions.
 
-**iCalendar HTTPS URL subscriptions:** Implemented as a restricted preview: the backend only accepts HTTPS links from an explicit set of Google, Outlook and iCloud iCal provider hosts, blocks redirects, limits downloads to 1 MB and 500 events, encrypts saved URLs using a key derived from JWT_SECRET_KEY, and supports manual refresh (at most once per five minutes) and removal. Never accept arbitrary user-supplied URLs without stronger network egress restrictions. Background scheduling, ETag caching, DNS/IP pinning, local timezone reconciliation and deployment-level network isolation remain open. Treat private iCal URLs like passwords.
+## Friend and community leaderboard
 
-**Google Calendar:** Signing in with Google is identity-only. Calendar API consent requires a separate, explicit OAuth scope and a refresh-token lifecycle. It cannot safely be inferred from a Google login ID token. Outlook needs Microsoft Graph authorisation; Apple commonly uses CalDAV or private subscription URLs.
+The proposed leaderboard contains two separate sets:
 
-**Realtime collaboration:** Periodic polling displays shared note updates, but multi-author co-editing with version conflicts requires a dedicated concurrency model (revision checks or CRDTs) and access-control audit.
+| Visibility | Who sees it |
+| --- | --- |
+| `friends` | The authenticated viewer and current accepted friends, even when their public opt-in is off |
+| `participants` | Explicit community opt-ins, plus the viewer's own row |
 
-**Notification:** The badge reads incoming friend requests from MongoDB. It refreshes when the Friends panel mounts or a local operation completes; server push notifications are not implemented.
+Pending or removed friends lose access to *private* scores, but users who have opted into the public community may still appear publicly after unfriending. The API does not return other users' emails or internal account IDs. Scores come from self-reported challenge state rather than a verified competitive system.
 
-## Validation checklist
+## Calendar imports and subscriptions
 
-1. Build React and the Python API. Run the dependency audits.
-2. Register two test accounts and verify search, request, accept and removal.
-3. Confirm unaccepted or unrelated users cannot access another account's notes, invites or challenges.
-4. Create, resize and move events using mouse and touch; verify MongoDB and timezone behaviour.
-5. Share a note; verify author attribution, read-only rendering and the polling refresh.
-6. Test editing recurring subscriptions and reloading the app.
-7. Review narrow and mobile screens, reduced-motion preferences and keyboard operation.
-8. Do not promote to production until these tests pass.
+Uploading an `.ics` file copies events into the owner's account. Subscribing to a `webcal://` or HTTPS source stores an encrypted URL and fetches public content over HTTPS using IP validation, TLS host verification, no redirects and response limits. Provider feed refresh is currently manual and throttled; source credentials in calendar links are secrets.
 
-## Deployment
+Google login authenticates an identity; it does not authorize Google Calendar or Microsoft/Apple calendar account access. Scheduling, recurrence and timezone reconciliation remain open work.
 
-The FastAPI routes are mounted in the existing Vercel deployment. No new environment secrets are needed for the friends and private sharing database collections.
+## Verification scenarios
 
-## October 24 usability fixes
+Use two synthetic test accounts in a preview environment, not real user notes. Cover invitation acceptance, concurrent editing, one browser offline, reconnect, new/deleted pages, unfriending during an open editor, stale notifications, expired sessions, pending friendship visibility and community opt-in changes. Check both UI behavior and authenticated API responses.
 
-The note editor now provides a friend selection control to share directly. Friend requests update every five seconds and on browser focus. The hourly calendar uses a single captured pointer per gesture, a larger duration handle and more reliable day-column hit testing. iCal subscriptions normalize `webcal://` to HTTPS and accept additional recognized Outlook and iCloud hosts. Arbitrary providers are not accepted because fetching arbitrary user-provided URLs would introduce SSRF risk. Verify each provider link using a non-sensitive test feed before enabling it in production.
-
-## Additional improvements (24 October)
-
-Public HTTPS and webcal feed links are supported without a provider hostname allowlist. The server resolves DNS, rejects non-global IP addresses, and connects to the validated IP with hostname-verified TLS. Redirects remain disabled. Private links may contain credentials and stay encrypted in MongoDB. Because feeds can change and provider rate limits vary, re-fetch remains manual.
-
-In Notes, personal chapters may be deleted, with their pages transferred to Personal. A separate Shared notebooks space uses a dedicated MongoDB collection. Owners create a notebook and invite confirmed friends; members can save shared pages. Updates are fetched periodically. Concurrent edits to the same page still need revision checks for safe conflict resolution, so this is not yet a realtime collaborative editor.
-
-Calendar gestures need manual regression tests with mouse, touch, narrow-screen scrolling and event overlaps before public release. The mobile layout intentionally keeps the seven-day time grid horizontally scrollable rather than compressing it into unusable columns.
-
-## Notification and calendar color update
-
-Events are styled by stable calendar-source colors derived from their source identifiers. Incoming friend event invitations and note shares are included in the account's unread notifications. An account-scoped read record is persisted in MongoDB; the frontend refreshes unread counts while the app is open.
-
-Tasks support an optional timezone-aware ISO deadline stored as a MongoDB datetime. They appear as reminders when due within one hour. This is a polling in-app reminder, not a guaranteed push at exactly one hour before the deadline and not a background message if the app is closed.
-
-## Follow-up: shared pages, calendar refresh and mobile
-
-Personal notes can be moved into an owner-controlled Shared notebook. The API copies the page to the shared collection before removing it from the private workspace. Shared pages now have their own delete endpoint and editor action distinct from owner-only notebook deletion. Shared notebook invitations contribute to the notification bell. The old Received notes tab is retired.
-
-A MongoDB timestamp read without tzinfo was previously compared with a timezone-aware timestamp during feed refresh; this is now normalized to UTC. An invalid stored encryption token returns a controlled error telling the user to reconnect the feed. The endpoint still uses manual refresh and a minimum refresh interval.
-
-Calendar drag and resize uses window-level pointermove/pointerup handling rather than relying solely on browser pointer capture. This is intended to improve Firefox/Zen and touch handling; interactive regression testing remains required. Mobile subscription cards and the notification overlay now fit narrow viewports.
-
-New workspaces opt into the ranking by default. This changes default account discoverability and should be reviewed as part of the app privacy policy and launch consent design.
-
-## Live activity and event actions (24 October 2026)
-
-The notification bell refreshes every four seconds while LifeOrbit is visible and shows a small animated in-app toast for new unread event, note and notebook invitations. Sound plays only after a user gesture to respect browser audio policies. This is foreground polling, not server-push or an OS notification when the app is closed.
-
-Shared notebook pages refresh approximately every three seconds while visible, with local unsaved edits protected from automatic replacement. Calendar invitations refresh every five seconds. Simultaneous editing by multiple accounts remains a known conflict risk and needs revision-based writes.
-
-Calendar events support a context menu via right-click, or a visible Actions control on touch/keyboard devices. Edit opens a small responsive dialog, Share opens a friend picker and Delete asks for confirmation. Movement by drag remains available, but explicit editing is the accessible fallback.
-
-## RSVP and account settings update
-
-Calendar invitations are individual share records with pending, accepted or declined response status. Only the invited recipient can respond or remove their invitation. Owners retain edit rights; invitees get read-only event details. Participant lists are visible to the event owner and existing invitees only. Deleting an invitation removes it for that recipient, not the organizer's event. Declined invitations remain in the database until removed and are hidden from the normal calendar grid.
-
-Theme preference is stored in the authenticated workspace and hydrated during account loading across devices; guests retain local settings. Task deadlines are stored in UTC. An incomplete task past its deadline is classified as Overdue, and the dashboard displays a red warning while any exist.
-
-## Challenge slots and context menu fix
-
-Each user may have up to three unfinished personal challenges and two unfinished shared challenges. Accepted shared challenges retain the MongoDB share ID as their origin to prevent duplicate acceptance. Unselecting an active challenge removes it from the account workspace and frees its slot. Recurring templates remain available for manual re-selection rather than instantly recreating removed challenges.
-
-The calendar's native context-menu handler now captures right-clicks before child controls, and the menu is portaled to the document root. This avoids offset errors from parent transforms, scroll containers and local stacking contexts. Positioning clamps to the screen edges, while Actions buttons continue to work for keyboard and mobile interactions.
+See [Data model](DATA_MODEL.md), [API integration](BACKEND_INTEGRATION.md), [Security audit](SECURITY_AUDIT.md) and [Release checklist](RELEASING.md).

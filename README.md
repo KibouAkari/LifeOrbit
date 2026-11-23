@@ -1,62 +1,64 @@
 <div align="center">
 
-<img src="assets/icon.svg" alt="LifeOrbit planet" width="88" />
+<img src="assets/icon.svg" alt="LifeOrbit icon" width="88" />
 
 # LifeOrbit
 
 **Less organising. More living.**
 
-A calm, friendly place to manage your day, plan with friends and make progress.
+A personal planner for notes, tasks, calendars, friends and everyday progress.
 
-[Explore the app](https://www.lifeorbit.dev/) · [Features](#features) · [Get started](#get-started) · [Documentation](#documentation) · [Contribute](CONTRIBUTING.md)
+[Application](https://www.lifeorbit.dev/) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 </div>
 
----
+## What and why
 
-## What is LifeOrbit?
+LifeOrbit brings the small pieces of everyday planning into one approachable workspace. It combines personal organization with explicitly authorized collaboration. User-owned data stays private unless sharing is intentionally enabled.
 
-LifeOrbit brings schedules, tasks, notebooks, recurring expenses and small daily challenges into one personal workspace. It is an open-source hackathon project, under active development, built by a small team.
+This is an actively maintained open-source application, **not a finished or independently security-certified service**. Documentation distinguishes deployed behavior from features currently in review.
 
-| Area | What you can do |
+## Features
+
+| Area | Functionality |
 | --- | --- |
-| **Dashboard** | See upcoming events, unfinished and overdue tasks, subscriptions and challenge progress |
-| **Tasks** | Create and complete tasks, set deadlines and receive in-app reminders |
-| **Calendar** | Plan in a weekly time grid or month view; edit, move and resize events |
-| **Calendar sources** | Import .ics files or subscribe to public HTTPS/webcal iCalendar feeds, refreshed on demand |
-| **Notes** | Organise personal pages into chapters or move notes into shared notebooks |
-| **Friends & sharing** | Send friend requests, invite people to events and notebooks, manage event RSVPs |
-| **Subscriptions** | Track monthly and annual subscriptions and projected renewal dates |
-| **Challenges** | Choose up to three personal and two shared active challenges and view the community ranking |
-| **Settings** | Manage your profile, theme, account and data export |
+| Dashboard | Upcoming events, tasks, subscription totals and challenge progress |
+| Tasks | Add, complete and order tasks; optional deadlines and in-app reminders |
+| Calendar | Week/month planning, appointment edits, read-only event invitations and RSVP |
+| Calendar sources | Import .ics files; manually refresh validated HTTPS/webcal subscriptions |
+| Notes | Private notebook chapters; invite accepted friends into shared notebooks |
+| Challenges | Personal/shared goals and points; private friends ranking and optional community ranking |
+| Friends | Friend discovery, requests and accepted-friend invitations |
+| Subscriptions | Track billing amount, currency, schedule and renewal |
+| Account | Password/Google sign-in, profile, workspace export and account settings |
 
-**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. Shared notebook updates use polling unless the optional Liveblocks/Yjs realtime service is configured and tested; realtime mode supports concurrent collaborative text and automatic synchronization. Calendar gestures and mobile layouts still require cross-browser regression testing.
+### Collaboration and account recovery status
 
-## Screenshots
+| Capability | Deployed production `main` | Proposed in [PR #73](https://github.com/KibouAkari/LifeOrbit/pull/73) |
+| --- | --- | --- |
+| Shared-notebook editing | Manual save; periodic updates | Built-in Yjs autosave, concurrent-merge HTTP synchronization |
+| Hosted realtime push | Not configured | Optional Liveblocks WebSockets with independent configuration |
+| Password reset via email | Not deployed | Single-use email reset links; Resend sender verification and real delivery test outstanding |
+| Friends leaderboard | Public opt-in ranking | Separate private friends ranking, public community still opt-in |
 
-Earlier screenshots are retained in [docs/screenshots](docs/screenshots) for historical reference. They are **not** presented as screenshots of the current release. Fresh, verified captures of the deployed version are tracked in the [release checklist](docs/RELEASING.md).
+Native autosave is **near-live**, not push realtime: active clients poll for changes roughly every 1.3 seconds. Neither it nor the password recovery flow should be considered production-verified until a controlled preview test succeeds.
+
+**Email recovery configuration:** Vercel now lists all three production environment variable names: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. Their values were not retrieved or validated, and a real reset email has not been sent in this review. These settings do not activate the feature until the code is merged and deployed. Follow the [password recovery guide](docs/PASSWORD_RECOVERY.md) for sender-domain verification and safe testing.
 
 ## Technology
 
-| Layer | Stack |
+| Component | Stack |
 | --- | --- |
 | Frontend | React 19, TypeScript, Vite, CSS |
-| Backend | Python 3.12, FastAPI, Pydantic |
-| Persistence | MongoDB Atlas |
-| Authentication | Email/password, Google identity, authenticated cookies |
-| Hosting | Vercel, same-origin `/api` |
+| API | Python 3.12, FastAPI, Pydantic |
+| Data | MongoDB Atlas |
+| Authentication | Signed Secure HttpOnly cookies; password and Google ID token verification |
+| Collaboration | Yjs with MongoDB persistence; optional Liveblocks provider |
+| Hosting | Single Vercel project with same-origin `/api` routing |
 
-```mermaid
-flowchart LR
-  Browser[React client] --> API[FastAPI /api]
-  API --> DB[(MongoDB Atlas)]
-  API --> ICAL[Public HTTPS iCalendar feeds]
-  Browser --> GOOGLE[Google sign-in]
-```
+## Local development
 
-## Get started
-
-Prerequisites: **Node.js 22**, **Python 3.12**, an accessible **MongoDB** database, and an OAuth web client ID if testing Google sign-in.
+Requires Node.js 22, Python 3.12, npm and access to a development MongoDB database.
 
 ```bash
 git clone https://github.com/KibouAkari/LifeOrbit.git
@@ -67,65 +69,47 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-On Windows PowerShell, activate the Python environment with `.venv\Scripts\Activate.ps1`.
+On Windows, activate the environment with `.venv\Scripts\Activate.ps1`.
 
-Create your local server environment file from [backend/.env.example](backend/.env.example). Supply real private values using environment variables, or load that local file through your preferred development environment. **The application does not automatically read `.env` without an environment loader.** Never commit credentials.
+The root `requirements.txt` mirrors `backend/requirements.txt` so local installation and Vercel deploy the same declared Python dependencies. Keep both synchronized when updating packages.
 
-Start the Python API in one terminal:
+Set the backend environment values described in [Deployment](docs/DEPLOYMENT.md). Use a local secret manager or exported environment variables. Copying `backend/.env.example` alone **does not load** it into the process. Never reuse production credentials for development.
+
+Start the API and frontend in separate terminals:
 
 ```bash
 uvicorn backend.api.index:app --reload --port 8000
 ```
 
-Start React in another:
-
 ```bash
 npm run dev
 ```
 
-Open **http://localhost:5173**. Vite forwards `/api` to the local FastAPI server. Verify `http://localhost:8000/api/health` and, with valid Atlas credentials, `/api/health/database`.
+Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to the local backend. The API health routes are `/api/health` and `/api/health/database`; the latter needs a configured database.
 
-Useful checks:
+Validate your changes before opening a pull request:
 
 ```bash
 npm run typecheck
 npm run build
 python -m compileall -q backend api
+python -m unittest discover -s tests -v
 ```
 
-## Zentral Hack project documentation
-
-LifeOrbit was conceived and built by a two-person team during Zentral Hack. We collected features in Miro, organised the ideas and responsibilities, selected our technologies and developed the prototype from scratch.
-
-The project history, technical decisions and implemented functionality are described in the [Zentral Hack project documentation](docs/hackathon/README.md).
+Dependency auditing and documentation checks also run in GitHub Actions. Use [Contributing](CONTRIBUTING.md) for review conventions.
 
 ## Documentation
 
-| Guide | Content |
-| --- | --- |
-| [Product brief](docs/PRODUCT.md) | Vision, principles and scope |
-| [Architecture](docs/ARCHITECTURE.md) | Frontend, backend, database and trust boundaries |
-| [Frontend guide](docs/FRONTEND_GUIDE.md) | Components, patterns and page conventions |
-| [Backend integration](docs/BACKEND_INTEGRATION.md) | API responsibilities and contracts |
-| [Data model](docs/DATA_MODEL.md) | MongoDB collections, ownership and concurrency |
-| [Social & calendar](docs/SOCIAL_AND_CALENDAR.md) | Sharing, invitations and calendar sources |
-| [Deployment](docs/DEPLOYMENT.md) | Vercel, environment variables and verification |
-| [Design system](docs/DESIGN_SYSTEM.md) | Palette, visual language and accessibility |
-| [Roadmap](docs/ROADMAP.md) | Planned work and known limitations |
-| [Release checklist](docs/RELEASING.md) | Quality gates and publishing procedure |
-| [Security review](docs/SECURITY_AUDIT.md) | Mitigations, open risks and hardening work |
-| [Realtime collaboration](docs/REALTIME_COLLABORATION.md) | Optional Liveblocks/Yjs setup, migration, recovery and privacy |
+Start with the [documentation index](docs/README.md) to find the guides for architecture, API, data model, feature behavior, UI, deployment, operations, security, collaboration and account recovery. Use the [changelog](CHANGELOG.md) for development history and the [release checklist](docs/RELEASING.md) for production gates.
 
-## Contributing
+## Security and privacy
 
-Issues, documentation fixes, accessibility improvements and focused pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), follow our [Code of Conduct](CODE_OF_CONDUCT.md) and document user-visible changes in [CHANGELOG.md](CHANGELOG.md).
+Every API operation must validate authenticated ownership and, where applicable, an **accepted current friendship**. Client-side UI visibility is never authorization. Community leaderboard participation is explicitly optional, whereas accepted friends may compare scores privately in the implementation under review.
 
-Security issues should be disclosed **privately**, following [SECURITY.md](SECURITY.md). Do not publish production credentials, personal notes, calendar URLs or exploit details.
+Never publish API keys, account tokens, calendar subscription URLs, users' personal content or production database credentials. Report security vulnerabilities privately following [SECURITY.md](SECURITY.md).
 
-## Release status
-
-The public source is **under active development**. A successful deployment does not mean that the service has passed an independent security review. See the [release gates](docs/RELEASING.md) before exposing the service broadly to real users.
+**Known release blockers:** email provider domain verification and delivery testing, two-account collaborative editing and revocation tests, reliable backup/restore of Yjs content, account recovery and deletion workflows, and independent hosting/security review. See [Security audit](docs/SECURITY_AUDIT.md).
 
 ## License
 
-Distributed under the [MIT License](LICENSE). Copyright © 2026 LifeOrbit contributors.
+Licensed under the [MIT License](LICENSE). See the [Code of Conduct](CODE_OF_CONDUCT.md) for community standards.

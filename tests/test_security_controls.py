@@ -104,15 +104,17 @@ class SessionTests(unittest.TestCase):
         self.assertFalse(defaults.leaderboard_opt_in)
         self.assertFalse(defaults.leaderboard_consent_v1)
         with patch("backend.api.routes.leaderboard.get_db") as db:
-            db.return_value.workspaces.find.return_value = []
+            db.return_value.friendships.find.return_value.limit.return_value = []
+            public = MagicMock()
+            public.limit.return_value = []
+            db.return_value.workspaces.find.side_effect = [[], public]
             db.return_value.workspaces.find_one.return_value = {
                 "leaderboard_opt_in": True, "leaderboard_consent_v1": False,
                 "challenges": []}
             db.return_value.users.find.return_value = []
             result = leaderboard.ranking(user_id=USER_ID)
-            db.return_value.workspaces.find.assert_called_once_with(
-                {"leaderboard_opt_in": True, "leaderboard_consent_v1": True},
-                {"user_id": 1, "challenges": 1})
+            self.assertEqual(db.return_value.workspaces.find.call_args_list[1].args[0],
+                {"leaderboard_opt_in": True, "leaderboard_consent_v1": True})
             self.assertFalse(result["opted_in"])
 
     def test_friend_removal_revokes_notebooks(self):
@@ -231,6 +233,24 @@ class RateLimitTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as error:
                 enforce_limit(request_for(), "test", maximum=1, window_seconds=60)
             self.assertEqual(error.exception.status_code, 429)
+
+    def test_account_specific_threshold_is_enforced_separately_from_ip(self):
+        counts = {}
+        def update(query, _operation, **_kwargs):
+            key = query["_id"]
+            counts[key] = counts.get(key, 0) + 1
+            return {"hits": counts[key]}
+        with patch.dict(os.environ, {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as db:
+            db.return_value.rate_limits.find_one_and_update.side_effect = update
+            enforce_limit(request_for(), "account-test", maximum=10,
+                          account_maximum=2, window_seconds=60, identity=USER_ID)
+            enforce_limit(request_for(), "account-test", maximum=10,
+                          account_maximum=2, window_seconds=60, identity=USER_ID)
+            with self.assertRaises(HTTPException) as error:
+                enforce_limit(request_for(), "account-test", maximum=10,
+                              account_maximum=2, window_seconds=60, identity=USER_ID)
+        self.assertEqual(error.exception.status_code, 429)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,8 @@ import Subscriptions from "./pages/Subscriptions";
 import Challenges from "./pages/Challenges";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { WelcomeIntro } from "./components/WelcomeIntro";
 import Legal from "./pages/Legal";
@@ -20,10 +22,13 @@ const pages: Record<Section, ComponentType> = {
   dashboard: Dashboard, notes: Notes, tasks: Tasks, calendar: Calendar,
   subscriptions: Subscriptions, challenges: Challenges, settings: Settings, login: Login,
 };
-type Route = Section | "not-found" | "privacy" | "terms";
+type Route = Section | "not-found" | "privacy" | "terms" | "forgot-password" | "reset-password";
 const routeFromHash = (): Route => {
-  const route = location.hash.replace(/^#\/?/, "").split("/")[0] || "login";
-  if (route === "privacy" || route === "terms") return route;
+  // Keep query parameters out of the route name. Password-reset links use
+  // #/reset-password?token=... so the token remains in the URL fragment.
+  const route = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || "login";
+  if (route === "privacy" || route === "terms" ||
+      route === "forgot-password" || route === "reset-password") return route;
   return Object.prototype.hasOwnProperty.call(pages, route) ? route as Section : "not-found";
 };
 const guestMode = () => sessionStorage.getItem("lifeorbit_guest") === "true";
@@ -98,6 +103,8 @@ export default function App() {
   if (!ready) return <div className="boot-screen" role="status">Opening LifeOrbital…</div>;
   if (intro) return <WelcomeIntro onComplete={() => setIntro(false)} />;
   if (route === "privacy" || route === "terms") return <Legal kind={route}/>;
+  if (route === "forgot-password") return <Layout section="login" dark={dark}><ForgotPassword/></Layout>;
+  if (route === "reset-password") return <Layout section="login" dark={dark}><ResetPassword/></Layout>;
   if (!signedIn && !guestMode()) return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "login") return <Layout section="login" dark={dark}><Login/></Layout>;
   if (route === "not-found") return <NotFound />;
