@@ -26,7 +26,7 @@ def build_welcome_email(name: str, origin: str) -> tuple[str, str]:
     display = (name or "").strip()[:70] or "there"
     safe_name = escape(display, quote=True)
     app_url = origin.rstrip("/") + "/#/dashboard"
-    logo_url = origin.rstrip("/") + "/assets/email-logo.png"
+    logo_url = origin.rstrip("/") + "/assets/email-icon.png"
     safe_app_url = escape(app_url, quote=True)
     safe_logo_url = escape(logo_url, quote=True)
 
@@ -48,7 +48,14 @@ def build_welcome_email(name: str, origin: str) -> tuple[str, str]:
     <tr><td align="center" style="padding:32px 16px 42px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;background:#FFFFFF;border:1px solid #E9E7F1;border-radius:22px;">
         <tr><td style="padding:30px 34px 18px;">
-          <img src="{safe_logo_url}" alt="LifeOrbit" width="210" height="54" style="display:block;width:210px;height:54px;border:0;outline:none;text-decoration:none;" />
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td style="vertical-align:middle;padding:0 10px 0 0;">
+              <img src="{safe_logo_url}" alt="LifeOrbit planet logo" width="60" height="48" style="display:block;width:60px;height:48px;border:0;outline:none;text-decoration:none;" />
+            </td>
+            <td style="vertical-align:middle;">
+              <span style="font-size:26px;line-height:32px;letter-spacing:-0.8px;color:#29273A;font-weight:700;">LifeOrbit</span>
+            </td>
+          </tr></table>
         </td></tr>
         <tr><td style="padding:16px 34px 8px;">
           <span style="display:inline-block;background:#F0EEFF;border-radius:100px;padding:8px 12px;color:#6254BC;font-size:11px;line-height:14px;font-weight:700;letter-spacing:1.2px;">YOUR SPACE IS READY</span>
@@ -130,11 +137,12 @@ def build_welcome_email(name: str, origin: str) -> tuple[str, str]:
     return html, text
 
 
-def send_welcome_email(email: str, name: str) -> bool:
-    """Best-effort delivery. Never log addresses, user names or provider keys.
+def send_welcome_email(email: str, name: str, event_key: str = "") -> bool:
+    """Bounded, observable provider attempt; never log addresses or tokens.
 
-    Called as a FastAPI background task after a *new* account has been created.
-    A failure must not fail signup or trigger duplicate sends on normal login.
+    An optional stable event key makes Resend suppress accidental duplicate
+    submissions within its idempotency window. Provider acceptance is not
+    the same as delivery into a mailbox.
     """
     try:
         try:
@@ -144,18 +152,26 @@ def send_welcome_email(email: str, name: str) -> bool:
             return False
 
         html, text = build_welcome_email(name, origin)
+        headers = {"Authorization": "Bearer " + key,
+                   "Content-Type": "application/json"}
+        if event_key:
+            # Hash account-specific material before sending it as metadata.
+            import hashlib
+            headers["Idempotency-Key"] = ("lifeorbit-welcome-" +
+                                         hashlib.sha256(event_key.encode()).hexdigest())
         response = requests.post(
             "https://api.resend.com/emails",
-            headers={"Authorization": "Bearer " + key,
-                     "Content-Type": "application/json"},
+            headers=headers,
             json={"from": sender, "to": [email], "subject": SUBJECT,
                   "html": html, "text": text},
-            timeout=(3, 7), allow_redirects=False,
+            timeout=(2, 4), allow_redirects=False,
         )
         if response.status_code not in (200, 201, 202):
             logger.warning("Welcome email provider returned HTTP %s",
                            response.status_code)
             return False
+        logger.info("Welcome email accepted by provider (HTTP %s)",
+                    response.status_code)
         return True
     except Exception:
         logger.warning("Welcome email delivery is unavailable")
