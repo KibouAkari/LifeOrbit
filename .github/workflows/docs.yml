@@ -17,6 +17,8 @@ on:
       - "**/*.yaml"
       - ".editorconfig"
       - "assets/**"
+      - "requirements.txt"
+      - "backend/requirements.txt"
 
 permissions:
   contents: read
