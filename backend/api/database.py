@@ -48,3 +48,4 @@ def ensure_indexes():
     db.calendar_feeds.create_index("user_id")
     db.notification_state.create_index("user_id",unique=True)
     db.rate_limits.create_index("expires_at", expireAfterSeconds=0)
+    # Native Yjs rooms are keyed by _id, which MongoDB indexes automatically.

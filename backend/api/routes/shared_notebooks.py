@@ -180,5 +180,6 @@ def delete_notebook(id:str,user:str=Depends(get_current_user),
         # Remove provider ACL before removing Mongo metadata, preserving safety on failure.
         revoke_book_access(book,locked=True)
         db.shared_notebooks.delete_one({"_id":book["_id"],"owner":user})
+    db.notebook_crdts.delete_one({"_id":str(book["_id"])})
     publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)
     return {"removed":True}
