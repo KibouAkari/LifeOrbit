@@ -1,6 +1,6 @@
 # Realtime collaboration deployment and safety
 
-Updated 23 November 2026. PR #73 proposes native Yjs autosave without external credentials. Liveblocks WebSocket push remains optional and is not enabled merely by installing packages.
+Updated 23 November 2026. PR #73 introduces native Yjs autosave without external credentials, but it is not currently deployed as production `main`. Liveblocks WebSocket push remains optional and is not enabled merely by installing packages.
 
 ## Built-in autosave without Liveblocks
 

@@ -13,7 +13,9 @@ LifeOrbit is an open-source project under active development. **Publishing the G
 
 ## Application release gates
 
-- [ ] All mandatory GitHub Actions checks pass: TypeScript/build, documentation, `npm audit`, `pip-audit`, Python compile.
+- [ ] All mandatory GitHub Actions checks pass: TypeScript/build, documentation and internal-link check, `npm audit`, `pip-audit`, Python compile and backend regression suite.
+- [ ] Confirm the Vercel **production commit** is the approved tested commit; a preview READY status is not a production deployment.
+- [ ] Confirm `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` are set alongside a valid `RESEND_API_KEY` for the target environment; test a real message and expiry in a controlled mailbox.
 - [ ] Check `/api/health` and `/api/health/database` on the target Vercel deployment.
 - [ ] Test account registration, Google OAuth, login/logout, reset-email delivery, token expiration and replay prevention, generic unknown-account response, throttling and session invalidation.
 - [ ] Test two users' data isolation on tasks, workspaces, calendar feeds, invitations and shared notebooks.
@@ -27,7 +29,8 @@ LifeOrbit is an open-source project under active development. **Publishing the G
 - [ ] Check notification polling limits, duplicate handling, concurrency and degraded service behaviour.
 - [ ] Resolve or explicitly risk-accept issues in [Security Audit](SECURITY_AUDIT.md); high-severity blockers require a real mitigation.
 - [ ] Confirm accurate privacy/terms notices, legal operator identity, account/data removal procedure and retention commitments.
-- [ ] Arrange monitoring, incident contacts, backups/restore tests and a rollback plan.
+- [ ] Arrange monitoring, incident contacts, backups/restore tests, Yjs binary state export and a rollback plan as described in [Operations](OPERATIONS.md).
+- [ ] Confirm obsolete documentation, internal file links and environment examples were updated without publishing secrets.
 
 ## Versioning and changelog
 

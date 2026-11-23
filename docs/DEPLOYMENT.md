@@ -23,7 +23,7 @@ LifeOrbit deploys the Vite/React frontend and the Python FastAPI backend in **on
 
 Do not expose `MONGODB_URI`, `JWT_SECRET_KEY`, `LIVEBLOCKS_SECRET_KEY` or provider secrets with a `VITE_` prefix.
 
-Realtime collaboration is optional and must be **separately provisioned**. Follow [Realtime collaboration](REALTIME_COLLABORATION.md) before enabling it. Both server and client flags default to false. Existing deployments continue using the legacy editor and polling when the flags are disabled.
+Hosted realtime collaboration is optional and must be **separately provisioned**. Follow [Realtime collaboration](REALTIME_COLLABORATION.md) before enabling it. Both server and client flags default to false. In production `main`, the disabled flags still display the legacy manual-save editor. After PR #73 is merged, the disabled flag instead selects the built-in Yjs autosave editor, without requiring a Liveblocks key.
 
 ## Deployment procedure
 
@@ -39,7 +39,15 @@ Realtime collaboration is optional and must be **separately provisioned**. Follo
 10. Test calendar import/subscription refresh, including public-address validation and denied private endpoints.
 11. Complete the [release checklist](RELEASING.md) before promoting or merging.
 
-**Vercel READY is a build result, not an authentication or database test.** Vercel's production environment inspected on 23 November 2026 has no Liveblocks or Resend recovery variables configured. Native autosave needs no external key once PR #73 is deployed; actual password-reset emails require a verified Resend sender, `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL`, and `PUBLIC_APP_URL` followed by a redeployment. Never put the Resend key under a `VITE_` variable.
+**Vercel READY is a build result, not an authentication or database test.** The production variable-name listing checked on 23 November 2026 showed `RESEND_API_KEY` for production, while `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` were missing. No Liveblocks variables were found. We did not decrypt provider keys or prove real email delivery. Native autosave needs no external key once PR #73 is deployed; working password-reset email needs all three values, a verified Resend sender and a fresh deployment. Do not put private keys under a `VITE_` variable.
+
+## Environment scopes and validation
+
+Vercel distinguishes production, preview and development targets. The latest tested PR #73 preview may be READY while its environment lacks production-only `JWT_SECRET_KEY`, Google or Resend settings. Never assume production secrets are copied into preview or vice versa.
+
+Choose `PUBLIC_APP_URL` for the exact deployment that will receive emailed links. A production link must point to the canonical site `https://www.lifeorbit.dev`, provided that domain is still configured. Preview email tests should use a controlled preview URL and synthetic accounts; do not send production reset links from a preview with missing secrets.
+
+Run the complete [release checklist](RELEASING.md) and [operations runbook](OPERATIONS.md), including approved sender verification, no account-enumeration leaks, and document restore tests, before enabling new capabilities for real users.
 
 ## Operations
 

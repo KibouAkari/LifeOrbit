@@ -20,6 +20,8 @@ cluster address. Frontend fixes cannot repair this configuration.
    are deleted. Inspect duplicate emails before creating a unique index.
 9. Test registration and sign-in with dedicated test accounts; verify data
    isolation between two users.
+10. Before PR #73 rollout, verify application access to `notebook_crdts`, `realtime_notebooks` and `password_reset_tokens`, and the `password_reset_tokens.expires_at` TTL index.
+11. Enable backup/restore covering the binary Yjs documents in `notebook_crdts`. Restore to a disposable database to prove the backup is usable. See [Operations](OPERATIONS.md).
 
 Never paste the full connection string in GitHub issues, chats, or logs.
 If credentials were previously exposed, rotate them immediately.
