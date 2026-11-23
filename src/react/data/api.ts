@@ -32,3 +32,6 @@ export const registerAccount=(name:string,email:string,password:string)=>request
 export const loginAccount=(email:string,password:string)=>request<AuthResponse>("/auth/login",{method:"POST",body:JSON.stringify({email,password})});
 export const currentUser=()=>request<SignedInUser>("/auth/me");
 export const signOut=()=>request<{signed_out:boolean}>("/auth/logout",{method:"POST"});
+
+export const requestPasswordReset=(email:string)=>request<{message:string}>("/auth/password/forgot",{method:"POST",body:JSON.stringify({email})});
+export const completePasswordReset=(token:string,new_password:string)=>request<{updated:boolean}>("/auth/password/reset",{method:"POST",body:JSON.stringify({token,new_password})});

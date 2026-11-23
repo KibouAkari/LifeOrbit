@@ -49,3 +49,4 @@ def ensure_indexes():
     db.notification_state.create_index("user_id",unique=True)
     db.rate_limits.create_index("expires_at", expireAfterSeconds=0)
     # Native Yjs rooms are keyed by _id, which MongoDB indexes automatically.
+    db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
