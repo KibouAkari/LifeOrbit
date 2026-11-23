@@ -18,6 +18,17 @@ def _delivery_settings():
 
 logger = logging.getLogger(__name__)
 
+
+def configure_logging() -> None:
+    """Make sanitized provider outcomes visible in the ASGI runtime logs."""
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
+    for handler in logger.handlers:
+        handler.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 SUBJECT = "Welcome to LifeOrbit ✨"
 
 

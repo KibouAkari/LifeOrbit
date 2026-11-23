@@ -11,6 +11,19 @@ from backend.api.routes import auth
 
 
 class WelcomeTemplateTests(unittest.TestCase):
+    def test_logging_configuration_enables_info_on_logger_and_handler(self):
+        with patch.object(welcome_email.logger, "handlers", []), \
+             patch.object(welcome_email.logger, "level", 0), \
+             patch.object(welcome_email.logger, "propagate", True):
+            welcome_email.configure_logging()
+            welcome_email.configure_logging()
+
+            self.assertEqual(welcome_email.logger.level, welcome_email.logging.INFO)
+            self.assertEqual(len(welcome_email.logger.handlers), 1)
+            self.assertEqual(welcome_email.logger.handlers[0].level,
+                             welcome_email.logging.INFO)
+            self.assertFalse(welcome_email.logger.propagate)
+
     def test_html_matches_site_and_has_text_alternative(self):
         html, text = welcome_email.build_welcome_email(
             "Ada", "https://www.lifeorbit.dev")
