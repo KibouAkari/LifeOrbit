@@ -48,7 +48,8 @@ class NativeCollaborationTests(unittest.TestCase):
         paths = {(route.path, method) for route in app.routes
                  for method in getattr(route, "methods", set())}
         expected = "/api/shared-notebooks/{book_id}/sync"
-        self.assertIn((expected, "GET"), paths)
+        self.assertIn((expected, "GET"), paths,
+                      msg=f"native routes={[(route.path,getattr(route,'methods',None)) for route in native_collab.router.routes]!r}; module={native_collab.__file__!r}")
         self.assertIn((expected, "POST"), paths)
         self.assertNotIn(("/api/shared-notebooks/notebooks/{book_id}/sync", "GET"), paths)
         index_source = (Path(__file__).resolve().parent.parent /
