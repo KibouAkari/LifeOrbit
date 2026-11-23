@@ -234,6 +234,24 @@ class RateLimitTests(unittest.TestCase):
                 enforce_limit(request_for(), "test", maximum=1, window_seconds=60)
             self.assertEqual(error.exception.status_code, 429)
 
+    def test_account_specific_threshold_is_enforced_separately_from_ip(self):
+        counts = {}
+        def update(query, _operation, **_kwargs):
+            key = query["_id"]
+            counts[key] = counts.get(key, 0) + 1
+            return {"hits": counts[key]}
+        with patch.dict(os.environ, {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as db:
+            db.return_value.rate_limits.find_one_and_update.side_effect = update
+            enforce_limit(request_for(), "account-test", maximum=10,
+                          account_maximum=2, window_seconds=60, identity=USER_ID)
+            enforce_limit(request_for(), "account-test", maximum=10,
+                          account_maximum=2, window_seconds=60, identity=USER_ID)
+            with self.assertRaises(HTTPException) as error:
+                enforce_limit(request_for(), "account-test", maximum=10,
+                              account_maximum=2, window_seconds=60, identity=USER_ID)
+        self.assertEqual(error.exception.status_code, 429)
+
 
 if __name__ == "__main__":
     unittest.main()

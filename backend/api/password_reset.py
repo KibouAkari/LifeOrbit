@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 import requests
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from backend.api.database import get_db
@@ -77,35 +77,47 @@ def _send_reset_email(email: str, link: str):
         return False
 
 
+def _process_reset_request(email: str, origin: str):
+    digest = None
+    db = None
+    try:
+        db = get_db()
+        user = db.users.find_one({"email": email})
+        if not user or not user.get("password_hash"):
+            return
+
+        token = secrets.token_urlsafe(32)
+        digest = _token_digest(token)
+        now = datetime.now(timezone.utc)
+        user_id = str(user["_id"])
+        db.password_reset_tokens.delete_many({"user_id": user_id})
+        db.password_reset_tokens.insert_one({
+            "_id": digest, "user_id": user_id, "email": email,
+            "expires_at": now + timedelta(minutes=TOKEN_TTL_MINUTES),
+            "created_at": now,
+        })
+        link = origin + "/#/reset-password?token=" + token
+        if not _send_reset_email(email, link):
+            db.password_reset_tokens.delete_one({"_id": digest})
+    except Exception as exc:
+        if digest and db is not None:
+            try:
+                db.password_reset_tokens.delete_one({"_id": digest})
+            except Exception:
+                logger.warning("Password recovery token cleanup failed")
+        logger.warning("Password recovery request failed (%s)", type(exc).__name__)
+
+
 @router.post("/password/forgot", status_code=202)
-def forgot_password(payload: ForgotPassword, request: Request):
+def forgot_password(payload: ForgotPassword, request: Request,
+                    background_tasks: BackgroundTasks):
     # Configuration is checked for every address, so missing provider settings
     # cannot be used to distinguish existing accounts.
     _, _, origin = _delivery_settings()
     enforce_limit(request, "password-reset-email", maximum=8,
                   account_maximum=3, window_seconds=3600, identity=payload.email)
-    db = get_db()
     email = payload.email.strip().lower()
-    user = db.users.find_one({"email": email})
-    if not user or not user.get("password_hash"):
-        return {"message": GENERIC_REPLY}
-
-    token = secrets.token_urlsafe(32)
-    digest = _token_digest(token)
-    now = datetime.now(timezone.utc)
-    user_id = str(user["_id"])
-    db.password_reset_tokens.delete_many({"user_id": user_id})
-    db.password_reset_tokens.insert_one({
-        "_id": digest, "user_id": user_id, "email": email,
-        "expires_at": now + timedelta(minutes=TOKEN_TTL_MINUTES),
-        "created_at": now,
-    })
-    # Fragment tokens are not sent to the web server in HTTP requests.
-    link = origin + "/#/reset-password?token=" + token
-    if not _send_reset_email(email, link):
-        db.password_reset_tokens.delete_one({"_id": digest})
-        # Return an intentionally generic response. Mail provider errors do not
-        # allow a caller to determine whether an account exists.
+    background_tasks.add_task(_process_reset_request, email, origin)
     return {"message": GENERIC_REPLY}
 
 

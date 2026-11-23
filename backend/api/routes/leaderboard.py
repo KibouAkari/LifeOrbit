@@ -76,12 +76,13 @@ def ranking(user_id: str = Depends(get_current_user)):
         if uid in private_scores:
             private_scores[uid] = doc.get("challenges", [])
 
-    # Public/community discoverability still requires explicit consent.
-    # A bounded query avoids materializing an unbounded number of full workspaces.
+    # Public/community discoverability still requires explicit consent. Fetch
+    # all opted-in score projections so the top rankings aren't based on an
+    # arbitrary database subset.
     opted_in = db.workspaces.find(
         {"leaderboard_opt_in": True, "leaderboard_consent_v1": True},
         {"user_id": 1, "challenges": 1},
-    ).limit(2000)
+    )
     community_scores = {}
     for doc in opted_in:
         uid = doc.get("user_id")

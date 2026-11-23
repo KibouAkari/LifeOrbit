@@ -10,6 +10,8 @@ from backend.api.realtime import (configured, notebook_room, publish_to_users,
                                   notebook_lock, revoke_book_access, sync_book_access,
                                   realtime_access_lock,
                                   assert_realtime_access_lock)
+from backend.api.native_collab import MAX_DOCUMENT_BYTES, _clear_deleted_pages
+from pycrdt import Doc
 
 router=APIRouter()
 class NotebookInput(BaseModel):
@@ -165,6 +167,26 @@ def delete_page(id:str,page_id:str,user:str=Depends(get_current_user),
     with notebook_lock(db,id):
         book=locate(db,id,user)
         if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
+        record=db.notebook_crdts.find_one({"_id":str(book["_id"])})
+        if record:
+            doc=Doc()
+            try:
+                doc.apply_update(bytes(record["state"]))
+            except Exception:
+                raise HTTPException(503,"The collaborative notebook needs recovery")
+            deleted_pages=set(record.get("deleted_pages",[]))
+            deleted_pages.add(page_id)
+            _clear_deleted_pages(doc,[page_id])
+            state=doc.get_update()
+            if len(state)>MAX_DOCUMENT_BYTES:
+                raise HTTPException(413,"Notebook is too large for built-in collaboration")
+            updated=db.notebook_crdts.update_one(
+                {"_id":str(book["_id"]),"version":record["version"]},
+                {"$set":{"state":state,"deleted_pages":sorted(deleted_pages),
+                         "updated_at":datetime.now(timezone.utc)},
+                 "$inc":{"version":1}})
+            if updated.matched_count!=1:
+                raise HTTPException(409,"Notebook changed; try again")
         result=db.shared_notebooks.update_one(
             {"_id":book["_id"],"$or":[{"owner":user},{"members":user}],"pages.id":page_id},
             {"$pull":{"pages":{"id":page_id}},"$set":{"updated_at":datetime.now(timezone.utc)}})

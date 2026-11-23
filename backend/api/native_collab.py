@@ -23,8 +23,8 @@ from backend.api.routes.auth import get_current_user
 from backend.api.security import enforce_limit
 
 router = APIRouter()
-MAX_UPDATE_BYTES = 1200000
 MAX_DOCUMENT_BYTES = 1500000
+MAX_UPDATE_BYTES = MAX_DOCUMENT_BYTES
 
 
 class SyncUpdate(BaseModel):
@@ -79,6 +79,14 @@ def _update_preview(db, book, doc):
             raise HTTPException(413, "Notebook page exceeds content limits")
         pages.append({**page, "title": next_title, "body": next_body})
     return pages
+
+
+def _clear_deleted_pages(doc, page_ids):
+    for pid in page_ids:
+        for field in ("title", "body"):
+            text = doc.get(f"page:{pid}:{field}", type=Text)
+            if text is not None and len(text):
+                text.clear()
 
 
 def _serialize(book, record, since):
@@ -140,6 +148,7 @@ def write_sync(book_id: str, payload: SyncUpdate, request: Request,
             doc.apply_update(update)
         except Exception:
             raise HTTPException(400, "Invalid collaborative update")
+        _clear_deleted_pages(doc, record.get("deleted_pages", []))
         pages = _update_preview(db, book, doc)
         state = doc.get_update()
         if len(state) > MAX_DOCUMENT_BYTES:

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from bson import Binary, ObjectId
-from fastapi import HTTPException, Request
+from fastapi import BackgroundTasks, HTTPException, Request
 from pycrdt import Doc, Text
 
 from backend.api import native_collab, password_reset
@@ -38,6 +38,10 @@ def doc_with_text(body):
 
 
 class NativeCollaborationTests(unittest.TestCase):
+    def test_full_state_update_limit_matches_document_limit(self):
+        self.assertEqual(native_collab.MAX_UPDATE_BYTES,
+                         native_collab.MAX_DOCUMENT_BYTES)
+
     def test_native_sync_routes_match_frontend_urls(self):
         from fastapi import FastAPI
         from pathlib import Path
@@ -98,9 +102,11 @@ class NativeCollaborationTests(unittest.TestCase):
         with patch.object(native_collab, "get_db", return_value=db), \
              patch.object(native_collab, "notebook_lock", side_effect=lambda *_: nullcontext()), \
              patch.object(native_collab, "_assert_lock"), \
-             patch.object(native_collab, "enforce_limit"), \
+             patch.dict("os.environ", {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as limit_db, \
              patch.object(native_collab, "publish_to_users"), \
              patch("backend.api.routes.shared_notebooks.locate", return_value=book):
+            limit_db.return_value.rate_limits.find_one_and_update.return_value = {"hits": 1}
             for editor in (left, right):
                 native_collab.write_sync(
                     BOOK,
@@ -166,20 +172,88 @@ class NativeCollaborationTests(unittest.TestCase):
         self.assertEqual(blocked.exception.status_code, 409)
         db.notebook_crdts.insert_one.assert_not_called()
 
+    def test_page_deletion_persists_crdt_tombstone_and_clears_text(self):
+        from backend.api.routes import shared_notebooks
+        initial = doc_with_text("Remove this text")
+        db = MagicMock()
+        db.notebook_crdts.find_one.return_value = {
+            "_id": BOOK, "state": Binary(initial.get_update()), "version": 2,
+            "deleted_pages": [],
+        }
+        db.notebook_crdts.update_one.return_value = MagicMock(matched_count=1)
+        db.shared_notebooks.update_one.return_value = MagicMock(modified_count=1)
+        book = {"_id": ObjectId(BOOK), "owner": OWNER, "members": [],
+                "pages": [{"id": "page1", "title": "Important", "body": "Remove this text"}]}
+        with patch.object(shared_notebooks, "get_db", return_value=db), \
+             patch.object(shared_notebooks, "notebook_lock", side_effect=lambda *_: nullcontext()), \
+             patch("backend.api.routes.shared_notebooks.locate", return_value=book), \
+             patch.object(shared_notebooks, "publish_to_users"):
+            result = shared_notebooks.delete_page(
+                BOOK, "page1", user=OWNER, background_tasks=BackgroundTasks())
+        self.assertEqual(result, {"removed": True})
+        update = db.notebook_crdts.update_one.call_args.args[1]
+        self.assertEqual(update["$set"]["deleted_pages"], ["page1"])
+        saved = Doc()
+        saved.apply_update(bytes(update["$set"]["state"]))
+        self.assertEqual(str(saved.get("page:page1:body", type=Text)), "")
+
+    def test_deleted_page_content_is_cleared_and_stale_updates_are_scrubbed(self):
+        seed = doc_with_text("Deleted secret")
+        stale = Doc()
+        stale.apply_update(seed.get_update())
+        stale.get("page:page1:body", type=Text).__iadd__(" newer offline text")
+        stale_update = stale.get_update()
+        book = {"_id": ObjectId(BOOK), "owner": OWNER, "members": [], "pages": []}
+        deleted = Doc()
+        deleted.apply_update(seed.get_update())
+        native_collab._clear_deleted_pages(deleted, ["page1"])
+        state = {"_id": BOOK, "state": Binary(deleted.get_update()), "version": 4,
+                 "deleted_pages": ["page1"]}
+
+        db = MagicMock()
+        db.notebook_crdts.find_one.return_value = {
+            "_id": BOOK, "state": Binary(deleted.get_update()), "version": 4,
+            "deleted_pages": ["page1"],
+        }
+        db.realtime_notebooks.find_one.return_value = None
+        db.shared_notebooks.find_one.return_value = {"owner": OWNER}
+        db.notebook_crdts.update_one.return_value = MagicMock(matched_count=1)
+        with patch.object(native_collab, "get_db", return_value=db), \
+             patch.object(native_collab, "notebook_lock", side_effect=lambda *_: nullcontext()), \
+             patch.object(native_collab, "_assert_lock"), \
+             patch.object(native_collab, "publish_to_users"), \
+             patch("backend.api.security.get_db") as limit_db, \
+             patch.dict("os.environ", {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.routes.shared_notebooks.locate", return_value=book):
+            limit_db.return_value.rate_limits.find_one_and_update.return_value = {"hits": 1}
+            native_collab.write_sync(
+                BOOK, native_collab.SyncUpdate(
+                    update=base64.b64encode(stale_update).decode()),
+                fake_request(), BackgroundTasks(), user=OWNER)
+        saved = Doc()
+        saved.apply_update(bytes(db.notebook_crdts.update_one.call_args.args[1]["$set"]["state"]))
+        self.assertEqual(str(saved.get("page:page1:body", type=Text)), "")
+
 
 class RecoveryTests(unittest.TestCase):
     def test_email_reset_does_not_disclose_unrecognized_address(self):
         db = MagicMock()
         db.users.find_one.return_value = None
+        background = BackgroundTasks()
         with patch.object(password_reset, "get_db", return_value=db), \
              patch.object(password_reset, "_delivery_settings",
                           return_value=("key", "no-reply@lifeorbit.dev", "https://lifeorbit.dev")), \
-             patch.object(password_reset, "enforce_limit"), \
+             patch.dict("os.environ", {"JWT_SECRET_KEY": SECRET, "VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as limit_db, \
              patch.object(password_reset, "_send_reset_email") as sender:
+            limit_db.return_value.rate_limits.find_one_and_update.return_value = {"hits": 1}
             result = password_reset.forgot_password(
                 password_reset.ForgotPassword(email="nonexistent@example.org"),
-                fake_request())
+                fake_request(), background)
+            self.assertEqual(db.users.find_one.call_count, 0)
+            background.tasks[0].func(*background.tasks[0].args, **background.tasks[0].kwargs)
         self.assertEqual(result["message"], password_reset.GENERIC_REPLY)
+        db.users.find_one.assert_called_once_with({"email": "nonexistent@example.org"})
         sender.assert_not_called()
 
     def test_password_reset_email_stores_only_hashed_single_use_token(self):
@@ -191,15 +265,19 @@ class RecoveryTests(unittest.TestCase):
         def deliver(_to, url):
             seen["url"] = url
             return True
+        background = BackgroundTasks()
         with patch.dict("os.environ", {"JWT_SECRET_KEY": SECRET}), \
              patch.object(password_reset, "get_db", return_value=db), \
              patch.object(password_reset, "_delivery_settings",
                           return_value=("key", "no-reply@lifeorbit.dev", "https://lifeorbit.dev")), \
-             patch.object(password_reset, "enforce_limit"), \
+             patch.dict("os.environ", {"VERCEL": "0"}), \
+             patch("backend.api.security.get_db") as limit_db, \
              patch.object(password_reset, "_send_reset_email", side_effect=deliver):
+            limit_db.return_value.rate_limits.find_one_and_update.return_value = {"hits": 1}
             result = password_reset.forgot_password(
                 password_reset.ForgotPassword(email="owner@example.org"),
-                fake_request())
+                fake_request(), background)
+            background.tasks[0].func(*background.tasks[0].args, **background.tasks[0].kwargs)
             record = db.password_reset_tokens.insert_one.call_args.args[0]
             raw = seen["url"].split("token=", 1)[1]
             self.assertEqual(record["_id"], password_reset._token_digest(raw))
@@ -220,8 +298,9 @@ class RecoveryTests(unittest.TestCase):
             token="a" * 43, new_password="very-long-valid-password")
         with patch.dict("os.environ", {"JWT_SECRET_KEY": SECRET}), \
              patch.object(password_reset, "get_db", return_value=db), \
-             patch.object(password_reset, "enforce_limit"), \
+             patch("backend.api.security.get_db") as limit_db, \
              patch.object(password_reset.passwords, "hash", return_value="new-hash"):
+            limit_db.return_value.rate_limits.find_one_and_update.return_value = {"hits": 1}
             self.assertEqual(password_reset.reset_password(
                 data, fake_request()), {"updated": True})
             with self.assertRaises(HTTPException) as replay:
@@ -253,7 +332,7 @@ class FriendRankingTests(unittest.TestCase):
                         "challenges":[{"value":4,"target":5}]}]
         db.workspaces.find.side_effect = [
             private_docs,
-            MagicMock(limit=MagicMock(return_value=public_docs)),
+            public_docs,
         ]
         db.workspaces.find_one.return_value = {
             "leaderboard_opt_in":False,"leaderboard_consent_v1":False}
@@ -286,6 +365,25 @@ class FriendRankingTests(unittest.TestCase):
             result=leaderboard.ranking(user_id=OWNER)
         self.assertEqual([entry["name"] for entry in result["friends"]],
                          ["Owner"])
+
+    def test_community_ranking_scores_accounts_beyond_previous_query_cap(self):
+        db = MagicMock()
+        db.friendships.find.return_value = []
+        public_docs = [
+            {"user_id": f"{index:024x}",
+             "challenges": [{"value": 0, "target": 1}]}
+            for index in range(1, 2002)
+        ]
+        public_docs[-1]["challenges"] = [{"value": 10, "target": 10}]
+        db.workspaces.find.side_effect = [[], public_docs]
+        db.workspaces.find_one.return_value = {}
+        db.users.find.return_value = [
+            {"_id": ObjectId(doc["user_id"]), "name": f"Member {doc['user_id']}"}
+            for doc in public_docs
+        ]
+        with patch.object(leaderboard, "get_db", return_value=db):
+            result = leaderboard.ranking(user_id=OWNER)
+        self.assertEqual(result["participants"][0]["points"], 100)
 
 
 if __name__ == "__main__":

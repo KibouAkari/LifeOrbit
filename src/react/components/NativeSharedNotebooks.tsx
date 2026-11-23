@@ -45,8 +45,9 @@ async function getBooks() {
   return result;
 }
 
-function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
+function NativeBook({book, friends, verified, onRefresh, onSavePendingChange}:{
   book: Book; friends: Friend[]; onRefresh: () => Promise<void>;
+  verified: boolean;
   onSavePendingChange: (pending:boolean) => void;
 }) {
   const [pages, setPages] = useState<Page[]>(book.pages);
@@ -71,6 +72,7 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
 
   useEffect(() => {
     let alive = true;
+    let mounted = true;
     const shared = new Y.Doc();
     let requestInFlight = false;
     let failures = 0;
@@ -79,7 +81,7 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
       if (!alive) return;
       if (data.update) Y.applyUpdate(shared, decode(data.update), "server");
       versionRef.current = Math.max(versionRef.current, data.version);
-      setPages(data.pages);
+      if (mounted) setPages(data.pages);
     };
     const schedule = (afterFailure = false) => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -90,15 +92,24 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
     };
     const onUpdate = (_bytes: Uint8Array, origin: unknown) => {
       if (!alive) return;
-      setRevision(value => value + 1);
+      if (mounted) setRevision(value => value + 1);
       if (origin !== "server") {
         dirtyRef.current = true;
-        onSavePendingChange(true);
-        setStatus("Saving…");
+        if (mounted) {
+          onSavePendingChange(true);
+          setStatus("Saving…");
+        }
         schedule();
       }
     };
     shared.on("update", onUpdate);
+    const disposeIfDetached = () => {
+      if (!mounted && !dirtyRef.current && !writingRef.current) {
+        alive = false;
+        shared.off("update", onUpdate);
+        shared.destroy();
+      }
+    };
     const pull = async () => {
       if (requestInFlight || !alive) return;
       requestInFlight = true;
@@ -106,7 +117,7 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
         const result = await request<Sync>(
           `/shared-notebooks/${book.id}/sync?since=${versionRef.current}`);
         merge(result);
-        if (alive) {
+        if (alive && mounted) {
           setDoc(shared);
           if (!dirtyRef.current && !writingRef.current) setStatus("Autosaved");
           setError("");
@@ -114,16 +125,21 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
       } catch (failure) {
         if (!alive) return;
         const message = failure instanceof Error ? failure.message : "Cannot verify notebook access";
-        setError(message);
-        setStatus("Connection lost");
+        if (mounted) {
+          setError(message);
+          setStatus("Connection lost");
+        }
         if (/not found|denied|sign in|revoked|unauthorized/i.test(message)) {
           // Never leave a former friend's fetched private content visible or
           // continue retrying a now unauthorized write.
           dirtyRef.current = false;
           if (timerRef.current) clearTimeout(timerRef.current);
-          onSavePendingChange(false);
-          setDoc(null); setPages([]); setSelected("");
+          if (mounted) {
+            onSavePendingChange(false);
+            setDoc(null); setPages([]); setSelected("");
+          }
           void onRefresh();
+          disposeIfDetached();
         }
       } finally {
         requestInFlight = false;
@@ -141,28 +157,35 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
         if (!alive) return;
         merge(result);
         failures = 0;
-        setStatus(dirtyRef.current ? "Saving…" : "Autosaved");
-        if (!dirtyRef.current) onSavePendingChange(false);
-        setError("");
+        if (mounted) {
+          setStatus(dirtyRef.current ? "Saving…" : "Autosaved");
+          if (!dirtyRef.current) onSavePendingChange(false);
+          setError("");
+        }
       }).catch((failure) => {
         if (!alive) return;
         const message = failure instanceof Error ? failure.message : "Unable to save changes";
         if (/not found|denied|sign in|revoked|unauthorized/i.test(message)) {
           dirtyRef.current = false;
           if (timerRef.current) clearTimeout(timerRef.current);
-          onSavePendingChange(false);
-          setDoc(null); setPages([]); setSelected("");
+          if (mounted) {
+            onSavePendingChange(false);
+            setDoc(null); setPages([]); setSelected("");
+          }
           void onRefresh();
         } else {
           dirtyRef.current = true;
           retry = true;
           failures += 1;
         }
-        setStatus("Not saved yet");
-        setError(message);
+        if (mounted) {
+          setStatus("Not saved yet");
+          setError(message);
+        }
       }).finally(() => {
         writingRef.current = false;
         if (alive && dirtyRef.current) schedule(retry);
+        else disposeIfDetached();
       });
     };
     const refresh = () => void pull();
@@ -181,9 +204,9 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
     const onRemote = () => void pull();
     window.addEventListener("lifeorbit:remote-updated", onRemote);
     return () => {
-      // Keep the in-flight save alive even if the editor is switched off.
+      mounted = false;
+      const pending = dirtyRef.current || writingRef.current;
       if (dirtyRef.current && !writingRef.current) flushRef.current();
-      alive = false;
       onSavePendingChange(false);
       window.clearInterval(interval);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -191,7 +214,10 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
       window.removeEventListener("beforeunload", checkBeforeLeave);
       window.removeEventListener("lifeorbit:remote-updated", onRemote);
       shared.off("update", onUpdate);
-      shared.destroy();
+      if (!pending) {
+        alive = false;
+        shared.destroy();
+      }
     };
   }, [book.id, onRefresh, onSavePendingChange]);
 
@@ -266,6 +292,9 @@ function NativeBook({book, friends, onRefresh, onSavePendingChange}:{
 
   const available = friends.filter(friend =>
     friend.id !== book.owner && !book.members.some(member => member.id === friend.id));
+  if (!verified) return <div className="shared-notebook-content">
+    <div className="quiet-empty">Unable to verify notebook access. Reconnecting…</div>
+  </div>;
   return <div className="shared-notebook-content">
     <header><div><h2>{book.title}</h2>
       <p className="muted">Shared by {book.owner_name} · {book.members.length+1} members</p>
@@ -313,20 +342,27 @@ export default function NativeSharedNotebooks() {
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
   const [savePending,setSavePending] = useState(false);
+  const [verified,setVerified] = useState(false);
+  const reloadGeneration = useRef(0);
   const reload = useCallback(async() => {
+    const generation = ++reloadGeneration.current;
+    const latest = () => generation === reloadGeneration.current;
     try {
       const items = await getBooks();
+      if (!latest()) return;
       setBooks(items);
       setSelected(current => items.some(book => book.id === current) ? current : "");
+      setVerified(true);
       setError("");
       try {
         const data = await request<{friends: Friend[]}>("/friends");
-        setFriends(data.friends);
-      } catch { setFriends([]); }
+        if (latest()) setFriends(data.friends);
+      } catch { if (latest()) setFriends([]); }
     } catch (failure) {
-      // Clear sensitive cached notebooks if current authorization cannot be verified.
-      setBooks([]);setSelected("");setFriends([]);
-      setError(failure instanceof Error ? failure.message : "Unable to verify notebook access");
+      if (latest()) {
+        setVerified(false);
+        setError(failure instanceof Error ? failure.message : "Unable to verify notebook access");
+      }
     }
   }, []);
   useEffect(() => {
@@ -362,18 +398,18 @@ export default function NativeSharedNotebooks() {
   return <div className="shared-notebook-layout">
     <aside className="shared-notebook-sidebar">
       <h3><Users size={17}/> Shared notebooks</h3>
-      {books.map(item=><button key={item.id} className={selected===item.id?"selected":""}
+      {verified && books.map(item=><button key={item.id} className={selected===item.id?"selected":""}
         disabled={savePending && selected!==item.id}
         title={savePending && selected!==item.id?"Saving changes first":""}
         onClick={()=>setSelected(item.id)}><BookOpen size={16}/>
         <span>{item.title}<small>By {item.owner_name}</small></span></button>)}
-      <form onSubmit={event=>{event.preventDefault();void createBook()}}>
+      {verified && <form onSubmit={event=>{event.preventDefault();void createBook()}}>
         <input className="input" value={title} maxLength={80}
           onChange={event=>setTitle(event.target.value)} placeholder="New shared notebook"/>
         <button className="button primary" disabled={busy||!title.trim()}><Plus size={16}/> Create</button>
-      </form>
+      </form>}
     </aside>
-    {book ? <NativeBook key={book.id} book={book} friends={friends}
+    {book ? <NativeBook key={book.id} book={book} friends={friends} verified={verified}
       onRefresh={reload} onSavePendingChange={setSavePending}/>
       : <div className="shared-notebook-content">
           <div className="quiet-empty"><BookOpen size={25}/><h2>Plan together</h2>
