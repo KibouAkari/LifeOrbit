@@ -136,8 +136,10 @@ def save_page(id:str,page_id:str,payload:PageInput,user:str=Depends(get_current_
     # safely reread the latest MongoDB document before seeding Yjs.
     with notebook_lock(db,id):
         book=locate(db,id,user)
-        if db.realtime_notebooks.find_one({"_id":notebook_room(id)}):
-            raise HTTPException(409,"This notebook is migrating or uses live collaboration")
+        if db.realtime_notebooks.find_one({"_id":notebook_room(id)}) or db.notebook_crdts.find_one({"_id":str(book["_id"])}):
+            # No old browser may overwrite a Yjs-backed shared page with a
+            # last-writer-wins full-text HTTP request.
+            raise HTTPException(409,"This notebook uses collaborative editing")
         # Each write rechecks membership while holding the serialization lock.
         if not 1<=len(page_id)<=80:raise HTTPException(400,"Invalid page ID")
         member_scope={"_id":book["_id"],"$or":[{"owner":user},{"members":user}]}

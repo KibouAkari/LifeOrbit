@@ -371,6 +371,14 @@ def _prepare_notebook_locked(db, book_id, user, book, room_id):
     if state and state.get("status") == "ready":
         sync_book_access(db, book, locked=True)
         return {"room": room_id, "ready": True}
+    # The built-in MongoDB Yjs state is authoritative for notebooks already
+    # opened using native autosave. Never seed hosted Liveblocks from a stale
+    # Mongo preview; this would silently create a second independent CRDT.
+    native = db.notebook_crdts.find_one({"_id": str(book["_id"])})
+    if isinstance(native, dict):
+        raise HTTPException(
+            409, "This notebook already uses built-in collaboration; a reviewed migration is required"
+        )
     now = datetime.now(timezone.utc)
     lease = now + timedelta(seconds=45)
     nonce = uuid.uuid4().hex

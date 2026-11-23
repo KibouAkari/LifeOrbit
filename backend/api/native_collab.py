@@ -89,7 +89,7 @@ def _serialize(book, record, since):
                       for p in book.get("pages", [])]}
 
 
-@router.get("/notebooks/{book_id}/sync")
+@router.get("/{book_id}/sync")
 def read_sync(book_id: str, since: int = Query(default=-1, ge=-1),
               user: str = Depends(get_current_user)):
     from backend.api.routes.shared_notebooks import locate
@@ -109,7 +109,7 @@ def read_sync(book_id: str, since: int = Query(default=-1, ge=-1),
         return _serialize(book, record, since)
 
 
-@router.post("/notebooks/{book_id}/sync")
+@router.post("/{book_id}/sync")
 def write_sync(book_id: str, payload: SyncUpdate, request: Request,
                background_tasks: BackgroundTasks,
                user: str = Depends(get_current_user)):

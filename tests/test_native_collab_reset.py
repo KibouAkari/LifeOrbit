@@ -38,6 +38,16 @@ def doc_with_text(body):
 
 
 class NativeCollaborationTests(unittest.TestCase):
+    def test_native_sync_routes_match_frontend_urls(self):
+        from backend.api.index import app
+        paths={(route.path,method)
+               for route in app.routes
+               for method in getattr(route,"methods",set())}
+        expected="/api/shared-notebooks/{book_id}/sync"
+        self.assertIn((expected,"GET"),paths)
+        self.assertIn((expected,"POST"),paths)
+        self.assertNotIn(("/api/shared-notebooks/notebooks/{book_id}/sync","GET"),paths)
+
     def test_first_sync_migrates_existing_notes_without_removing_source(self):
         db = MagicMock()
         db.notebook_crdts.find_one.return_value = None
@@ -101,6 +111,25 @@ class NativeCollaborationTests(unittest.TestCase):
         hashed = passwords.hash(phrase)
         self.assertTrue(passwords.verify(phrase, hashed))
         self.assertFalse(passwords.verify("wrong-test-password", hashed))
+
+    def test_legacy_full_page_save_rejects_native_collaboration(self):
+        from backend.api.routes import shared_notebooks
+        db=MagicMock()
+        book={"_id":ObjectId(BOOK),"owner":OWNER,"members":[]}
+        db.realtime_notebooks.find_one.return_value=None
+        db.notebook_crdts.find_one.return_value={"_id":BOOK, "version":2}
+        with patch("backend.api.routes.shared_notebooks.get_db",return_value=db), \
+             patch("backend.api.routes.shared_notebooks.notebook_lock",
+                   side_effect=lambda *_:nullcontext()), \
+             patch("backend.api.routes.shared_notebooks.locate",
+                   return_value=book):
+            with self.assertRaises(HTTPException) as blocked:
+                shared_notebooks.save_page(
+                    BOOK, "page1",
+                    shared_notebooks.PageInput(title="Stale",body="Should not overwrite"),
+                    user=OWNER)
+        self.assertEqual(blocked.exception.status_code,409)
+        db.shared_notebooks.update_one.assert_not_called()
 
     def test_revoked_member_cannot_fetch_native_document(self):
         db = MagicMock()
