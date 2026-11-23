@@ -42,7 +42,7 @@ This is an actively maintained open-source application, **not a finished or inde
 | Leaderboard | Accepted friends can compare private scores, while community rankings still require explicit opt-in |
 | Welcome email | New in [PR #74](https://github.com/KibouAkari/LifeOrbit/pull/74); one time after a new password/Google account is created, pending review and release |
 
-**Welcome email design:** The new message uses the existing LifeOrbit logo, lavender and white styling, a dashboard button, three onboarding tips and a plain-text alternative. It reuses the configured Resend credentials and does not block registration if sending fails. See [Welcome email](docs/WELCOME_EMAIL.md).
+**Welcome email design:** The email now uses a PNG export of the **same blue planet icon as the website and GitHub**, plus readable LifeOrbit text, a dashboard button, three onboarding tips and a plain-text alternative. It reuses the configured Resend credentials and does not block registration if sending fails. A one-per-day **Resend welcome email** action is available for signed-in users in [PR #75](https://github.com/KibouAkari/LifeOrbit/pull/75). See [Welcome email](docs/WELCOME_EMAIL.md).
 
 **Email configuration:** Vercel lists all three production variables, `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. Their secret values and real delivery have not been validated in this review. A successful API response does not prove inbox placement; test with your own account before release.
 

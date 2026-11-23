@@ -39,7 +39,7 @@ Hosted realtime collaboration is optional and must be **separately provisioned**
 10. Test calendar import/subscription refresh, including public-address validation and denied private endpoints.
 11. Complete the [release checklist](RELEASING.md) before promoting or merging.
 
-**Vercel READY is a build result, not an authentication or database test.** The latest production variable-name listing on 23 November 2026 showed all three recovery variables: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No Liveblocks variables were found. We did not decrypt the secret values, confirm the configured sender domain or prove email delivery. Native autosave is now part of main. Working password-reset and welcome emails need all three values, a verified Resend sender and a fresh deployment of the relevant feature. The welcome email is under review in PR #74. Do not put private keys under a `VITE_` variable.
+**Vercel READY is a build result, not an authentication or database test.** The latest production variable-name listing on 23 November 2026 showed all three recovery variables: `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL`. No Liveblocks variables were found. We did not decrypt the secret values, confirm the configured sender domain or prove email delivery. Native autosave is now part of main. Working password-reset and welcome emails need all three values, a verified Resend sender and an approved deployment. The welcome email from PR #74 is merged; PR #75 improves delivery reliability and corrects the logo. Do not put private keys under a `VITE_` variable.
 
 ## Environment scopes and validation
 
@@ -51,9 +51,9 @@ Run the complete [release checklist](RELEASING.md) and [operations runbook](OPER
 
 ## Transactional email
 
-Welcome mail uses the same verified sender and canonical application origin as password recovery, so there are no additional required environment variables. The HTML template is in `backend/api/welcome_email.py` and the first-party PNG logo is at `public/assets/email-logo.png`. Before enabling in production, test actual Resend delivery, image loading, plain-text fallback and the dashboard link, using dedicated mailboxes.
+Welcome mail uses the same verified sender and canonical application origin as password recovery, so there are no additional required environment variables. The HTML template is in `backend/api/welcome_email.py` and the first-party PNG icon is at `public/assets/email-icon.png`. Before enabling in production, test actual Resend delivery, image loading, plain-text fallback and the dashboard link, using dedicated mailboxes.
 
-See [Welcome email](WELCOME_EMAIL.md) and [Password recovery](PASSWORD_RECOVERY.md). Registration succeeds even when delivery is unavailable; monitor failed background tasks in function logs. FastAPI background delivery is best effort and not a persistent queue.
+See [Welcome email](WELCOME_EMAIL.md) and [Password recovery](PASSWORD_RECOVERY.md). Registration succeeds even when delivery is unavailable; PR #75 sends within a bounded synchronous HTTP attempt and logs whether Resend accepted the message. This may delay signup for a few seconds during provider outages, but prevents silent loss of detached background tasks. It is not a persistent retry queue. See [Welcome email](WELCOME_EMAIL.md) for the DMARC record and provider troubleshooting.
 
 ## Operations
 

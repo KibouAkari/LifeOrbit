@@ -22,7 +22,7 @@ Core threats are credential stuffing, account enumeration, token replay, broken 
 | High | Login and recovery abuse | MongoDB-backed request counters, generic invalid-login response, HMAC reset tokens (PR #73), 30-minute expiry, atomic consume | Validate actual proxy IP trust, thresholds, rate-limit index, email delivery and all lockout paths; consider MFA and monitoring |
 | High | Sharing revocation | Remove accepted friendship grants and share memberships; recheck authorization in API | Test open browser/provider sessions and cached content with two accounts; copied data cannot be erased |
 | High | Concurrent writing/data loss | Proposed native Yjs text merge; authoritative CRDT; old full-page PUT rejected after migration | Verify reconnect, failure retries, same-page concurrent edits, deletion/restore and provider migration; personal `/workspace` still uses aggregate writes |
-| High | Resend secrets/tokens | All required environment variable names are present, server-only key, trusted app URL, digest-only token storage, session version invalidation | Verify values and sender domain without exposing secrets, test actual email, watch delivery failures and secure retention |
+| High | Resend secrets/tokens | All required environment variable names are present, server-only key, trusted app URL, digest-only token storage, session version invalidation; Vercel DNS has a non-enforcing DMARC record | Verify actual sender and SPF/DKIM alignment, test real delivery and bounce status, monitor logs, protect the authenticated welcome-resend endpoint and secure retention |
 | High | Provider migration and backups | Provider-authoritative rooms tracked separately; native sync rejects dual-authority rooms | Export/restore hosted Yjs and MongoDB CRDT state, verify provider ACL disconnection, define deletion/retention policy |
 | High | Privacy, account lifecycle | Community scores require explicit opt-in; private friends ranking uses accepted relationships | Verified email changes, account deletion, complete data export, legal/privacy policy review and deletion across providers |
 | Medium | Injection/XSS | Pydantic types, validated ObjectIds, server-chosen MongoDB operators, escaped search regex, CSP | Continue authorized NoSQL, browser XSS, CSP and dependency testing with each change |
@@ -43,6 +43,10 @@ LifeOrbit uses MongoDB, **not a SQL engine**. Source-level review did not find a
 No provider secrets or database URI values belong in the repository or in documentation. Historical pattern scans were not a full secrets audit; old Git history, additional branches, hosting config and backups need separate review. Privacy-sensitive screenshots should use synthetic data and be rechecked before publication.
 
 Maintain provider domain authentication (e.g. SPF/DKIM), monitor email delivery status without logging reset links, use least-privilege MongoDB credentials and verify database TTL indexes. Backup both notebook metadata and binary `notebook_crdts` state. Hosted Liveblocks data needs a separate independently tested restore method.
+
+## Welcome email delivery controls
+
+The welcome email is now attempted inline after a successful new account creation, with bounded HTTP timeouts, Resend idempotency keys and sanitized HTTP-status logs. Missing/invalid provider credentials cannot undo registration. Existing users can explicitly request a resend only to their own stored email address, rate-limited per account and IP. No guarantee of exact-once inbox delivery is claimed. The DMARC policy is currently `p=none`; verify alignment and provider outcomes before tightening enforcement. See [Welcome email](WELCOME_EMAIL.md).
 
 ## Required release verification
 
