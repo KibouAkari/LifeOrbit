@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Plus, Trophy, RefreshCw, CheckCircle2, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { request, hasSession } from "../data/api";
@@ -44,6 +44,8 @@ export default function Challenges(){
  const [name,setName]=useState(""),[target,setTarget]=useState(1),[unit,setUnit]=useState("times");
  const [period,setPeriod]=useState<"daily"|"weekly">("daily");
  const [rank,setRank]=useState<Ranked[]>([]);
+ const [friendRank,setFriendRank]=useState<Ranked[]>([]);
+ const rankingVersion=useRef(0);
  const [now]=useState(()=>new Date());
  const [friends,setFriends]=useState<{id:string;name:string}[]>([]);
  const [received,setReceived]=useState<{id:string;title:string;target:number;unit:string;period?:"daily"|"weekly";shared_by:string;share_id?:string}[]>([]);
@@ -90,14 +92,39 @@ export default function Challenges(){
  },[refresh,state.templates]);
  async function loadRanking(){
   if(!hasSession())return;
-  try{const data=await request<{participants:Ranked[]}>("/leaderboard");setRank(data.participants);}
-  catch{setMessage("Leaderboard could not be refreshed.");}
+  const version=++rankingVersion.current;
+  try{
+   const data=await request<{participants:Ranked[];friends:Ranked[]}>("/leaderboard");
+   if(version!==rankingVersion.current)return;
+   setRank(data.participants);setFriendRank(data.friends||[]);
+  }catch{
+   if(version!==rankingVersion.current)return;
+   // Never keep a revoked friend's private score visible after a failed refresh.
+   setFriendRank([]);setRank([]);
+   setMessage("Leaderboard could not be refreshed.");
+  }
  }
  useEffect(()=>{
    const refresh=()=>void loadRanking();
-   window.addEventListener("lifeorbit:workspace-saved",refresh);window.addEventListener("lifeorbit:profile-updated",refresh);
+   const revokeAndRefresh=()=>{setFriendRank([]);refresh();};
+   window.addEventListener("lifeorbit:workspace-saved",refresh);
+   window.addEventListener("lifeorbit:profile-updated",refresh);
+   window.addEventListener("lifeorbit:friends-changed",revokeAndRefresh);
+   window.addEventListener("lifeorbit:remote-updated",refresh);
+   window.addEventListener("focus",refresh);
+   const timer=window.setInterval(()=>{
+     if(document.visibilityState==="visible")refresh();
+   },6000);
    void loadRanking();
-   return()=>{window.removeEventListener("lifeorbit:workspace-saved",refresh);window.removeEventListener("lifeorbit:profile-updated",refresh)};
+   return()=>{
+    rankingVersion.current++;
+    window.clearInterval(timer);
+    window.removeEventListener("lifeorbit:workspace-saved",refresh);
+    window.removeEventListener("lifeorbit:profile-updated",refresh);
+    window.removeEventListener("lifeorbit:friends-changed",revokeAndRefresh);
+    window.removeEventListener("lifeorbit:remote-updated",refresh);
+    window.removeEventListener("focus",refresh);
+   };
  },[]);
  function choose(item:ChallengeTemplate){
   const date_key=key(item.period);
@@ -144,7 +171,18 @@ export default function Challenges(){
    <p role="status" aria-live="polite" className="feedback-line">{message}</p>
   </section>
   <aside className="ranking"><div className="ranking-heading"><h2>Leaderboard</h2><Sparkles size={18}/></div>
-   <label className="leaderboard-optin"><input type="checkbox" checked={state.leaderboard_opt_in} onChange={optIn}/> Show me in the community ranking</label>
+   <h3>Friends</h3>
+   <p className="muted">Accepted friends can always compare their scores privately.</p>
+   {online&&friendRank.length>0
+     ? friendRank.map((person,i)=><div className="ranking-row" key={person.id||person.name+i}>
+        <span className="ranking-position">{person.rank}</span>
+        <div className="leaderboard-profile">{person.name[0]?.toUpperCase()}</div>
+        <strong>{person.name}{person.me?" · You":""}</strong>
+        <span>{person.points} pts</span>
+       </div>)
+     : <p className="quiet-empty">Add a friend to compare scores privately.</p>}
+   <h3>Community</h3>
+   <label className="leaderboard-optin"><input type="checkbox" checked={state.leaderboard_opt_in} onChange={optIn}/> Show my score publicly in the community ranking</label>
    {online&&rank.length>0&&<div className="leaderboard-podium">{[rank[1],rank[0],rank[2]].map((person,i)=>person?<div className={`leaderboard-place place-${person.rank}`} key={person.id||person.name+i}><div className="leaderboard-profile">{person.name[0]?.toUpperCase()}</div><strong>{person.name}</strong><small>{person.points} pts</small><div className="leaderboard-step">#{person.rank}</div></div>:<div key={i} aria-hidden="true"/>)}</div>}
    {displayedRank.length?displayedRank.map((person,i)=><div className="ranking-row" key={person.id||person.name+i}><span className="ranking-position">{person.rank??"Local"}</span><div className="leaderboard-profile">{person.name[0]?.toUpperCase()}</div><strong>{person.name}{person.me?" · You":""}</strong><span>{person.points} pts</span></div>):<div className="quiet-empty">Your ranking is being loaded.</div>}
   </aside></div>
