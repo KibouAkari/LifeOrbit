@@ -1,44 +1,48 @@
-# LifeOrbit architecture
+# System architecture
 
-Updated 23 November 2026 (PR #73 under review).
+Updated 23 November 2026. The deployed production commit and the proposed PR #73 code may differ; see [README](../README.md) for the release boundary.
 
 ```mermaid
 flowchart LR
-  B[React and TypeScript] --> A[Same-origin FastAPI /api]
-  A --> M[(MongoDB Atlas)]
-  A --> G[Google identity token verification]
-  A --> I[Validated public HTTPS iCal feeds]
-  B --> L[Local guest preferences]
+  Browser[React/Vite browser UI] --> API[FastAPI same-origin /api]
+  API --> DB[(MongoDB Atlas)]
+  API --> Google[Google identity token verifier]
+  API --> Feeds[Validated HTTPS iCalendar sources]
+  API --> Email[Resend password reset emails]
+  Browser -. optional WebSockets .-> LB[Liveblocks]
+  API -. server-authorized rooms .-> LB
 ```
 
-## Technology and responsibility
+## Runtime and trust boundaries
 
-React, Vite and TypeScript render the responsive application. Vercel serves the frontend and the root Python Function through the same hostname. Python FastAPI validates identity and ownership, accesses MongoDB, and handles subscribed iCalendar feeds.
+| Component | Location | Responsibility |
+| --- | --- | --- |
+| Frontend | `src/react/` | Navigation, UI state, typed requests, optional Yjs editors |
+| API entry | `api/index.py`, `backend/api/index.py` | Same-origin FastAPI, request checks, route mounting |
+| Authentication | `backend/api/routes/auth.py` | Password/Google login, session issuance and validation |
+| Password recovery | `backend/api/password_reset.py` | Single-use recovery tokens and Resend delivery (PR #73) |
+| Persistence | `backend/api/database.py` | MongoDB connection and required indexes |
+| Workspace and sharing | `backend/api/routes/` | Owner-scoped records and explicit invitations |
+| Native collaboration | `backend/api/native_collab.py` | Server-merged Yjs updates in MongoDB (PR #73) |
+| Hosted collaboration | `backend/api/realtime.py` | Optional Liveblocks authorization, migration and notifications |
+| Hosting | Vercel | Static frontend, Python serverless function, preview environments |
 
-Authentication accepts email/password or Google sign-in. A signed short-lived session is set in a Secure, HttpOnly, SameSite cookie on `/api`. Google sign-in currently verifies identity only: Google Calendar read/write OAuth scopes are **not** included.
+The browser is untrusted. Every private API call must authenticate the account through a signed Secure HttpOnly cookie and validate ownership or a currently accepted friendship. Permission checks in React are convenience only. CSRF Origin validation protects cookie-authenticated mutation requests. Public login and remote-fetch endpoints have server-side throttling.
 
-Tasks and calendar events use individual owner-scoped API endpoints. Notes, chapters, subscriptions and challenge progress currently use the owner-scoped aggregate `/api/workspace` endpoint. A future design should split these writes into concurrency-safe resources.
+## Data lifecycle
 
-Friends, invitations and sharing use separate MongoDB `friendships` and `shares` collections. The server checks ownership and accepted friendships, including on subsequent read requests. Private note shares are read-only; shared notebooks allow invited members to edit pages with polling, but not conflict-free simultaneous editing.
+Owned tasks and calendar events are separate collections. Personal notes, subscriptions and challenge progress currently use aggregate `/api/workspace` writes. These whole-document writes can overwrite edits from another device and need revision-aware replacement.
 
-## Optional realtime architecture
+Shared notebooks store ownership, membership and page metadata in `shared_notebooks`. PR #73 introduces `notebook_crdts` containing canonical Yjs binary state. Authenticated GET/POST sync routes merge concurrent text updates under a distributed notebook lock; MongoDB page previews are a secondary representation. Deleting a page or a notebook must not inadvertently recreate or expose it through stale CRDT state.
 
-When `ENABLE_REALTIME` and `VITE_REALTIME_ENABLED` are both enabled, private Liveblocks rooms carry update notifications and Yjs CRDTs merge concurrent edits in shared notebooks. Existing MongoDB notebook metadata is retained, and the original notebook text is seeded server-side before the first realtime connection. A backend snapshot endpoint copies only server-observed Yjs state into MongoDB for preview and recovery; clients never overwrite CRDT pages with full text. See [Realtime collaboration](REALTIME_COLLABORATION.md).
+Optional Liveblocks sessions instead use private server-authorized room ACLs and hosted Yjs state; they must not run concurrently as a second independent authority over a native room. Before enabling hosted collaboration, verify access revocation, data export, backup/restore, and actual provider behavior. See [Realtime collaboration](REALTIME_COLLABORATION.md).
 
-## Calendar sources
+## External integrations
 
-Manual .ics import creates an owned copy. A subscribed public HTTPS or webcal iCalendar link can be saved encrypted and refreshed on demand after public-IP validation and IP-pinned TLS. The server rejects private IP addresses and redirects, and caps file and event sizes. The feed link may contain a private access token; never log or expose it in API responses.
+Google Sign-In verifies identity tokens only. Resend sends password reset messages after a verified sender/domain and three required environment variables are set. iCalendar sources are fetched with SSRF restrictions and encrypted URL storage; redirects are disabled. None of these services should receive unrelated note contents or session cookies.
 
-Neither Google Calendar OAuth, Microsoft Graph, nor Apple CalDAV full account integration is implemented. Automatic scheduled refresh requires a background job, token lifecycle, recurrence handling, timezone normalization and security verification.
+## Deployment constraints
 
-## Proposed native collaboration and email recovery
+A single Vercel project serves both the frontend and `/api`; secrets remain server-side. A READY build checks compilation, not a real MongoDB connection, user authorization, realtime transport or email delivery. Preview and production variable scopes can differ.
 
-The existing Liveblocks integration is disabled until externally configured. PR #73 adds native Yjs synchronization over authenticated FastAPI HTTP endpoints to MongoDB `notebook_crdts`, with server-side distributed locks and short polling. It merges concurrent text changes without last-writer-wins writes, but is not WebSocket push and does not provide shared cursors. Liveblocks-migrated documents stay provider-authoritative and are not automatically rewritten into native state.
-
-Password recovery is served by Resend after domain verification. The server stores only token digests, enforces expiry and one-time use, and revokes existing sessions when a password is reset. The token email link uses a trusted canonical HTTPS URL. Accepted friends privately see one another's challenge scores, while unrelated community users only see affirmatively opted-in scores.
-
-## Security and operations
-
-Use private Vercel environment variables for MONGODB_URI, JWT_SECRET_KEY and backend Google configuration. Only public Google OAuth client IDs may be prefixed with VITE_. Never place secrets in browser-accessible variables.
-
-Use a stable encryption secret and formal rotation procedure for private feed URLs. Limit query, request sizes and retries, and monitor unusual friend requests or feed fetches. Rate limiting and public-account recovery remain release blockers. See [Security Review](SECURITY_AUDIT.md).
+For configuration see [Deployment](DEPLOYMENT.md), [Operations](OPERATIONS.md) and [Security review](SECURITY_AUDIT.md).

@@ -1,60 +1,47 @@
-# Python API integration
+# FastAPI contract
 
-Frontend calls `/api/*` on the current hostname. The root Vercel Python
-Function delegates to `backend.api.index.app`.
+The frontend calls the same-origin `/api` prefix. `api/index.py` delegates to `backend/api/index.py`. All private resources require authenticated sessions; ownership and accepted-friend membership are enforced on the server, not only in React.
 
-Implemented routes:
-- GET /api/health (process health only)
-- GET /api/health/database (MongoDB ping; 503 when unavailable)
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/password/forgot (generic response, throttled single-use reset link)
-- POST /api/auth/password/reset (password replacement and session revocation)
-- POST /api/auth/google
-- GET /api/auth/me; PATCH /api/auth/me for profile edits; GET /api/auth/export
-- GET /api/tasks, POST /api/tasks, PATCH/DELETE /api/tasks/{id}
-- GET /api/calendar/events, POST /api/calendar/events, DELETE /api/calendar/events/{id}
-- GET/PUT /api/workspace (notes, chapters, subscriptions and personal challenges)
-- GET /api/dashboard/stats
+## Route groups
 
-User-owned tasks/events are filtered by JWT subject. New registrations use
-MongoDB IDs, including Google registration. Older records from the original
-Google-subject system may require migration before users can see them.
+| Resource | Principal endpoints | Access |
+| --- | --- | --- |
+| Health | `GET /api/health`, `GET /api/health/database` | Public process and database checks |
+| Auth | `POST /api/auth/register`, `/login`, `/google`, `/logout` | Registration or authenticated session |
+| Account | `GET/PATCH /api/auth/me`, `GET /api/auth/export`, `PATCH /api/auth/password` | Account owner |
+| Recovery (PR #73) | `POST /api/auth/password/forgot`, `POST /api/auth/password/reset` | Public, rate-limited, single-use token |
+| Tasks | `GET/POST /api/tasks`, `PATCH/DELETE /api/tasks/{id}` | Owner |
+| Workspace | `GET/PUT /api/workspace` | Owner; aggregate write |
+| Events | `GET/POST /api/calendar/events`, `PUT/DELETE /api/calendar/events/{id}` | Owner |
+| Calendar feeds | `/api/calendar/feeds` and `/{id}/refresh` | Owner; validated remote source |
+| Friends | `/api/friends`, `/search`, `/requests`, `/requests/{id}/accept` | Authenticated, acceptance required |
+| Shares | `/api/sharing/notes`, `/events`, `/challenges` and RSVP routes | Authorized current friends |
+| Notebooks | `/api/shared-notebooks`, `/{id}/members`, `/{id}/pages`, `/{id}/pages/{page_id}` | Owner or authorized members |
+| Native Yjs sync (PR #73) | `GET/POST /api/shared-notebooks/{book_id}/sync` | Owner or accepted invited member |
+| Realtime (optional) | `POST /api/realtime/authorize`, `/notebooks/{id}/prepare`, `/notebooks/{id}/snapshot` | Authenticated and provider authorized |
+| Activity | `GET /api/notifications`, `POST /api/notifications/read` | Account owner |
+| Leaderboard | `GET /api/leaderboard` | Viewer; private friends vs public community visibility |
+| Dashboard | `GET /api/dashboard/stats` | Account owner |
 
-**Not yet fully implemented:** verified email changes (intentionally blocked), password recovery, account deletion and fully server-authoritative challenge scoring. A real account leaderboard is implemented, but competitive actions are not independently verified. Challenge points are not server-authoritative.
+Consult the source route decorators for precise request and response models. There is no public, auto-generated production OpenAPI schema; development-mode `/api/openapi.json` may be enabled.
 
-## OAuth and credentials
+## Authentication and privacy
 
-VITE_GOOGLE_CLIENT_ID is public and exists only in the frontend build.
-GOOGLE_CLIENT_ID, MONGODB_URI and JWT_SECRET_KEY must remain server-side.
-With same-origin API, omit VITE_API_BASE_URL. The OAuth Web client must allow
-the exact deployed HTTPS origin; Vercel environment changes require redeploy.
-For a separate API origin, set VITE_API_BASE_URL in the frontend, add its exact
-origin to FRONTEND_ORIGINS, and use credentials-enabled CORS. Keep
-AUTH_COOKIE_SAMESITE=strict for same-site origins; use `none` for a cross-site
-frontend/API pair (HTTPS is required).
+- A signed, short-lived JWT lives in an HttpOnly, Secure cookie scoped to `/api`.
+- A MongoDB `session_version` invalidates prior cookies on logout, password change or successful reset; logout currently affects all devices.
+- Google login verifies Google identity; it does **not** authorize calendar access.
+- Password recovery requests respond generically for registered and unregistered emails, with abuse limits and 30-minute single-use tokens.
+- Backend MongoDB filters use typed request bodies, validated ObjectIds and server-selected operations. User-supplied MongoDB operators must never be interpreted as query documents.
+- The leaderboard's `friends` field is scoped to currently accepted friends; `participants` is opt-in community visibility. Scores are self-reported and limited.
 
-## Production risks
+## Error semantics and versioning
 
-Short-lived signed tokens are held in Secure HttpOnly SameSite cookies. A per-account
-session version revokes older tokens after logout and password changes; logging
-out currently invalidates all devices. MongoDB-backed rate limits guard public
-authentication endpoints, and cookie-authenticated writes require an allowed Origin.
-Email changes remain disabled until address verification exists.
-Password recovery, selective per-device revocation and independently verified
-XSS/CSP protection still require further work. See security audit.
+Follow normal HTTP semantics: 400 for malformed input, 401 for missing/invalid authentication, 403 for forbidden actions, 404 for resources not accessible, 409 for concurrent state or Yjs authority conflicts, 429 for throttling and 503 for unavailable infrastructure. Do not include personal data or internal topology in errors.
 
-## Additional live routes
+A failed `/sync` call must **not** be treated as saved. Retrying stale full-page PUTs is prohibited after Yjs migration. Clients must merge CRDT changes and stop editing on revoked access.
 
-- `/api/friends`: discover, request, accept, decline and remove friends.
-- `/api/sharing`: private note shares, event invitations/RSVPs, participants and shared challenge proposals.
-- `/api/shared-notebooks`: create notebooks, invite friends, create/delete pages and move a private note; proposed `GET/POST /api/shared-notebooks/{id}/sync` safely merges native Yjs documents when Liveblocks is unavailable. The legacy whole-page save endpoint is not used by the new UI.
-- `/api/calendar/feeds`: subscribe, refresh and remove validated public HTTPS iCalendar feeds.
-- `/api/notifications`: authenticated unread invitations and task reminders with dismissal.
-- `GET /api/leaderboard` (PR #73): `friends` is viewer plus accepted friends regardless of public opt-in; `participants` is the opted-in community plus the viewer; `opted_in` is the viewer's community preference. Private unrelated accounts are never returned.
+## Development and compatibility
 
-Realtime (optional) adds `POST /api/realtime/authorize`, `POST /api/realtime/notebooks/{id}/prepare`, and `POST /api/realtime/notebooks/{id}/snapshot`. Liveblocks only receives private, server-authorized room identities and Yjs notebook content; MongoDB remains authoritative for users and membership. See [Realtime collaboration](REALTIME_COLLABORATION.md) for migration and operational cautions.
+Use `VITE_API_BASE_URL` only when separating the API origin; same-origin deployment is preferred. Keep `FRONTEND_ORIGINS` and cookie flags aligned with the actual browser origin. Changes to auth, synchronization or sharing require matching tests and updates to [Architecture](ARCHITECTURE.md), [Data model](DATA_MODEL.md) and [Security audit](SECURITY_AUDIT.md).
 
-See [Password recovery](PASSWORD_RECOVERY.md) for email delivery and revocation, and [Realtime collaboration](REALTIME_COLLABORATION.md) for native Yjs/hosted Liveblocks and migration safeguards.
-
-See [Social & Calendar](SOCIAL_AND_CALENDAR.md) for access and synchronization details and [API implementation](../backend/api/index.py) for mounted routes.
+Run `python -m unittest discover -s tests -v` and `npm run typecheck` before merging.
