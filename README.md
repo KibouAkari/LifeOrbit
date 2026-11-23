@@ -71,6 +71,8 @@ python -m pip install -r requirements.txt
 
 On Windows, activate the environment with `.venv\Scripts\Activate.ps1`.
 
+The root `requirements.txt` mirrors `backend/requirements.txt` so local installation and Vercel deploy the same declared Python dependencies. Keep both synchronized when updating packages.
+
 Set the backend environment values described in [Deployment](docs/DEPLOYMENT.md). Use a local secret manager or exported environment variables. Copying `backend/.env.example` alone **does not load** it into the process. Never reuse production credentials for development.
 
 Start the API and frontend in separate terminals:
