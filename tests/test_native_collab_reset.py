@@ -42,6 +42,7 @@ class NativeCollaborationTests(unittest.TestCase):
         db = MagicMock()
         db.notebook_crdts.find_one.return_value = None
         db.realtime_notebooks.find_one.return_value = None
+        db.shared_notebooks.find_one.return_value = {"owner": OWNER}
         book = {"_id": ObjectId(BOOK), "owner": OWNER, "members": [],
                 "pages": [{"id": "page1", "title": "Important", "body": "Preserve me"}]}
         with patch.object(native_collab, "get_db", return_value=db), \
@@ -103,6 +104,7 @@ class NativeCollaborationTests(unittest.TestCase):
 
     def test_revoked_member_cannot_fetch_native_document(self):
         db = MagicMock()
+        db.shared_notebooks.find_one.return_value = {"owner": OWNER}
         with patch.object(native_collab, "get_db", return_value=db), \
              patch.object(native_collab, "notebook_lock", side_effect=lambda *_: nullcontext()), \
              patch("backend.api.routes.shared_notebooks.locate",
@@ -116,6 +118,7 @@ class NativeCollaborationTests(unittest.TestCase):
         db = MagicMock()
         db.realtime_notebooks.find_one.return_value = {"status": "ready"}
         book = {"_id": ObjectId(BOOK), "owner": OWNER, "pages": []}
+        db.shared_notebooks.find_one.return_value = {"owner": OWNER}
         with patch.object(native_collab, "get_db", return_value=db), \
              patch.object(native_collab, "notebook_lock", side_effect=lambda *_: nullcontext()), \
              patch("backend.api.routes.shared_notebooks.locate", return_value=book):
