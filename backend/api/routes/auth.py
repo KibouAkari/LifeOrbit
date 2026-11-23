@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
@@ -15,6 +15,7 @@ from pymongo.errors import DuplicateKeyError
 
 from backend.api.database import get_db
 from backend.api.security import enforce_limit
+from backend.api.welcome_email import send_welcome_email
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
@@ -93,7 +94,8 @@ def find_user(user_id: str):
 
 
 @router.post("/register", status_code=201)
-def register(payload: RegisterRequest, response: Response, request: Request):
+def register(payload: RegisterRequest, response: Response, request: Request,
+             background_tasks: BackgroundTasks):
     secret_key()
     enforce_limit(request, "register", maximum=10, window_seconds=3600, identity=payload.email)
     db = get_db()
@@ -110,7 +112,11 @@ def register(payload: RegisterRequest, response: Response, request: Request):
     except DuplicateKeyError:
         raise HTTPException(status_code=409, detail="Email already registered")
     user["_id"] = outcome.inserted_id
-    return issue_token(user, response)
+    result = issue_token(user, response)
+    # A welcome message is a one-time registration side effect; it must
+    # never block account creation or be repeated during sign-in.
+    background_tasks.add_task(send_welcome_email, email, user["name"])
+    return result
 
 
 @router.post("/login")
@@ -124,7 +130,8 @@ def password_login(payload: LoginRequest, response: Response, request: Request):
 
 
 @router.post("/google")
-def google_login(payload: GoogleAuthRequest, response: Response, request: Request):
+def google_login(payload: GoogleAuthRequest, response: Response, request: Request,
+                 background_tasks: BackgroundTasks):
     enforce_limit(request, "google-login", maximum=60, window_seconds=900)
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
@@ -139,6 +146,7 @@ def google_login(payload: GoogleAuthRequest, response: Response, request: Reques
         raise HTTPException(status_code=401, detail="Invalid Google credential")
 
     db = get_db()
+    newly_registered = False
     user = db.users.find_one({"google_id": google_id})
     if user is None:
         existing = db.users.find_one({"email": email})
@@ -154,6 +162,7 @@ def google_login(payload: GoogleAuthRequest, response: Response, request: Reques
             raise HTTPException(status_code=409, detail="Account already exists")
         record["_id"] = outcome.inserted_id
         user = record
+        newly_registered = True
     else:
         profile = {
             "email": email,
@@ -166,7 +175,12 @@ def google_login(payload: GoogleAuthRequest, response: Response, request: Reques
         except DuplicateKeyError:
             raise HTTPException(status_code=409, detail="An account already uses this email.")
         user.update(profile)
-    return issue_token(user, response)
+    result = issue_token(user, response)
+    if newly_registered:
+        # Google's verified email is already a trusted identity; existing
+        # Google users signing in again should never be emailed a second time.
+        background_tasks.add_task(send_welcome_email, email, user["name"])
+    return result
 
 
 @router.get("/me")
