@@ -39,14 +39,22 @@ def doc_with_text(body):
 
 class NativeCollaborationTests(unittest.TestCase):
     def test_native_sync_routes_match_frontend_urls(self):
-        from backend.api.index import app
-        paths={(route.path,method)
-               for route in app.routes
-               for method in getattr(route,"methods",set())}
-        expected="/api/shared-notebooks/{book_id}/sync"
-        self.assertIn((expected,"GET"),paths)
-        self.assertIn((expected,"POST"),paths)
-        self.assertNotIn(("/api/shared-notebooks/notebooks/{book_id}/sync","GET"),paths)
+        from fastapi import FastAPI
+        from pathlib import Path
+        # Verify the actual API router independently of import order in the
+        # other test modules (which patch auth and imported route objects).
+        app = FastAPI()
+        app.include_router(native_collab.router, prefix="/api/shared-notebooks")
+        paths = {(route.path, method) for route in app.routes
+                 for method in getattr(route, "methods", set())}
+        expected = "/api/shared-notebooks/{book_id}/sync"
+        self.assertIn((expected, "GET"), paths)
+        self.assertIn((expected, "POST"), paths)
+        self.assertNotIn(("/api/shared-notebooks/notebooks/{book_id}/sync", "GET"), paths)
+        index_source = (Path(__file__).resolve().parent.parent /
+                        "backend/api/index.py").read_text()
+        self.assertIn('app.include_router(native_collab.router,prefix="/api/shared-notebooks")',
+                      index_source)
 
     def test_first_sync_migrates_existing_notes_without_removing_source(self):
         db = MagicMock()
