@@ -192,8 +192,7 @@ def resend_welcome(request: Request, user_id: str = Depends(get_current_user)):
     enforce_limit(request, "welcome-resend", maximum=3,
                   account_maximum=1, window_seconds=86400, identity=user_id)
     user = find_user(user_id)
-    from datetime import date
-    event = f"resend/{user_id}/{date.today().isoformat()}"
+    event = f"resend/{user_id}/{datetime.now(timezone.utc).date().isoformat()}"
     accepted = send_welcome_email(user["email"], user.get("name", ""), event)
     if not accepted:
         raise HTTPException(status_code=503, detail="Welcome email is currently unavailable")

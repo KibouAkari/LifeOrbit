@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Download, LogOut, Palette, ShieldCheck, UserRound } from "lucide-react";
+import { Download, LogOut, Mail, Palette, ShieldCheck, UserRound } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { currentUser, hasSession, request, type SignedInUser } from "../data/api";
 import { FriendsPanel } from "../components/FriendsPanel";
@@ -31,6 +31,16 @@ export default function Settings(){
      }else patch("account",name.trim());
      setMessage("Profile saved");
    }catch(err){setMessage(err instanceof Error?err.message:"Could not save profile");}
+   finally{setBusy(false);}
+ }
+
+ async function resendWelcome(){
+   if(!authenticated)return;
+   setBusy(true);setMessage("");
+   try{
+     await request("/auth/welcome/resend",{method:"POST"});
+     setMessage("Your welcome email was accepted by the mail provider. Check your inbox or spam folder. Delivery is not guaranteed.");
+   }catch(err){setMessage(err instanceof Error?err.message:"Could not request a welcome email");}
    finally{setBusy(false);}
  }
 
@@ -83,6 +93,7 @@ export default function Settings(){
      <h2><ShieldCheck size={19}/> Account & privacy</h2>
      <div className="settings-links"><a href="#/privacy">Privacy policy</a><a href="#/terms">Terms of service</a></div>
      <div className="actions">
+       {authenticated&&<button className="button" disabled={busy} onClick={()=>void resendWelcome()}><Mail size={16}/> Resend welcome email</button>}
        {authenticated&&<button className="button" disabled={busy} onClick={()=>void exportData()}><Download size={16}/> Export my data</button>}
        {!authenticated&&<button className="button" onClick={()=>{if(confirm("Reset all guest data on this device?")){reset();setName("");setMessage("Guest workspace reset");}}}>Reset guest data</button>}
        <button className="button" onClick={()=>window.dispatchEvent(new Event("lifeorbit:logout"))}><LogOut size={16}/> Sign out</button>
