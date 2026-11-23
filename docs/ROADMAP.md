@@ -56,15 +56,15 @@ and has its changelog entry and basic validation documented.
 This roadmap is a team proposal, not a promise or shipped feature list.
 
 
-## Current status (October 2026)
+## Current status (November 2026)
 
 Implemented foundations include authenticated account workspaces, dashboard, task deadlines, calendar views and iCal feed imports, chapter-based notes, shared notebooks, subscriptions, challenge selection, friends and event invitations. Calendar providers are not connected by two-way OAuth synchronization, and notification delivery is currently foreground-only. Editing collaboration is polling-based without conflict-free multi-user writes.
 
 ### Priority follow-ups
 
 - Complete two-account authorization and cross-browser interaction tests.
-- Improve password recovery, email verification, session revocation, account deletion and rate limiting.
-- Implement safe database concurrency/version checks for shared notebooks and multi-device settings.
+- Finish verifying the password reset flow with a real mail sender, implement registration/email-change verification, selective session management and account deletion. Login rate limiting exists in source but still needs monitored deployment checks.
+- Verify PR #73's native Yjs CRDT merge and backups, plus Liveblocks optional push. Personal workspace updates across devices still need revision-aware conflict prevention.
 - Add automatic calendar feed scheduling and robust timezone/recurrence handling.
 - Introduce real background push only with explicit permission and reliable server scheduling.
 - Capture new, genuine, privacy-safe screenshots for the README.

@@ -23,6 +23,10 @@ Include the affected endpoint/version, minimal reproduction, potential impact an
 - Validate externally supplied iCalendar URLs; reject private network destinations and redirects.
 - Keep secrets server-side, redact logs and avoid sensitive screenshots.
 
+## New security-sensitive features under review
+
+PR #73 adds email-password recovery using short-lived single-use token digests and a verified sending domain. Recovery emails are disabled until Resend is configured. Its built-in Yjs editor requires current friend/member authorization, uses size-bounded CRDT state and short polling rather than WebSocket push; test access revocation and concurrent edits on a private preview.
+
 ## Known limitations
 
 Rate limiting and account-wide session revocation have proposed mitigations on the security branch, but independent verification is still required. New-email verification (email changes are temporarily disabled), password recovery, selective session management, timezone-aware recurrence, concurrent editing conflict prevention, account deletion and provider security configurations require further hardening and verification. The detailed, changing risk register is in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).

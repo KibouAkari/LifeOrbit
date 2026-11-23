@@ -1,6 +1,16 @@
 # LifeOrbit security review
 
-Updated 11 November 2026. Scope: static source and documentation review on the default branch, plus proposed changes on the security branch. This is not an independent penetration test, runtime scan or production certification.
+Updated 23 November 2026. Scope includes the proposed November autosave, recovery and friends-ranking changes in PR #73. This is a static code and test review, not a penetration test or proof of production deployment.
+
+## Findings and release risks added on 23 November 2026
+
+**Observed production issue:** The production Vercel build still displays the legacy Save page editor because `VITE_REALTIME_ENABLED` and `LIVEBLOCKS_SECRET_KEY` were not configured. The Liveblocks code being present in Git does not make it active. PR #73 replaces that fallback with native MongoDB-backed Yjs syncing. Concurrent text edits are merged using serialized CRDT updates, and the previous MongoDB pages remain available as previews. Updates reach other browsers through short HTTP polling, typically in 1–2 seconds, not instantaneous WebSocket push. An authenticated two-account preview test is still mandatory.
+
+**Password reset:** The new flow uses 256-bit random, one-use reset tokens stored only as HMAC digests with a 30-minute expiry, normalized account and IP request throttling, token consumption, and session version invalidation after successful reset. Email links use a trusted HTTPS origin from the server environment, not the caller's Host header. A Resend verified sending address, API key, and domain configuration are required. The inspected production Vercel project had no Resend variables; emails have not been sent or validated end to end.
+
+**Friends ranking:** The `friends` response includes only the authenticated viewer and currently accepted friends, independent of public opt-in. The `participants` community ranking still requires explicit public consent for unrelated users. Unfriending removes private score visibility but cannot conceal scores deliberately published to the wider community.
+
+**Additional security and operational limits:** The built-in CRDT state is bounded in size, incurs recurring Vercel/MongoDB read costs, and uses a basic textarea rather than a cursor-aware editor. Switching a hosted Liveblocks document to the native store is refused to avoid two authoritative versions. Previously downloaded or exported document contents cannot be remotely erased. MongoDB previews are not a tested independent CRDT backup. Token-email delivery monitoring, restore tests, capacity limits, attachment scanning if added later, provider rate limits, network failure tests and an independent external review remain outstanding.
 
 ## Confirmed report and immediate revocation fix (11 November 2026)
 

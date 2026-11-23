@@ -1,6 +1,6 @@
 # LifeOrbit architecture
 
-Updated 24 October 2026.
+Updated 23 November 2026 (PR #73 under review).
 
 ```mermaid
 flowchart LR
@@ -30,6 +30,12 @@ When `ENABLE_REALTIME` and `VITE_REALTIME_ENABLED` are both enabled, private Liv
 Manual .ics import creates an owned copy. A subscribed public HTTPS or webcal iCalendar link can be saved encrypted and refreshed on demand after public-IP validation and IP-pinned TLS. The server rejects private IP addresses and redirects, and caps file and event sizes. The feed link may contain a private access token; never log or expose it in API responses.
 
 Neither Google Calendar OAuth, Microsoft Graph, nor Apple CalDAV full account integration is implemented. Automatic scheduled refresh requires a background job, token lifecycle, recurrence handling, timezone normalization and security verification.
+
+## Proposed native collaboration and email recovery
+
+The existing Liveblocks integration is disabled until externally configured. PR #73 adds native Yjs synchronization over authenticated FastAPI HTTP endpoints to MongoDB `notebook_crdts`, with server-side distributed locks and short polling. It merges concurrent text changes without last-writer-wins writes, but is not WebSocket push and does not provide shared cursors. Liveblocks-migrated documents stay provider-authoritative and are not automatically rewritten into native state.
+
+Password recovery is served by Resend after domain verification. The server stores only token digests, enforces expiry and one-time use, and revokes existing sessions when a password is reset. The token email link uses a trusted canonical HTTPS URL. Accepted friends privately see one another's challenge scores, while unrelated community users only see affirmatively opted-in scores.
 
 ## Security and operations
 

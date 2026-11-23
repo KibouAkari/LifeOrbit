@@ -15,8 +15,10 @@ LifeOrbit is an open-source project under active development. **Publishing the G
 
 - [ ] All mandatory GitHub Actions checks pass: TypeScript/build, documentation, `npm audit`, `pip-audit`, Python compile.
 - [ ] Check `/api/health` and `/api/health/database` on the target Vercel deployment.
-- [ ] Test account registration, Google OAuth, login/logout, error messages and session lifecycle.
+- [ ] Test account registration, Google OAuth, login/logout, reset-email delivery, token expiration and replay prevention, generic unknown-account response, throttling and session invalidation.
 - [ ] Test two users' data isolation on tasks, workspaces, calendar feeds, invitations and shared notebooks.
+- [ ] With two test accounts, type in the same note simultaneously without a Save button. Verify both characters converge, Autosaved appears, pending work survives reconnect, and a former friend loses read/write access.
+- [ ] Test the private Friends leaderboard when public opt-in is disabled, ensure non-friends do not see scores, and check the separate community setting.
 - [ ] Test RSVP accept/decline/remove, friendship revocation and notebook page ownership.
 - [ ] Confirm iCal SSRF controls, DNS rebinding protection, no redirects and response-size limits.
 - [ ] Test calendar interaction on Windows Chromium and macOS Firefox/Zen, plus mobile.

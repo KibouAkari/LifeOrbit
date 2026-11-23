@@ -1,5 +1,9 @@
 # LifeOrbital collaboration, calendar and sharing
 
+> **Current proposal, 23 November 2026:** PR #73 removes manual shared-page saves in the default editor, introducing automatic Yjs CRDT merging over short authorized HTTP polling. A separate Liveblocks integration can provide WebSocket push when configured. Accepted friends can always see one another's challenge scores privately, while community visibility stays opt-in. Password recovery via a verified email provider is also proposed. Earlier sections below record historical development decisions and must not be used as current deployment claims.
+
+See [Realtime collaboration](REALTIME_COLLABORATION.md), [Password recovery](PASSWORD_RECOVERY.md), and [Security audit](SECURITY_AUDIT.md) for rollout and privacy checks.
+
 ## Implemented in this change
 
 The authenticated Friends panel lets a person search by display name, send a request, accept, decline, or remove a friendship. Account discovery never includes email addresses. The shared navbar shows a pending request badge.

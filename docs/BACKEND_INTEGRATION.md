@@ -8,6 +8,8 @@ Implemented routes:
 - GET /api/health/database (MongoDB ping; 503 when unavailable)
 - POST /api/auth/register
 - POST /api/auth/login
+- POST /api/auth/password/forgot (generic response, throttled single-use reset link)
+- POST /api/auth/password/reset (password replacement and session revocation)
 - POST /api/auth/google
 - GET /api/auth/me; PATCH /api/auth/me for profile edits; GET /api/auth/export
 - GET /api/tasks, POST /api/tasks, PATCH/DELETE /api/tasks/{id}
@@ -46,11 +48,13 @@ XSS/CSP protection still require further work. See security audit.
 
 - `/api/friends`: discover, request, accept, decline and remove friends.
 - `/api/sharing`: private note shares, event invitations/RSVPs, participants and shared challenge proposals.
-- `/api/shared-notebooks`: create notebooks, invite friends, save/delete pages and move a private note to a shared notebook.
+- `/api/shared-notebooks`: create notebooks, invite friends, create/delete pages and move a private note; proposed `GET/POST /api/shared-notebooks/{id}/sync` safely merges native Yjs documents when Liveblocks is unavailable. The legacy whole-page save endpoint is not used by the new UI.
 - `/api/calendar/feeds`: subscribe, refresh and remove validated public HTTPS iCalendar feeds.
 - `/api/notifications`: authenticated unread invitations and task reminders with dismissal.
-- `/api/leaderboard`: participant ranking based on stored user/challenge data.
+- `GET /api/leaderboard` (PR #73): `friends` is viewer plus accepted friends regardless of public opt-in; `participants` is the opted-in community plus the viewer; `opted_in` is the viewer's community preference. Private unrelated accounts are never returned.
 
 Realtime (optional) adds `POST /api/realtime/authorize`, `POST /api/realtime/notebooks/{id}/prepare`, and `POST /api/realtime/notebooks/{id}/snapshot`. Liveblocks only receives private, server-authorized room identities and Yjs notebook content; MongoDB remains authoritative for users and membership. See [Realtime collaboration](REALTIME_COLLABORATION.md) for migration and operational cautions.
+
+See [Password recovery](PASSWORD_RECOVERY.md) for email delivery and revocation, and [Realtime collaboration](REALTIME_COLLABORATION.md) for native Yjs/hosted Liveblocks and migration safeguards.
 
 See [Social & Calendar](SOCIAL_AND_CALENDAR.md) for access and synchronization details and [API implementation](../backend/api/index.py) for mounted routes.
