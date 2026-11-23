@@ -194,7 +194,7 @@ class RecoveryTests(unittest.TestCase):
 class FriendRankingTests(unittest.TestCase):
     def test_friends_always_appear_even_without_public_opt_in(self):
         db = MagicMock()
-        db.friendships.find.return_value.limit.return_value = [
+        db.friendships.find.return_value = [
             {"sender": OWNER, "recipient": FRIEND}]
         private_docs = [
             {"user_id":OWNER,"challenges":[]},
@@ -227,7 +227,7 @@ class FriendRankingTests(unittest.TestCase):
 
     def test_no_accepted_friendship_means_no_private_score(self):
         db=MagicMock()
-        db.friendships.find.return_value.limit.return_value=[]
+        db.friendships.find.return_value=[]
         db.workspaces.find.side_effect=[
             [], MagicMock(limit=MagicMock(return_value=[]))]
         db.workspaces.find_one.return_value={}
