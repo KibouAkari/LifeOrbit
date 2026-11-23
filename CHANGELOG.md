@@ -9,6 +9,7 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 - Reworked the README and documentation index to explain the current product, source versus production features, engineering ownership, API/data contracts and security expectations.
 - Added an operational incident, backup and rollback runbook, refreshed the security risk register, and clarified the exact Vercel configuration requirements for password recovery.
 - Added an automated local documentation link check to GitHub Actions so future file moves cannot silently break navigation.
+- Replaced a dated MongoDB incident narrative with reusable Atlas setup and disaster-recovery instructions, and removed unused historical preview screenshots.
 
 ### 2026-11-23 · Autosaving collaborative notes, password recovery and friends leaderboard
 - Added a built-in MongoDB-backed Yjs editor when Liveblocks is not configured, replacing the visible manual Save page button. Text changes autosave after a short debounce and merge concurrent character-level edits; active viewers poll around every 1.3 seconds. Hosted WebSocket push still requires a configured Liveblocks provider.
