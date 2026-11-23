@@ -1,56 +1,33 @@
-# LifeOrbit · product brief
+# LifeOrbit product scope
 
-**Tagline:** Your day, in a better orbit.
+## Purpose
 
-LifeOrbit is a minimal, friendly life manager: fewer scattered apps,
-less mental overhead and one approachable place to organise daily life.
+LifeOrbit helps people organize everyday commitments without switching between separate planners for notes, events, tasks, subscriptions and personal goals. Collaboration should be intentional and understandable; productivity should never depend on public competition or surveillance.
 
-## Navigation and screens
+## Users and design principles
 
-| Screen | Intended experience |
-| --- | --- |
-| Login | Friendly login window with clear validation and session handling. |
-| Dashboard | Overview of events, to-dos, notes and active challenges. |
-| Notes | Multiple notes with rich text and image attachment support. |
-| Planner | Open versus finished tasks, with simple task management. |
-| Calendar | Clean day, week and month views. |
-| Subscription overview | Central overview of active subscriptions and renewal dates. |
-| Challenges / Leaderboard | Habit challenges (e.g. water, push-ups), earned points and an optional social leaderboard. |
+The initial audience is individuals and small groups who want a private, mobile-friendly personal organizer.
 
-## Audience
+- Privacy by default: tasks, notes, calendars and settings are user-owned.
+- Explicit collaboration: only accepted friends with a specific invitation can edit shared notebooks.
+- Clear feedback: autosave indicates whether a write is pending, confirmed or unavailable.
+- Accessibility: keyboard navigation, visible focus, readable contrast and reduced-motion support.
+- Predictable progress: community leaderboard visibility requires an affirmative opt-in; accepted friends have a separate private comparison scope.
+- Portability: data export exists; account deletion and full collaborative-document export still require work.
 
-People who want one calm, practical home for planning rather than a
-complicated productivity system. Start with individual accounts; shared
-workspaces are a stretch goal.
+## What exists
 
-## Product principles
+Dashboard, tasks, editable calendar, manual iCalendar imports/subscriptions, notes, shared notebooks, friend requests, notifications, subscriptions, challenges and authenticated profiles are implemented in the codebase.
 
-1. Useful information in one glance.
-2. Low friction: creating and completing a task should be easy.
-3. Friendly and cute, but not childish or visually noisy.
-4. Progress without pressure: no shame or manipulative streak mechanics.
-5. Privacy first: notes, schedules and subscriptions belong to the user.
-6. Accessibility and mobile use are baseline quality, not optional polish.
+The current production release still uses manually saved shared notebooks. The pending [autosave, account recovery and ranking proposal](https://github.com/KibouAkari/LifeOrbit/pull/73) adds built-in Yjs autosave, password recovery via Resend, and always-visible scores for accepted friends. The PR is **not** proof of deployment.
 
-## MVP behaviours
+## Not implemented or not verified
 
-**Dashboard:** upcoming events, due tasks, recent notes, challenge progress.
-**Notes:** text, basic editing, several notes; images if available.
-**Planner:** task status, due date and basic priorities.
-**Calendar:** event CRUD and day/week/month navigation.
-**Subscriptions:** manual entry, recurrence, currency, next renewal and totals by currency.
-**Challenges:** daily/weekly/monthly goals, points and opt-in rankings.
-**Notifications:** start with in-app reminders before push/email delivery.
-**Login:** per-user private workspace and secure session management.
+- True websocket collaboration without separately configured and tested Liveblocks.
+- Background calendar synchronization and calendar provider account permissions.
+- Guaranteed notifications while the application is closed.
+- Rich-text collaborative editing, images and complete offline editing.
+- Secure email address changes, account deletion, selective per-device session management and independently tested recovery.
+- A complete globally ranked anti-cheat scoring system. Challenge scores are user-reported.
 
-## Not in first MVP
-
-Automatic payments or bank integrations, silent external account access,
-AI acting without confirmation, third-party calendar sync and automated
-alarm orchestration. These require additional security and complexity.
-
-## Success criteria for the demo
-
-A participant can log in, add a task and note, schedule an event,
-track a subscription, complete a challenge and see the dashboard
-reflect these actions without manually refreshing or switching apps.
+For detailed feature contracts see [Social and calendar](SOCIAL_AND_CALENDAR.md). For current delivery priorities see [Roadmap](ROADMAP.md).
