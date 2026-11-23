@@ -10,7 +10,11 @@ from html import escape
 import requests
 from fastapi import HTTPException
 
-from backend.api.password_reset import _delivery_settings
+def _delivery_settings():
+    # Import lazily: auth imports this module, while password_reset imports
+    # auth for password hashing. A module-level import would create a cycle.
+    from backend.api.password_reset import _delivery_settings as shared_settings
+    return shared_settings()
 
 logger = logging.getLogger(__name__)
 
