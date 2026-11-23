@@ -4,6 +4,14 @@ LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conve
 
 ## [Unreleased]
 
+### 2026-11-23 · Autosaving collaborative notes, password recovery and friends leaderboard
+- Added a built-in MongoDB-backed Yjs editor when Liveblocks is not configured, replacing the visible manual Save page button. Text changes autosave after a short debounce and merge concurrent character-level edits; active viewers poll around every 1.3 seconds. Hosted WebSocket push still requires a configured Liveblocks provider.
+- One-time migration seeds existing notebook pages into `notebook_crdts`, retains the legacy source, serializes changes through server-side locks, validates current friendship on reads/writes, and refuses to mix native changes with already-hosted Liveblocks rooms.
+- Added password-reset pages, single-use 30-minute tokens stored as HMAC digests, atomic consumption, anti-enumeration responses, rate limits and revocation of all previous signed sessions. Resend handles delivery after a verified sending domain and server-only key are configured. No provider key is present in the currently inspected production environment.
+- Added a private friends leaderboard that shows confirmed friends regardless of community opt-in. Public community visibility stays optional; non-friends do not receive private score details.
+- Added automated regression checks and documented deployment requirements, recovery, concurrent editing, data retention and remaining security risks.
+- Changes are proposed in PR #73, not yet verified in production. Provider setup and two-account end-to-end tests remain release gates.
+
 ### 2026-11-11 · Sharing revocation protection for realtime
 - Remove all matching friendship rows during unfriending so duplicate accepted relationships cannot preserve access to private notes or notebooks.
 - Reconcile Liveblocks room permissions after friendship cleanup; removing a member from the room ACL disconnects currently connected users. On revocation, force browser provider token reauthorization and recheck notebook access after disconnection.

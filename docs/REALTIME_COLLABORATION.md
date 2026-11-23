@@ -1,6 +1,16 @@
 # Realtime collaboration deployment and safety
 
-Updated 11 November 2026. This is an **optional, unlaunched** integration. It is not automatically active just because its code is present.
+Updated 23 November 2026. PR #73 proposes native Yjs autosave without external credentials. Liveblocks WebSocket push remains optional and is not enabled merely by installing packages.
+
+## Built-in autosave without Liveblocks
+
+When `VITE_REALTIME_ENABLED=false`, PR #73 replaces the legacy manual Save editor with a native Yjs document stored as MongoDB Binary in `notebook_crdts`. Each authorized notebook initializes once from existing pages, retains the original MongoDB documents, and mirrors merged Yjs text back to page previews. Active editors poll the authenticated `GET /api/shared-notebooks/{id}/sync` endpoint about every 1.3 seconds and send local changes after a short debounce to the matching POST endpoint.
+
+The backend validates owner or current accepted friendship, serializes changes using distributed notebook locks and merges Yjs updates without stale full-page replacement. Unfriending prevents subsequent authorized reads and writes. The editor shows `Autosaved` after acknowledgement, retries failed writes and warns before closing a tab while edits are still pending.
+
+**This is near-live polling, not instant server push.** Network and database latency vary. Polling consumes Vercel and MongoDB requests, and remote edits in a basic textarea may move cursor selection. Use the separately configured Liveblocks WebSocket provider for faster push and online-presence features.
+
+A notebook already migrated to hosted Liveblocks is not automatically converted back to native MongoDB. The built-in sync route returns HTTP 409 instead of risking conflicting authoritative documents. Do not remove migration flags to bypass this safeguard.
 
 ## Why and how it works
 
@@ -23,7 +33,7 @@ A MongoDB copy remains as a **legacy preview and recovery snapshot**, while the 
 9. Test manual migration of a notebook with important historical text, including a second simultaneous opener and a failed provider request. Confirm that original MongoDB content is intact.
 10. Test deleting a page/notebook, unfriending, session invalidation, browser/tab closing during typing, provider downtime, reconnection, fallback and data export before considering production.
 
-If Liveblocks credentials or configuration are absent, leave both realtime flags disabled. No data migration or provider activity will occur. Never use an unsecured public API key to bypass backend room authorization.
+If Liveblocks credentials or configuration are absent, leave both realtime flags disabled. The proposed native Yjs autosave still works without provider credentials, but hosted Liveblocks operations do not run. Never use public room permissions as a workaround.
 
 ## Permission model
 

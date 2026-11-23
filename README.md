@@ -24,13 +24,13 @@ LifeOrbit brings schedules, tasks, notebooks, recurring expenses and small daily
 | **Tasks** | Create and complete tasks, set deadlines and receive in-app reminders |
 | **Calendar** | Plan in a weekly time grid or month view; edit, move and resize events |
 | **Calendar sources** | Import .ics files or subscribe to public HTTPS/webcal iCalendar feeds, refreshed on demand |
-| **Notes** | Organise personal pages into chapters or move notes into shared notebooks |
+| **Notes** | Organise personal pages and share notebooks; automatic conflict-free editing is proposed in PR #73 |
 | **Friends & sharing** | Send friend requests, invite people to events and notebooks, manage event RSVPs |
 | **Subscriptions** | Track monthly and annual subscriptions and projected renewal dates |
-| **Challenges** | Choose up to three personal and two shared active challenges and view the community ranking |
-| **Settings** | Manage your profile, theme, account and data export |
+| **Challenges** | Choose daily challenges, compare scores with friends and optionally join the community ranking (PR #73) |
+| **Settings** | Manage your profile and data export; password recovery by email is proposed in PR #73 |
 
-**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. Shared notebook updates use polling unless the optional Liveblocks/Yjs realtime service is configured and tested; realtime mode supports concurrent collaborative text and automatic synchronization. Calendar gestures and mobile layouts still require cross-browser regression testing.
+**What is not automatic yet:** subscribed calendars need manual refresh; Google sign-in does not grant Google Calendar access. Notifications refresh while the app is open, not as background push. The current production shared notebook editor still requires manual Save. PR #73 replaces it with native Yjs autosave and conflict-free concurrent text edits over short HTTP polling. Hosted WebSocket push remains optional and requires Liveblocks credentials. Calendar gestures and mobile layouts still require cross-browser regression testing.
 
 ## Screenshots
 
@@ -114,6 +114,8 @@ The project history, technical decisions and implemented functionality are descr
 | [Roadmap](docs/ROADMAP.md) | Planned work and known limitations |
 | [Release checklist](docs/RELEASING.md) | Quality gates and publishing procedure |
 | [Security review](docs/SECURITY_AUDIT.md) | Mitigations, open risks and hardening work |
+| [Shared notebook synchronization](docs/REALTIME_COLLABORATION.md) | Native Yjs autosave, optional hosted push and data safety |
+| [Password recovery](docs/PASSWORD_RECOVERY.md) | Email provider, token lifecycle, expiry and testing |
 | [Realtime collaboration](docs/REALTIME_COLLABORATION.md) | Optional Liveblocks/Yjs setup, migration, recovery and privacy |
 
 ## Contributing
