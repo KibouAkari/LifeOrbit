@@ -97,6 +97,7 @@ class PrivacyRetentionTests(unittest.TestCase):
 
     def test_cleanup_removes_known_data_before_user_record(self):
         db = MagicMock()
+        db.__getitem__.side_effect = lambda name: getattr(db, name)
         user = {"_id": ObjectId(), "deletion_due_at": datetime.now(timezone.utc)}
         db.shared_notebooks.find.return_value.limit.return_value = []
         db.shared_notebooks.find.return_value.__iter__.return_value = []
