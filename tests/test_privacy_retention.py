@@ -43,11 +43,18 @@ class PrivacyRetentionTests(unittest.TestCase):
         db.tasks.delete_many.assert_not_called()
         db.events.delete_many.assert_not_called()
 
+    def test_scheduler_is_required_before_accepting_deletion(self):
+        with patch.dict("os.environ", {"CRON_SECRET": ""}):
+            with self.assertRaises(HTTPException) as caught:
+                privacy.require_cleanup_scheduler()
+        self.assertEqual(caught.exception.status_code, 503)
+
     def test_account_request_requires_password_confirmation(self):
         db = MagicMock()
         user = {"_id": ObjectId(), "password_hash": "stored"}
         request = MagicMock()
         with patch.object(privacy, "get_db", return_value=db), \
+             patch.object(privacy, "require_cleanup_scheduler"), \
              patch.object(privacy, "find_user", return_value=user), \
              patch.object(privacy, "enforce_limit"), \
              patch.object(privacy.passwords, "verify", return_value=False):
