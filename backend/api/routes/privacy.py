@@ -125,12 +125,16 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
             {"_id": 1}).limit(1000))
         if expired:
             for event in expired:
-                deleted = db.events.find_one_and_delete(
-                    {"_id": event["_id"], "user_id": uid, "date": {"$lt": date_limit}})
+                with db.client.start_session() as session:
+                    with session.start_transaction():
+                        deleted = db.events.find_one_and_delete(
+                            {"_id": event["_id"], "user_id": uid, "date": {"$lt": date_limit}},
+                            session=session)
+                        if deleted:
+                            db.shares.delete_many({"owner": uid, "kind": "event",
+                                                   "resource_id": str(event["_id"])}, session=session)
                 if deleted:
                     counts["events"] += 1
-                    db.shares.delete_many({"owner": uid, "kind": "event",
-                                           "resource_id": str(event["_id"])})
         counts["users_checked"] += 1
     if batch:
         db.privacy_jobs.update_one({"_id": "retention"},
