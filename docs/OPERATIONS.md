@@ -47,3 +47,7 @@ For releases, use the [release checklist](RELEASING.md): test in preview, review
 Rolling back frontend code does not undo MongoDB CRDT state, tokens or provider-side room mutations. Test backward compatibility before changing feature flags. Rotate exposed keys immediately using provider guidance, but plan JWT-secret changes carefully because they affect active sessions, reset tokens and encrypted iCalendar links.
 
 Never log a reset token, API key, private calendar URL, cookie, bearer token or note body. Avoid screenshots that expose actual user content. Account deletion, long-term retention, full exports and an incident contact are unresolved operational requirements rather than features to assume.
+
+## Welcome email operations
+
+A successful Resend API response is **provider acceptance**, not inbox placement. For reported junk mail, inspect the sending identity and SPF/DKIM/DMARC alignment, provider Deliverability Insights, delivery/bounce status and recipient headers. The welcome icon uses a local PNG CID attachment when available with a first-party hosted PNG fallback; verify both in controlled test messages. Existing users can request one welcome message per day from authenticated Settings. Do not perform database-wide mail sends without an approved, consent-aware backfill design.
