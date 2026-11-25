@@ -121,7 +121,7 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
     account = get_db().users.find_one({"_id": ObjectId(user)}, {"retention_days": 1}) or {}
     days = retention_days(account)
     if days is not None:
-        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(ZoneInfo("UTC")).date() - timedelta(days=days)).isoformat()
         entries = [entry for entry in entries if entry["date"] >= cutoff]
     saved = 0
     for entry in entries:
