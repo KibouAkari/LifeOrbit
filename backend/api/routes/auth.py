@@ -107,6 +107,7 @@ def register(payload: RegisterRequest, response: Response, request: Request):
         "name": payload.name.strip(), "email": email,
         "password_hash": passwords.hash(payload.password),
         "created_at": datetime.now(timezone.utc), "picture": None,
+        "retention_days": 30,
     }
     try:
         outcome = db.users.insert_one(user)
@@ -158,7 +159,7 @@ def google_login(payload: GoogleAuthRequest, response: Response, request: Reques
             raise HTTPException(status_code=409, detail="An account already uses this email. Sign in with your password.")
         record = {"google_id": google_id, "email": email,
                   "name": info.get("name", "User"), "picture": info.get("picture"),
-                  "created_at": datetime.now(timezone.utc)}
+                  "created_at": datetime.now(timezone.utc), "retention_days": 30}
         try:
             outcome = db.users.insert_one(record)
         except DuplicateKeyError:
