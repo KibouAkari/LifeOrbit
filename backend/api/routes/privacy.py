@@ -144,16 +144,16 @@ def purge_account(db, user: dict) -> bool:
     # Refuse to promise complete deletion when such rooms still exist.
     for notebook_id in owned_ids:
         room = db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)})
-        if room and room.get("status") == "ready":
+        if room:
             return False
     for notebook_id in owned_ids:
         db.notebook_crdts.delete_one({"_id": notebook_id})
-        db.realtime_notebooks.delete_one({"_id": f"notebook:{notebook_id}"})
+        db.realtime_notebooks.delete_one({"_id": notebook_room(notebook_id)})
     # Also refuse to purge a member whose hosted Liveblocks ACL still exists.
     memberships = db.shared_notebooks.find({"members": uid}, {"_id": 1})
     for membership in memberships:
         room = db.realtime_notebooks.find_one({"_id": notebook_room(str(membership["_id"]))})
-        if room and room.get("status") == "ready":
+        if room:
             return False
     db.shared_notebooks.delete_many({"owner": uid})
     db.shared_notebooks.update_many({"members": uid}, {"$pull": {"members": uid}})
