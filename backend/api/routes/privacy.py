@@ -173,7 +173,8 @@ def purge_due_accounts(db, now: datetime, max_accounts: int = 30) -> dict:
     scope = {"deletion_due_at": {"$lte": now},
              "$or": [{"deletion_retry_after": {"$exists": False}},
                      {"deletion_retry_after": {"$lte": now}}]}
-    for account in db.users.find(scope).sort("deletion_due_at", 1).limit(max_accounts):
+    for account in db.users.find(scope).sort([("deletion_retry_after", 1),
+                                             ("deletion_due_at", 1)]).limit(max_accounts):
         try:
             if purge_account(db, account):
                 counts["deleted"] += 1
