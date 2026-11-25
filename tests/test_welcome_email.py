@@ -29,17 +29,17 @@ class WelcomeTemplateTests(unittest.TestCase):
             "Ada", "https://www.lifeorbit.dev")
         self.assertIn("Hi Ada,", html)
         self.assertIn("Hi Ada,", text)
-        self.assertIn("LifeOrbit planet logo", html)
-        self.assertIn("font-size:26px", html)
-        self.assertIn("Welcome to your", html)
-        self.assertIn("#7263D5", html)
+        self.assertIn('alt="LifeOrbit"', html)
+        self.assertIn("font-size:21px", html)
+        self.assertIn("Welcome to LifeOrbit", html)
+        self.assertIn("#6254BC", html)
         self.assertIn("#F8F8FA", html)
         self.assertIn('src="https://www.lifeorbit.dev/assets/email-icon.png"', html)
         self.assertIn('href="https://www.lifeorbit.dev/#/dashboard"', html)
         self.assertIn("https://www.lifeorbit.dev/#/dashboard", text)
-        self.assertIn("Plan your days", html)
-        self.assertIn("Make space for ideas", html)
-        self.assertIn("Share the good things", html)
+        self.assertIn("Thanks for joining LifeOrbit", html)
+        self.assertIn("Make the space your own", html)
+        self.assertIn("The LifeOrbit team", html)
 
     def test_user_name_is_escaped_in_html_not_executed(self):
         injected = '<script>alert("unsafe")</script>'
@@ -60,22 +60,20 @@ class WelcomeTemplateTests(unittest.TestCase):
             "", "https://www.lifeorbit.dev")
         self.assertIn("Hi there", fallback)
 
-    def test_footer_text_has_sufficient_contrast(self):
-        html, _ = welcome_email.build_welcome_email("Ada", "https://www.lifeorbit.dev")
-        color = re.search(
-            r'<td align="center" style="padding:21px 25px 0;color:(#[0-9A-Fa-f]{6});',
-            html,
-        ).group(1)
-
-        def luminance(hex_color):
-            channels = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
-            linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-                      for c in channels]
-            return sum(c * weight for c, weight in zip(linear, (0.2126, 0.7152, 0.0722)))
-
-        self.assertIn('border-collapse:collapse;background:#F8F8FA;', html)
-        self.assertGreaterEqual((luminance("#F8F8FA") + 0.05) /
-                                (luminance(color) + 0.05), 4.5)
+    def test_short_human_copy_and_simple_accessible_layout(self):
+        html, text = welcome_email.build_welcome_email(
+            "Ada", "https://www.lifeorbit.dev")
+        self.assertIn("Thanks for joining LifeOrbit", html)
+        self.assertIn("Hi Ada,", text)
+        self.assertIn("If that wasn't you", text)
+        self.assertNotIn("YOUR SPACE IS READY", html)
+        self.assertNotIn("better orbit", html)
+        self.assertNotIn("linear-gradient", html)
+        self.assertNotIn("<svg", html.lower())
+        self.assertIn('alt="LifeOrbit"', html)
+        self.assertIn("LifeOrbit</td>", html)
+        self.assertEqual(html.count("<img "), 1)
+        self.assertIn("font-size:12px;line-height:1.6;color:#606071", html)
 
     def test_resend_receives_consistent_html_and_text_without_credentials_in_markup(self):
         response = MagicMock(status_code=201)
