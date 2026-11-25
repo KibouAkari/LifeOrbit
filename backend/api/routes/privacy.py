@@ -88,10 +88,16 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
     """Bounded daily sweep; never auto-delete incomplete or undated tasks."""
     today = now.date()
     counts = {"tasks": 0, "events": 0, "users_checked": 0}
-    for user in db.users.find(
-        {"deletion_due_at": {"$exists": False}},
-        {"_id": 1, "retention_days": 1},
-    ).limit(max_users):
+    checkpoint = db.privacy_jobs.find_one({"_id": "retention"}) or {}
+    scope = {"deletion_due_at": {"$exists": False}}
+    if checkpoint.get("cursor"):
+        scope["_id"] = {"$gt": checkpoint["cursor"]}
+    batch = list(db.users.find(scope, {"_id": 1, "retention_days": 1})
+                 .sort("_id", 1).limit(max_users))
+    if not batch:
+        db.privacy_jobs.update_one({"_id": "retention"},
+                                   {"$unset": {"cursor": ""}}, upsert=True)
+    for user in batch:
         uid = str(user["_id"])
         days = retention_days(user)
         if days is None:
@@ -114,6 +120,9 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
             counts["events"] += db.events.delete_many(
                 {"user_id": uid, "_id": {"$in": [e["_id"] for e in expired]}}).deleted_count
         counts["users_checked"] += 1
+    if batch:
+        db.privacy_jobs.update_one({"_id": "retention"},
+                                   {"$set": {"cursor": batch[-1]["_id"]}}, upsert=True)
     return counts
 
 
@@ -152,14 +161,19 @@ def purge_account(db, user: dict) -> bool:
 
 def purge_due_accounts(db, now: datetime, max_accounts: int = 30) -> dict:
     counts = {"deleted": 0, "blocked": 0}
-    for account in db.users.find({"deletion_due_at": {"$lte": now}}).limit(max_accounts):
+    scope = {"deletion_due_at": {"$lte": now},
+             "$or": [{"deletion_retry_after": {"$exists": False}},
+                     {"deletion_retry_after": {"$lte": now}}]}
+    for account in db.users.find(scope).sort("deletion_due_at", 1).limit(max_accounts):
         try:
             if purge_account(db, account):
                 counts["deleted"] += 1
-            else:
-                counts["blocked"] += 1
+                continue
         except PyMongoError:
-            counts["blocked"] += 1
+            pass
+        counts["blocked"] += 1
+        db.users.update_one({"_id": account["_id"]}, {"$set": {
+            "deletion_retry_after": now + timedelta(hours=24)}})
     return counts
 
 
