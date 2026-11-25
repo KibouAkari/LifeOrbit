@@ -90,6 +90,8 @@ def find_user(user_id: str):
     user = get_db().users.find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=401, detail="Account not found")
+    if user.get("deletion_due_at"):
+        raise HTTPException(status_code=403, detail="Account is pending deletion")
     return user
 
 
@@ -126,6 +128,8 @@ def password_login(payload: LoginRequest, response: Response, request: Request):
     # Do not disclose whether an email exists.
     if not user or not user.get("password_hash") or not passwords.verify(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if user.get("deletion_due_at"):
+        raise HTTPException(403, "Account is pending deletion")
     return issue_token(user, response)
 
 
@@ -174,6 +178,8 @@ def google_login(payload: GoogleAuthRequest, response: Response, request: Reques
         except DuplicateKeyError:
             raise HTTPException(status_code=409, detail="An account already uses this email.")
         user.update(profile)
+    if user.get("deletion_due_at"):
+        raise HTTPException(403, "Account is pending deletion")
     result = issue_token(user, response)
     if newly_registered:
         # Google's verified email is already a trusted identity; existing
