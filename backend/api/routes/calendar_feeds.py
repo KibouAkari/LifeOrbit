@@ -8,7 +8,7 @@ import ipaddress
 import ssl
 import urllib3
 from urllib.parse import urlunsplit
-from datetime import datetime, timezone, date as Date
+from datetime import datetime, timezone, date as Date, timedelta
 from urllib.parse import urlsplit
 
 import requests
@@ -143,6 +143,13 @@ def create_feed(payload:FeedInput,request:Request,user:str=Depends(get_current_u
     return output(doc)
 
 def apply_events(db,user,feed,events):
+    # Re-import must not resurrect previously expired calendar events.
+    from backend.api.routes.privacy import retention_days
+    account = db.users.find_one({"_id": ObjectId(user)}, {"retention_days": 1}) or {}
+    days = retention_days(account)
+    if days is not None:
+        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=days)).isoformat()
+        events = [ev for ev in events if ev["date"] >= cutoff]
     source_id=str(feed["_id"])
     keys=[]
     for ev in events:
