@@ -96,6 +96,22 @@ class WelcomeTemplateTests(unittest.TestCase):
         self.assertNotIn("test-user", kwargs["headers"]["Idempotency-Key"])
         self.assertFalse(kwargs["allow_redirects"])
 
+    def test_embedded_logo_uses_cid_when_png_is_available(self):
+        response = MagicMock(status_code=200)
+        with patch.object(welcome_email, "_delivery_settings", return_value=(
+            "re_test", "LifeOrbit <hello@lifeorbit.dev>", "https://www.lifeorbit.dev",
+        )), patch.object(welcome_email.requests, "post", return_value=response) as send:
+            self.assertTrue(welcome_email.send_welcome_email(
+                "customer@example.org", "Customer", "signup/logo-test"))
+        payload = send.call_args.kwargs["json"]
+        self.assertEqual(len(payload.get("attachments", [])), 1)
+        attachment = payload["attachments"][0]
+        self.assertEqual(attachment["content_id"], "lifeorbit-logo")
+        self.assertEqual(attachment["content_type"], "image/png")
+        self.assertIn('src="cid:lifeorbit-logo"', payload["html"])
+        self.assertNotIn('src="https://www.lifeorbit.dev/assets/email-icon.png"', payload["html"])
+        self.assertTrue(attachment["content"])
+
     def test_provider_unavailable_cannot_leak_user_data_or_throw(self):
         with patch.object(welcome_email, "_delivery_settings", return_value=(
             "re_test_secret", "LifeOrbit <security@lifeorbit.dev>",
