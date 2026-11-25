@@ -113,7 +113,15 @@ In **Settings → Data retention**, signed-in users can opt for automatic remova
 
 ## Screenshots
 
-Screenshots should represent actual, non-personal LifeOrbit pages. The login screenshot below is captured from the public website; dashboard/notes screenshots require a consent-safe demo account and should not include real personal data. Keep captures under `docs/screenshots/` and update them after major UI releases.
+These screenshots were captured from the **public LifeOrbit website** on 25 November 2026, without signing in or including private account data. They show the current layout before any proposed login redesign. Update the captures after visual changes. Dashboard and notes images require a consent-safe demo account; do not publish screenshots of real user content.
+
+**Sign-in options**
+
+![LifeOrbit public login screen showing Google and email sign-in](docs/screenshots/login.png)
+
+**Email sign-in**
+
+![LifeOrbit email sign-in form](docs/screenshots/login-email.png)
 
 ## Security and privacy
 
