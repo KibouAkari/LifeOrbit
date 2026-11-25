@@ -5,8 +5,8 @@ The welcome email is transactional onboarding, not marketing. It is sent after *
 ## Email design and brand assets
 
 - The actual website and GitHub README use the blue planet in `public/assets/icon.svg` and `assets/icon.svg`. The email now uses a PNG raster of that exact planet, stored at `public/assets/email-icon.png`, **not** the unrelated purple wordmark from the previous implementation.
-- The email header places the PNG next to the live text **LifeOrbit**, so the brand name remains visible when email clients block remote images. The image is hosted at the same `PUBLIC_APP_URL` domain.
-- Template: `backend/api/welcome_email.py`, built with nested tables, inline styles, accessible alt text, a dashboard CTA, three short starting tips and a plain-text fallback.
+- The email embeds the first-party PNG via an inline Content-ID (CID) attachment when the asset is available in the serverless bundle, with a canonical `PUBLIC_APP_URL` PNG fallback. The visible LifeOrbit wordmark remains readable if images are blocked. The PNG is at `public/assets/email-icon.png`; ensure the deployment includes it and that the URL responds with HTTP 200 and `image/png`.
+- Template: `backend/api/welcome_email.py`, built with nested tables, inline styles, accessible alt text, one dashboard link, two short paragraphs and a plain-text fallback.
 - Never embed SVG images, passwords, reset tokens, tracking pixels or user data in image URLs. User-provided names are HTML-escaped.
 - The email is in English to match the current application. Preview it in narrow mobile widths and major light/dark email clients before claiming broad compatibility.
 
@@ -60,3 +60,11 @@ Automated tests cover HTML escaping, matching icon URL, plain text, idempotency,
 A synchronous best-effort attempt is easier to diagnose than the previous background-only behavior, but it is not a fully reliable delivery pipeline. For guaranteed retry after outages, implement a durable outbox and a scheduled worker with proper deduplication and monitoring. Resend API acceptance and inbox delivery are distinct events.
 
 See [Password recovery](PASSWORD_RECOVERY.md), [Deployment](DEPLOYMENT.md), [Operations](OPERATIONS.md) and [Release checklist](RELEASING.md).
+
+## 25 November 2026: simplified welcome and inbox placement
+
+The welcome template now uses a short personal greeting, one action, plain background and neutral footer. It keeps the exact blue planet logo from the app, with a small CID attachment when available and a first-party PNG URL fallback. Do not treat a blocked image in a mail client as evidence of an HTTP 404; verify the deployed URL, CID attachment and original message source separately.
+
+An earlier welcome message was reported in junk. **No code or DNS setting guarantees inbox placement.** Before wider sending, check Resend domain verification and Deliverability Insights, SPF/DKIM/DMARC results and From-domain alignment in Gmail Show original or Outlook headers. Make sure all links point to the actual canonical host, avoid link/open tracking for transactional mail, confirm a working reply address, and test with Gmail and Outlook mailboxes that you own. Do not change MX/SPF/DMARC policy blindly, and do not send bulk messages before verifying the sender domain and recipient consent.
+
+**Existing accounts:** the authenticated Settings resend button remains the preferred opt-in option. Never automatically blast all pre-existing accounts or send to an unverified/stale address. If a one-time onboarding campaign is later approved, create a separate operator-only dry-run and consent-aware process with deduplication, rate limiting, bounce/suppression handling, an unsubscribe path for campaign-style mail, audit logs and manual approval before sending. Do not reuse the public resend endpoint for batch dispatch.

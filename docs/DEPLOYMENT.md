@@ -51,7 +51,7 @@ Run the complete [release checklist](RELEASING.md) and [operations runbook](OPER
 
 ## Transactional email
 
-Welcome mail uses the same verified sender and canonical application origin as password recovery, so there are no additional required environment variables. The HTML template is in `backend/api/welcome_email.py` and the first-party PNG icon is at `public/assets/email-icon.png`. Before enabling in production, test actual Resend delivery, image loading, plain-text fallback and the dashboard link, using dedicated mailboxes.
+Welcome mail uses the same verified sender and canonical application origin as password recovery, so there are no additional required environment variables. The HTML template is in `backend/api/welcome_email.py` and the first-party PNG icon is at `public/assets/email-icon.png` and is sent as an inline CID attachment when bundled (otherwise loaded from the canonical site URL). Before enabling in production, test actual Resend delivery, image loading, plain-text fallback and the dashboard link, using dedicated mailboxes.
 
 See [Welcome email](WELCOME_EMAIL.md) and [Password recovery](PASSWORD_RECOVERY.md). Registration succeeds even when delivery is unavailable; PR #75 sends within a bounded synchronous HTTP attempt and logs whether Resend accepted the message. This may delay signup for a few seconds during provider outages, but prevents silent loss of detached background tasks. It is not a persistent retry queue. See [Welcome email](WELCOME_EMAIL.md) for the DMARC record and provider troubleshooting.
 
@@ -60,3 +60,7 @@ See [Welcome email](WELCOME_EMAIL.md) and [Password recovery](PASSWORD_RECOVERY.
 Keep signing and iCalendar encryption secrets stable across deployments until a reviewed rotation plan exists. Confirm the resolved Vite version is at least 6.4.6 on the 6.x line (GHSA-p4f5-76q4-ffq7) and PyJWT is at least 2.15.1. Check transitive dependencies as well. Since private calendar URLs are encrypted using material derived from `JWT_SECRET_KEY`, rotating it without migration may require affected feeds to be reconnected.
 
 Do not expose database secrets, private calendar subscription links or personal content in issue reports or telemetry. For problems, consult [MongoDB setup](MONGODB_SETUP.md), [backend integration](BACKEND_INTEGRATION.md) and the [security review](SECURITY_AUDIT.md).
+
+### Welcome email acceptance checks (November 2026)
+
+Before promoting a mail-template release, inspect a controlled welcome email in Gmail and Outlook. Check the embedded PNG/CID, fallback URL HTTP status and media type, text part, link, display name, Reply-To if configured, Resend accepted/delivered status and SPF/DKIM/DMARC alignment. A prior welcome email reached junk, so do not report this fixed without live recipient-side evidence. No mass backfill to existing accounts is performed by deployment.
