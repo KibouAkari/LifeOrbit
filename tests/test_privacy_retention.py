@@ -96,8 +96,14 @@ class PrivacyRetentionTests(unittest.TestCase):
         db.users.delete_one.return_value.deleted_count = 1
         was_deleted = privacy.purge_account(db, user)
         self.assertTrue(was_deleted)
-        self.assertEqual(db.tasks.delete_many.call_count, 1)
-        self.assertEqual(db.events.delete_many.call_count, 1)
+        # PyMongo supports db["tasks"]; MagicMock makes indexed collection
+        # access distinct from the db.tasks attribute.
+        indexed = [call.args[0] for call in db.__getitem__.call_args_list]
+        self.assertIn("tasks", indexed)
+        self.assertIn("events", indexed)
+        self.assertIn("workspaces", indexed)
+        self.assertIn("calendar_feeds", indexed)
+        self.assertIn("notification_state", indexed)
         self.assertEqual(db.friendships.delete_many.call_count, 1)
         db.users.delete_one.assert_called_once()
 
