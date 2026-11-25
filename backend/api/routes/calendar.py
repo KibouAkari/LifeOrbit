@@ -3,7 +3,7 @@ from bson import ObjectId
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from icalendar import Calendar as ICalendar
-from datetime import datetime, date as Date
+from datetime import datetime, date as Date, timezone, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pymongo.errors import DuplicateKeyError
@@ -117,6 +117,12 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
                         "source_id": calendar_id, "source_name": payload.name})
         if len(entries) > 500:
             raise HTTPException(413, "Calendar contains more than 500 importable events")
+    from backend.api.routes.privacy import retention_days
+    account = get_db().users.find_one({"_id": ObjectId(user)}, {"retention_days": 1}) or {}
+    days = retention_days(account)
+    if days is not None:
+        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=days)).isoformat()
+        entries = [entry for entry in entries if entry["date"] >= cutoff]
     saved = 0
     for entry in entries:
         match = {"user_id": user, "source": "ical_import", "source_key": entry["source_key"]}
