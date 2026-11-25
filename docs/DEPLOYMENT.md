@@ -14,7 +14,7 @@ LifeOrbit deploys the Vite/React frontend and the Python FastAPI backend in **on
 | `FRONTEND_ORIGINS` | Server only | Exact allowed frontend origin(s) |
 | `AUTH_COOKIE_SAMESITE` | Server only | Use strict for the normal same-origin deployment |
 | `VITE_API_BASE_URL` | Public | Leave empty for same-origin API |
-| `RESEND_API_KEY` | Server-only secret | Resend transactional email credential for recovery and one-time welcome messages |
+| `CRON_SECRET` | Server-only secret | Authenticate scheduled privacy cleanup requests; required before enabling retention in production |\n| `RESEND_API_KEY` | Server-only secret | Resend transactional email credential for recovery and one-time welcome messages |
 | `PASSWORD_RESET_FROM_EMAIL` | Server only | Verified Resend sender used by password reset and welcome mail |
 | `PUBLIC_APP_URL` | Server only | Canonical HTTPS site origin used in email links, e.g. `https://www.lifeorbit.dev` |
 | `ENABLE_REALTIME` | Server only | Enable Liveblocks authorization and events only after configuration and tests |
@@ -54,6 +54,10 @@ Run the complete [release checklist](RELEASING.md) and [operations runbook](OPER
 Welcome mail uses the same verified sender and canonical application origin as password recovery, so there are no additional required environment variables. The HTML template is in `backend/api/welcome_email.py` and the first-party PNG icon is at `public/assets/email-icon.png` and is sent as an inline CID attachment when bundled (otherwise loaded from the canonical site URL). Before enabling in production, test actual Resend delivery, image loading, plain-text fallback and the dashboard link, using dedicated mailboxes.
 
 See [Welcome email](WELCOME_EMAIL.md) and [Password recovery](PASSWORD_RECOVERY.md). Registration succeeds even when delivery is unavailable; PR #75 sends within a bounded synchronous HTTP attempt and logs whether Resend accepted the message. This may delay signup for a few seconds during provider outages, but prevents silent loss of detached background tasks. It is not a persistent retry queue. See [Welcome email](WELCOME_EMAIL.md) for the DMARC record and provider troubleshooting.
+
+## Privacy cleanup deployment
+
+The project declares a daily Vercel Cron at `/api/privacy/cron/retention` (03:00 UTC) in `vercel.json`. Production requires a strong encrypted `CRON_SECRET` value in the Vercel project; if absent, the endpoint refuses to run. Never share this secret with clients, and verify cron execution, cleanup metrics and any blocked account deletion attempts on disposable staging records. Account deletion has external collaboration and backup retention caveats described in [Privacy retention](PRIVACY_RETENTION.md).
 
 ## Operations
 
