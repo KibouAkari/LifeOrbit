@@ -4,7 +4,9 @@ The template is deliberately table-based with inline CSS for major email
 clients, hosted first-party PNG artwork and a text alternative.
 Failures are logged without addresses or message bodies and cannot undo signup.
 """
+import base64
 import logging
+from pathlib import Path
 from html import escape
 
 import requests
@@ -32,14 +34,14 @@ def configure_logging() -> None:
 SUBJECT = "Welcome to LifeOrbit"
 
 
-def build_welcome_email(name: str, origin: str) -> tuple[str, str]:
+def build_welcome_email(name: str, origin: str, logo_src: str | None = None) -> tuple[str, str]:
     """A short, personal email with a first-party logo and plain-text fallback."""
     display = (name or "").strip()[:70] or "there"
     safe_name = escape(display, quote=True)
     app_url = origin.rstrip("/") + "/#/dashboard"
     # The canonical Vite public asset is a PNG export of public/assets/icon.svg.
     # Keep the brand name visible because many mail clients block remote images.
-    logo_url = origin.rstrip("/") + "/assets/email-icon.png"
+    logo_url = logo_src or (origin.rstrip("/") + "/assets/email-icon.png")
     safe_app_url = escape(app_url, quote=True)
     safe_logo_url = escape(logo_url, quote=True)
 
@@ -115,7 +117,24 @@ def send_welcome_email(email: str, name: str, event_key: str = "") -> bool:
             logger.warning("Welcome email skipped: provider configuration unavailable")
             return False
 
-        html, text = build_welcome_email(name, origin)
+        # Inline CID images work in many clients even when remote image loading
+        # is disabled. Fall back to the canonical public PNG if it is not bundled.
+        image_path = Path(__file__).resolve().parents[2] / "public/assets/email-icon.png"
+        attachments = []
+        logo_src = None
+        try:
+            image_bytes = image_path.read_bytes()
+            if image_bytes.startswith(b"\\x89PNG\\r\\n\\x1a\\n") and len(image_bytes) <= 50000:
+                logo_src = "cid:lifeorbit-logo"
+                attachments = [{
+                    "filename": "lifeorbit-logo.png",
+                    "content_type": "image/png",
+                    "content_id": "lifeorbit-logo",
+                    "content": base64.b64encode(image_bytes).decode("ascii"),
+                }]
+        except OSError:
+            logger.info("Welcome logo attachment unavailable; using first-party URL")
+        html, text = build_welcome_email(name, origin, logo_src=logo_src)
         headers = {"Authorization": "Bearer " + key,
                    "Content-Type": "application/json"}
         if event_key:
@@ -123,11 +142,14 @@ def send_welcome_email(email: str, name: str, event_key: str = "") -> bool:
             import hashlib
             headers["Idempotency-Key"] = ("lifeorbit-welcome-" +
                                          hashlib.sha256(event_key.encode()).hexdigest())
+        payload = {"from": sender, "to": [email], "subject": SUBJECT,
+                   "html": html, "text": text}
+        if attachments:
+            payload["attachments"] = attachments
         response = requests.post(
             "https://api.resend.com/emails",
             headers=headers,
-            json={"from": sender, "to": [email], "subject": SUBJECT,
-                  "html": html, "text": text},
+            json=payload,
             timeout=(2, 4), allow_redirects=False,
         )
         if response.status_code not in (200, 201, 202):
