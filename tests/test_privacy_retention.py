@@ -21,7 +21,7 @@ class PrivacyRetentionTests(unittest.TestCase):
     def test_only_completed_timestamped_tasks_and_old_events_are_deleted(self):
         db = MagicMock()
         uid = str(ObjectId())
-        db.users.find.return_value.limit.return_value = [
+        db.users.find.return_value.sort.return_value.limit.return_value = [
             {"_id": ObjectId(uid), "retention_days": 5}]
         db.tasks.delete_many.return_value.deleted_count = 2
         db.events.find.return_value.limit.return_value = []
@@ -37,7 +37,7 @@ class PrivacyRetentionTests(unittest.TestCase):
 
     def test_legacy_account_is_not_processed(self):
         db = MagicMock()
-        db.users.find.return_value.limit.return_value = [{"_id": ObjectId()}]
+        db.users.find.return_value.sort.return_value.limit.return_value = [{"_id": ObjectId()}]
         result = privacy.purge_expired_items(db, datetime.now(timezone.utc))
         self.assertEqual(result["tasks"], 0)
         db.tasks.delete_many.assert_not_called()
@@ -91,9 +91,11 @@ class PrivacyRetentionTests(unittest.TestCase):
         db = MagicMock()
         user = {"_id": ObjectId(), "deletion_due_at": datetime.now(timezone.utc)}
         db.shared_notebooks.find.return_value.limit.return_value = []
-        db.shared_notebooks.find.return_value.__iter__.return_value = iter([])
+        db.shared_notebooks.find.return_value.__iter__.return_value = []
+        db.realtime_notebooks.find_one.return_value = None
         db.users.delete_one.return_value.deleted_count = 1
-        self.assertTrue(privacy.purge_account(db, user))
+        was_deleted = privacy.purge_account(db, user)
+        self.assertTrue(was_deleted)
         self.assertEqual(db.tasks.delete_many.call_count, 1)
         self.assertEqual(db.events.delete_many.call_count, 1)
         self.assertEqual(db.friendships.delete_many.call_count, 1)
