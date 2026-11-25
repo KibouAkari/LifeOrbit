@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Download, LogOut, Mail, Palette, ShieldCheck, UserRound } from "lucide-react";
+import { Download, LogOut, Mail, Palette, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { currentUser, hasSession, request, type SignedInUser } from "../data/api";
 import { FriendsPanel } from "../components/FriendsPanel";
@@ -15,10 +15,15 @@ export default function Settings(){
  const [passwordCurrentPassword,setPasswordCurrentPassword]=useState("");
  const [newPassword,setNewPassword]=useState("");
  const authenticated=hasSession();
+ const [retention,setRetention]=useState<number|null>(null);
+ const [deleting,setDeleting]=useState(false);
+ const [deletePassword,setDeletePassword]=useState("");
+ const [deleteConfirmation,setDeleteConfirmation]=useState("");
 
  useEffect(()=>{
    if(authenticated)void currentUser().then(data=>{setUser(data);setName(data.name)}).catch(()=>setMessage("Unable to load profile."));
  },[authenticated]);
+ useEffect(()=>{if(authenticated)void request<{days:number|null}>("/privacy/retention").then(data=>setRetention(data.days)).catch(()=>setMessage("Could not load retention settings."));},[authenticated]);
 
  async function save(e:FormEvent){
    e.preventDefault();
@@ -41,6 +46,24 @@ export default function Settings(){
      await request("/auth/welcome/resend",{method:"POST"});
      setMessage("Your welcome email was accepted by the mail provider. Check your inbox or spam folder. Delivery is not guaranteed.");
    }catch(err){setMessage(err instanceof Error?err.message:"Could not request a welcome email");}
+   finally{setBusy(false);}
+ }
+
+ async function saveRetention(days:number|null){
+   setBusy(true);setMessage("");
+   try{const result=await request<{days:number|null}>("/privacy/retention",{method:"PATCH",body:JSON.stringify({days})});setRetention(result.days);setMessage("Data retention preference saved. Eligible older items will be removed during the next scheduled cleanup.");}
+   catch(err){setMessage(err instanceof Error?err.message:"Could not save retention preference");}
+   finally{setBusy(false);}
+ }
+
+ async function deleteAccount(){
+   if(deleteConfirmation!=="DELETE")return;
+   setBusy(true);setMessage("");
+   try{
+     await request("/privacy/account/delete",{method:"POST",body:JSON.stringify({confirmation:deleteConfirmation,current_password:user?.has_password?deletePassword:undefined})});
+     setDeleting(false);setDeletePassword("");setDeleteConfirmation("");
+     window.dispatchEvent(new Event("lifeorbit:logout"));
+   }catch(err){setMessage(err instanceof Error?err.message:"Could not schedule deletion");}
    finally{setBusy(false);}
  }
 
@@ -88,6 +111,25 @@ export default function Settings(){
        <option value="system">Match device</option><option value="light">Light</option><option value="dark">Dark</option>
      </select></label>
    </section>
+   {authenticated&&<section className="surface-card settings-section">
+     <h2><ShieldCheck size={19}/> Data retention</h2>
+     <p className="muted">Automatically remove completed tasks and past calendar events after a chosen period. Open tasks, notes and upcoming events stay untouched. Existing accounts start with this turned off.</p>
+     <label className="form-label">Delete completed tasks and past events after
+       <select className="select" disabled={busy} value={retention??"off"} onChange={e=>void saveRetention(e.target.value==="off"?null:Number(e.target.value))}>
+         <option value="off">Off</option><option value="30">30 days</option><option value="15">15 days</option><option value="5">5 days</option>
+       </select>
+     </label>
+     <p className="muted">Deleting older calendar entries also removes their invitations. Backups follow a separate retention policy.</p>
+   </section>}
+   {authenticated&&<section className="surface-card settings-section">
+     <h2><Trash2 size={19}/> Delete account</h2>
+     <p className="muted">Your account will be disabled immediately and queued for permanent database deletion 30 days later. Export your data first. This cannot currently be cancelled in Settings.</p>
+     {!deleting?<button className="button" disabled={busy} type="button" onClick={()=>setDeleting(true)}>Request account deletion</button>:<div className="form">
+       <label className="form-label">Type DELETE to confirm<input className="input" autoComplete="off" value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)}/></label>
+       {user?.has_password&&<label className="form-label">Current password<input className="input" type="password" autoComplete="current-password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>}
+       <div className="actions"><button className="button" disabled={busy} onClick={()=>{setDeleting(false);setDeletePassword("");setDeleteConfirmation("");}}>Cancel</button><button className="button" disabled={busy||deleteConfirmation!=="DELETE"||(Boolean(user?.has_password)&&!deletePassword)} onClick={()=>void deleteAccount()}>Confirm account deletion</button></div>
+     </div>}
+   </section>}
    <FriendsPanel/>
    <section className="surface-card settings-section settings-access settings-compact">
      <h2><ShieldCheck size={19}/> Account & privacy</h2>
