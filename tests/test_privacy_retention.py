@@ -72,6 +72,7 @@ class PrivacyRetentionTests(unittest.TestCase):
         now = datetime(2026, 11, 25, tzinfo=timezone.utc)
         response = Response()
         with patch.object(privacy, "get_db", return_value=db), \
+             patch.object(privacy, "require_cleanup_scheduler"), \
              patch.object(privacy, "find_user", return_value=user), \
              patch.object(privacy, "enforce_limit"), \
              patch.object(privacy.passwords, "verify", return_value=True), \
