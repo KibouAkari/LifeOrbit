@@ -198,6 +198,9 @@ def purge_due_accounts(db, now: datetime, max_accounts: int = 30) -> dict:
             if purge_account(db, account):
                 counts["deleted"] += 1
                 continue
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
         except PyMongoError:
             pass
         counts["blocked"] += 1
