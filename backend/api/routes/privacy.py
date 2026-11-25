@@ -23,7 +23,7 @@ ACCOUNT_GRACE_DAYS = 30
 
 
 class RetentionChoice(BaseModel):
-    days: int = Field(ge=5, le=30)
+    days: int | None = Field(default=None)
 
 
 class AccountDeletionRequest(BaseModel):
@@ -31,9 +31,10 @@ class AccountDeletionRequest(BaseModel):
     current_password: str | None = None
 
 
-def retention_days(user: dict) -> int:
-    days = user.get("retention_days", 30)
-    return days if type(days) is int and days in RETENTION_CHOICES else 30
+def retention_days(user: dict) -> int | None:
+    # Legacy accounts are opt-in: never delete their existing history on deployment.
+    days = user.get("retention_days")
+    return days if type(days) is int and days in RETENTION_CHOICES else None
 
 
 def now_utc() -> datetime:
@@ -48,7 +49,7 @@ def get_retention(user_id: str = Depends(get_current_user)):
 
 @router.patch("/retention")
 def update_retention(data: RetentionChoice, user_id: str = Depends(get_current_user)):
-    if data.days not in RETENTION_CHOICES:
+    if data.days is not None and data.days not in RETENTION_CHOICES:
         raise HTTPException(422, "Choose 5, 15 or 30 days")
     get_db().users.update_one({"_id": ObjectId(user_id), "deletion_due_at": {"$exists": False}},
                               {"$set": {"retention_days": data.days}})
@@ -93,6 +94,8 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
     ).limit(max_users):
         uid = str(user["_id"])
         days = retention_days(user)
+        if days is None:
+            continue
         cutoff = now - timedelta(days=days)
         # Backward-compatible only for tasks completed after the timestamp
         # tracking change; old done tasks are preserved rather than guessed.
@@ -128,6 +131,12 @@ def purge_account(db, user: dict) -> bool:
     for notebook_id in owned_ids:
         db.notebook_crdts.delete_one({"_id": notebook_id})
         db.realtime_notebooks.delete_one({"_id": f"notebook:{notebook_id}"})
+    # Also refuse to purge a member whose hosted Liveblocks ACL still exists.
+    memberships = db.shared_notebooks.find({"members": uid}, {"_id": 1})
+    for membership in memberships:
+        room = db.realtime_notebooks.find_one({"_id": notebook_room(str(membership["_id"]))})
+        if room and room.get("status") == "ready":
+            return False
     db.shared_notebooks.delete_many({"owner": uid})
     db.shared_notebooks.update_many({"members": uid}, {"$pull": {"members": uid}})
     db.shares.delete_many({"$or": [{"owner": uid}, {"recipient": uid}]})
