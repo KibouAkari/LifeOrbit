@@ -16,6 +16,7 @@ export default function Settings(){
  const [newPassword,setNewPassword]=useState("");
  const authenticated=hasSession();
  const [retention,setRetention]=useState<number|null>(null);
+ const [privacyAvailable,setPrivacyAvailable]=useState(false);
  const [deleting,setDeleting]=useState(false);
  const [deletePassword,setDeletePassword]=useState("");
  const [deleteConfirmation,setDeleteConfirmation]=useState("");
@@ -23,7 +24,7 @@ export default function Settings(){
  useEffect(()=>{
    if(authenticated)void currentUser().then(data=>{setUser(data);setName(data.name)}).catch(()=>setMessage("Unable to load profile."));
  },[authenticated]);
- useEffect(()=>{if(authenticated)void request<{days:number|null}>("/privacy/retention").then(data=>setRetention(data.days)).catch(()=>setMessage("Could not load retention settings."));},[authenticated]);
+ useEffect(()=>{if(authenticated)void request<{days:number|null;available:boolean}>("/privacy/retention").then(data=>{setRetention(data.days);setPrivacyAvailable(data.available);}).catch(()=>setMessage("Could not load retention settings."));},[authenticated]);
 
  async function save(e:FormEvent){
    e.preventDefault();
@@ -113,9 +114,10 @@ export default function Settings(){
    </section>
    {authenticated&&<section className="surface-card settings-section">
      <h2><ShieldCheck size={19}/> Data retention</h2>
+     {!privacyAvailable&&<p className="muted" role="status">Automatic cleanup is not configured yet. These controls are unavailable until the privacy scheduler is enabled.</p>}
      <p className="muted">Automatically remove completed tasks and past calendar events after a chosen period. Open tasks, notes and upcoming events stay untouched. Existing accounts start with this turned off.</p>
      <label className="form-label">Delete completed tasks and past events after
-       <select className="select" disabled={busy} value={retention??"off"} onChange={e=>void saveRetention(e.target.value==="off"?null:Number(e.target.value))}>
+       <select className="select" disabled={busy||!privacyAvailable} value={retention??"off"} onChange={e=>void saveRetention(e.target.value==="off"?null:Number(e.target.value))}>
          <option value="off">Off</option><option value="30">30 days</option><option value="15">15 days</option><option value="5">5 days</option>
        </select>
      </label>
@@ -123,8 +125,9 @@ export default function Settings(){
    </section>}
    {authenticated&&<section className="surface-card settings-section">
      <h2><Trash2 size={19}/> Delete account</h2>
+     {!privacyAvailable&&<p className="muted" role="status">Account deletion requests are unavailable until the privacy scheduler is configured.</p>}
      <p className="muted">Your account will be disabled immediately and queued for permanent database deletion 30 days later. Export your data first. This cannot currently be cancelled in Settings.</p>
-     {!deleting?<button className="button" disabled={busy} type="button" onClick={()=>setDeleting(true)}>Request account deletion</button>:<div className="form">
+     {!deleting?<button className="button" disabled={busy||!privacyAvailable} type="button" onClick={()=>setDeleting(true)}>Request account deletion</button>:<div className="form">
        <label className="form-label">Type DELETE to confirm<input className="input" autoComplete="off" value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)}/></label>
        {user?.has_password&&<label className="form-label">Current password<input className="input" type="password" autoComplete="current-password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>}
        <div className="actions"><button className="button" disabled={busy} onClick={()=>{setDeleting(false);setDeletePassword("");setDeleteConfirmation("");}}>Cancel</button><button className="button" disabled={busy||deleteConfirmation!=="DELETE"||(Boolean(user?.has_password)&&!deletePassword)} onClick={()=>void deleteAccount()}>Confirm account deletion</button></div>
