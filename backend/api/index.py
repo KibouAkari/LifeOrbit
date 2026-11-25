@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
-from backend.api.routes import auth, calendar, challenges, dashboard, tasks, workspace, leaderboard, friends, sharing, calendar_feeds, shared_notebooks, notifications
+from backend.api.routes import auth, calendar, challenges, dashboard, tasks, workspace, leaderboard, friends, sharing, calendar_feeds, shared_notebooks, notifications, privacy
 from backend.api import realtime, native_collab, password_reset, welcome_email
 
 welcome_email.configure_logging()
@@ -37,6 +37,7 @@ app.add_middleware(CORSMiddleware,allow_origins=origins,
                    allow_credentials=True,allow_methods=["GET","POST","PUT","PATCH","DELETE"],
                    allow_headers=["Authorization","Content-Type"])
 app.include_router(auth.router,prefix="/api/auth")
+app.include_router(privacy.router,prefix="/api/privacy")
 app.include_router(password_reset.router,prefix="/api/auth")
 app.include_router(calendar.router,prefix="/api/calendar")
 app.include_router(tasks.router,prefix="/api/tasks")
