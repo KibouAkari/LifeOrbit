@@ -22,6 +22,12 @@ RETENTION_CHOICES = (5, 15, 30)
 ACCOUNT_GRACE_DAYS = 30
 
 
+def require_cleanup_scheduler() -> None:
+    # Never accept irreversible account requests when no worker can run.
+    if not os.getenv("CRON_SECRET", "").strip():
+        raise HTTPException(503, "Scheduled privacy cleanup is not configured")
+
+
 class RetentionChoice(BaseModel):
     days: int | None = Field(default=None)
 
@@ -44,11 +50,13 @@ def now_utc() -> datetime:
 @router.get("/retention")
 def get_retention(user_id: str = Depends(get_current_user)):
     user = find_user(user_id)
-    return {"days": retention_days(user), "choices": list(RETENTION_CHOICES)}
+    return {"days": retention_days(user), "choices": list(RETENTION_CHOICES),
+            "available": bool(os.getenv("CRON_SECRET", "").strip())}
 
 
 @router.patch("/retention")
 def update_retention(data: RetentionChoice, user_id: str = Depends(get_current_user)):
+    require_cleanup_scheduler()
     if data.days is not None and data.days not in RETENTION_CHOICES:
         raise HTTPException(422, "Choose 5, 15 or 30 days")
     get_db().users.update_one({"_id": ObjectId(user_id), "deletion_due_at": {"$exists": False}},
@@ -60,6 +68,7 @@ def update_retention(data: RetentionChoice, user_id: str = Depends(get_current_u
 def request_account_deletion(payload: AccountDeletionRequest, response: Response,
                              request: Request, user_id: str = Depends(get_current_user)):
     """Disable account immediately and queue permanent removal after 30 days."""
+    require_cleanup_scheduler()
     enforce_limit(request, "account-deletion", maximum=3,
                   account_maximum=3, window_seconds=3600, identity=user_id)
     if payload.confirmation != "DELETE":
