@@ -105,6 +105,16 @@ Dependency auditing and documentation checks also run in GitHub Actions. Use [Co
 
 Start with the [documentation index](docs/README.md) to find the guides for architecture, API, data model, feature behavior, UI, deployment, operations, security, collaboration and account recovery. Use the [changelog](CHANGELOG.md) for development history and the [release checklist](docs/RELEASING.md) for production gates.
 
+## Privacy and automatic cleanup
+
+In **Settings → Data retention**, signed-in users can opt for automatic removal of completed tasks and old calendar events after **30, 15 or 5 days**, or keep the feature off. New accounts start with 30 days; existing accounts must explicitly opt in to avoid unexpectedly losing old events. The daily scheduled task uses a protected server-side token; it never runs from the browser. Completed tasks are eligible only once a real completion timestamp was recorded. Imported past events are filtered to prevent recreation after cleanup.
+
+**Delete account** schedules account erasure after 30 days and disables logins immediately. Database cleanup is designed to remove related MongoDB records before deleting the user document. External Liveblocks rooms, backups and third-party logs require independent retention and deletion checks, so this is not yet a guarantee of erasure from every copy. See [Privacy retention](docs/PRIVACY_RETENTION.md).
+
+## Screenshots
+
+Screenshots should represent actual, non-personal LifeOrbit pages. The login screenshot below is captured from the public website; dashboard/notes screenshots require a consent-safe demo account and should not include real personal data. Keep captures under `docs/screenshots/` and update them after major UI releases.
+
 ## Security and privacy
 
 Every API operation must validate authenticated ownership and, where applicable, an **accepted current friendship**. Client-side UI visibility is never authorization. Community leaderboard participation is explicitly optional, whereas accepted friends may compare scores privately in the implementation under review.
