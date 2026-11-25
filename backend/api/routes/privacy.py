@@ -15,6 +15,7 @@ from pymongo.errors import PyMongoError
 from backend.api.database import get_db, database_error
 from backend.api.routes.auth import get_current_user, find_user, passwords
 from backend.api.security import enforce_limit
+from backend.api.realtime import notebook_room
 
 router = APIRouter()
 RETENTION_CHOICES = (5, 15, 30)
@@ -121,7 +122,7 @@ def purge_account(db, user: dict) -> bool:
     # Provider-authoritative external rooms need an explicit provider cleanup.
     # Refuse to promise complete deletion when such rooms still exist.
     for notebook_id in owned_ids:
-        room = db.realtime_notebooks.find_one({"_id": f"notebook:{notebook_id}"})
+        room = db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)})
         if room and room.get("status") == "ready":
             return False
     for notebook_id in owned_ids:
@@ -136,8 +137,8 @@ def purge_account(db, user: dict) -> bool:
         db[collection].delete_many({"user_id": uid})
     # Some token records use user_id in ObjectId form; remove both types.
     db.password_reset_tokens.delete_many({"user_id": user["_id"]})
-    db.users.delete_one({"_id": user["_id"], "deletion_due_at": {"$lte": now_utc()}})
-    return True
+    result = db.users.delete_one({"_id": user["_id"], "deletion_due_at": {"$lte": now_utc()}})
+    return result.deleted_count == 1
 
 
 def purge_due_accounts(db, now: datetime, max_accounts: int = 30) -> dict:
