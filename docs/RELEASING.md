@@ -41,3 +41,10 @@ The project has no verified tagged stable release yet. Keep work under `## [Unre
 ## Rollback
 
 Use Vercel's previous verified deployment and revert the Git merge if appropriate. For database migrations or auth/crypto changes, prepare a data-compatible rollback separately. Reverting frontend code does **not** reverse MongoDB writes.
+
+## Welcome email checks (25 November 2026)
+
+- [ ] Confirm the deployed first-party planet PNG and CID attachment render in Gmail and Outlook, including blocked images/alt text.
+- [ ] Test the personal HTML and plain-text parts; verify no incorrect links or outside image hosts.
+- [ ] Verify Resend domain, SPF, DKIM, DMARC alignment, message status, bounce/suppression history and inbox/junk placement with controlled accounts.
+- [ ] Do not bulk-mail existing users as part of deployment; authenticated self-service resend is available. Any separate campaign requires reviewed consent, deduplication, throttling and opt-out handling.
