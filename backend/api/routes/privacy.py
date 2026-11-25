@@ -137,8 +137,12 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
                     counts["events"] += 1
         counts["users_checked"] += 1
     if batch:
-        db.privacy_jobs.update_one({"_id": "retention"},
-                                   {"$set": {"cursor": batch[-1]["_id"]}}, upsert=True)
+        remaining = db.users.find_one(
+            {"deletion_due_at": {"$exists": False},
+             "_id": {"$gt": batch[-1]["_id"]}}, {"_id": 1})
+        progress = ({"$set": {"cursor": batch[-1]["_id"]}} if remaining
+                    else {"$unset": {"cursor": ""}})
+        db.privacy_jobs.update_one({"_id": "retention"}, progress, upsert=True)
     return counts
 
 
