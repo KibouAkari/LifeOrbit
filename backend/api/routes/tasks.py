@@ -1,5 +1,5 @@
 """Task CRUD with per-user filtering on every write and read."""
-from datetime import timezone
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo import ReturnDocument
@@ -22,6 +22,8 @@ def list_tasks(user: str = Depends(get_current_user)):
 @router.post("", status_code=201)
 def create_task(data: TaskInput, user: str = Depends(get_current_user)):
     doc = {**data.model_dump(), "user_id": user}
+    if doc.get("done"):
+        doc["completed_at"] = datetime.now(timezone.utc)
     result = get_db().tasks.insert_one(doc)
     return output({"_id": result.inserted_id, **doc})
 
@@ -34,9 +36,15 @@ def edit_task(task_id: str, data: TaskPatch, user: str = Depends(get_current_use
         raise HTTPException(422, "Title, done, and order cannot be null")
     if not fields:
         raise HTTPException(400, "No changes")
+    changes = {"$set": fields}
+    if "done" in fields:
+        if fields["done"]:
+            changes["$set"]["completed_at"] = datetime.now(timezone.utc)
+        else:
+            changes["$unset"] = {"completed_at": ""}
     doc = get_db().tasks.find_one_and_update(
         {"_id": ObjectId(task_id), "user_id": user},
-        {"$set": fields}, return_document=ReturnDocument.AFTER,
+        changes, return_document=ReturnDocument.AFTER,
     )
     if doc is None:
         raise HTTPException(404, "Task not found")
