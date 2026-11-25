@@ -158,8 +158,17 @@ def apply_events(db,user,feed,events):
                               "source_key":ev["source_key"]},
                              {"$set":{**ev,"user_id":user,"source":"ical_feed",
                                       "source_id":source_id,"source_name":feed["name"]}},upsert=True)
-    db.events.delete_many({"user_id":user,"source":"ical_feed","source_id":source_id,
-                           "source_key":{"$nin":keys}})
+    stale = {"user_id":user,"source":"ical_feed","source_id":source_id,
+             "source_key":{"$nin":keys}}
+    while True:
+        with db.client.start_session() as session:
+            with session.start_transaction():
+                deleted = db.events.find_one_and_delete(stale, session=session)
+                if deleted:
+                    db.shares.delete_many({"owner":user,"kind":"event",
+                                           "resource_id":str(deleted["_id"])},session=session)
+        if not deleted:
+            break
     feed["count"]=len(events)
     feed["last_synced"]=datetime.now(timezone.utc)
     db.calendar_feeds.update_one({"_id":feed["_id"]},{"$set":{"count":feed["count"],"last_synced":feed["last_synced"]}})

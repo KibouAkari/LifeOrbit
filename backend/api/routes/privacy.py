@@ -15,7 +15,7 @@ from pymongo.errors import PyMongoError
 from backend.api.database import get_db, database_error
 from backend.api.routes.auth import get_current_user, find_user, passwords
 from backend.api.security import enforce_limit
-from backend.api.realtime import notebook_room
+from backend.api.realtime import notebook_lock, notebook_room, realtime_access_lock
 
 router = APIRouter()
 RETENTION_CHOICES = (5, 15, 30)
@@ -124,10 +124,13 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
             {"user_id": uid, "date": {"$lt": date_limit}},
             {"_id": 1}).limit(1000))
         if expired:
-            ids = [str(e["_id"]) for e in expired]
-            db.shares.delete_many({"owner": uid, "kind": "event", "resource_id": {"$in": ids}})
-            counts["events"] += db.events.delete_many(
-                {"user_id": uid, "_id": {"$in": [e["_id"] for e in expired]}}).deleted_count
+            for event in expired:
+                deleted = db.events.find_one_and_delete(
+                    {"_id": event["_id"], "user_id": uid, "date": {"$lt": date_limit}})
+                if deleted:
+                    counts["events"] += 1
+                    db.shares.delete_many({"owner": uid, "kind": "event",
+                                           "resource_id": str(event["_id"])})
         counts["users_checked"] += 1
     if batch:
         db.privacy_jobs.update_one({"_id": "retention"},
@@ -138,25 +141,33 @@ def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
 def purge_account(db, user: dict) -> bool:
     """Clean all known owned data first; deletion can be retried safely."""
     uid = str(user["_id"])
-    owned = list(db.shared_notebooks.find({"owner": uid}, {"_id": 1}).limit(1000))
-    owned_ids = [str(row["_id"]) for row in owned]
     # Provider-authoritative external rooms need an explicit provider cleanup.
     # Refuse to promise complete deletion when such rooms still exist.
-    for notebook_id in owned_ids:
-        room = db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)})
-        if room:
-            return False
-    for notebook_id in owned_ids:
-        db.notebook_crdts.delete_one({"_id": notebook_id})
-        db.realtime_notebooks.delete_one({"_id": notebook_room(notebook_id)})
+    owned = list(db.shared_notebooks.find({"owner": uid}, {"_id": 1}).limit(1000))
+    for row in owned:
+        notebook_id = str(row["_id"])
+        with notebook_lock(db, notebook_id):
+            if db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)}):
+                return False
+            db.notebook_crdts.delete_one({"_id": notebook_id})
+            db.shared_notebooks.delete_one({"_id": row["_id"], "owner": uid})
+    if db.shared_notebooks.find_one({"owner": uid}, {"_id": 1}):
+        return False
     # Also refuse to purge a member whose hosted Liveblocks ACL still exists.
-    memberships = db.shared_notebooks.find({"members": uid}, {"_id": 1})
+    memberships = list(db.shared_notebooks.find(
+        {"members": uid}, {"_id": 1}).limit(1000))
     for membership in memberships:
-        room = db.realtime_notebooks.find_one({"_id": notebook_room(str(membership["_id"]))})
-        if room:
-            return False
-    db.shared_notebooks.delete_many({"owner": uid})
-    db.shared_notebooks.update_many({"members": uid}, {"$pull": {"members": uid}})
+        notebook_id = str(membership["_id"])
+        book = db.shared_notebooks.find_one({"_id": membership["_id"]}, {"owner": 1})
+        if not book:
+            continue
+        with realtime_access_lock(db, book["owner"], uid), notebook_lock(db, notebook_id):
+            if db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)}):
+                return False
+            db.shared_notebooks.update_one({"_id": membership["_id"]},
+                                           {"$pull": {"members": uid}})
+    if db.shared_notebooks.find_one({"members": uid}, {"_id": 1}):
+        return False
     db.shares.delete_many({"$or": [{"owner": uid}, {"recipient": uid}]})
     db.friendships.delete_many({"$or": [{"sender": uid}, {"recipient": uid}]})
     for collection in ("tasks", "events", "workspaces", "calendar_feeds",
