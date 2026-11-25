@@ -39,7 +39,14 @@ def edit_task(task_id: str, data: TaskPatch, user: str = Depends(get_current_use
     changes = {"$set": fields}
     if "done" in fields:
         if fields["done"]:
-            changes["$set"]["completed_at"] = datetime.now(timezone.utc)
+            changes = [{"$set": {
+                **{key: {"$literal": value} for key, value in fields.items()},
+                "completed_at": {"$cond": [
+                    {"$eq": ["$done", True]},
+                    {"$ifNull": ["$completed_at", "$$REMOVE"]},
+                    datetime.now(timezone.utc),
+                ]},
+            }}]
         else:
             changes["$unset"] = {"completed_at": ""}
     doc = get_db().tasks.find_one_and_update(
