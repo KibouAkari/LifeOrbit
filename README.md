@@ -123,6 +123,10 @@ These screenshots were captured from the **public LifeOrbit website** on 25 Nove
 
 ![LifeOrbit email sign-in form](docs/screenshots/login-email.png)
 
+## Design and product direction
+
+For proposed lightweight login/email layouts and broader feature priorities, see [Design directions and product improvements](docs/DESIGN_DIRECTIONS.md). No visual redesign has been deployed from these proposals.
+
 ## Security and privacy
 
 Every API operation must validate authenticated ownership and, where applicable, an **accepted current friendship**. Client-side UI visibility is never authorization. Community leaderboard participation is explicitly optional, whereas accepted friends may compare scores privately in the implementation under review.
