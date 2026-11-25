@@ -4,6 +4,7 @@ All operations run on the server. Scheduled purge is bounded and idempotent,
 and never removes a user record before owned resources have been cleaned.
 """
 from datetime import datetime, timedelta, timezone
+from contextlib import ExitStack
 import hmac
 import os
 
@@ -15,7 +16,9 @@ from pymongo.errors import PyMongoError
 from backend.api.database import get_db, database_error
 from backend.api.routes.auth import get_current_user, find_user, passwords
 from backend.api.security import enforce_limit
-from backend.api.realtime import notebook_lock, notebook_room, realtime_access_lock
+from backend.api.realtime import (
+    assert_realtime_access_lock, notebook_lock, notebook_room, realtime_access_lock,
+)
 
 router = APIRouter()
 RETENTION_CHOICES = (5, 15, 30)
@@ -161,23 +164,50 @@ def purge_account(db, user: dict) -> bool:
             db.shared_notebooks.delete_one({"_id": row["_id"], "owner": uid})
     if db.shared_notebooks.find_one({"owner": uid}, {"_id": 1}):
         return False
-    # Also refuse to purge a member whose hosted Liveblocks ACL still exists.
+    # Lock each friendship pair before scanning memberships so no invitation
+    # can add a new notebook membership during the final cleanup check.
+    friendships = list(db.friendships.find(
+        {"$or": [{"sender": uid}, {"recipient": uid}]},
+        {"sender": 1, "recipient": 1}).limit(1000))
     memberships = list(db.shared_notebooks.find(
-        {"members": uid}, {"_id": 1}).limit(1000))
-    for membership in memberships:
-        notebook_id = str(membership["_id"])
-        book = db.shared_notebooks.find_one({"_id": membership["_id"]}, {"owner": 1})
-        if not book:
-            continue
-        with realtime_access_lock(db, book["owner"], uid), notebook_lock(db, notebook_id):
-            if db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)}):
-                return False
-            db.shared_notebooks.update_one({"_id": membership["_id"]},
-                                           {"$pull": {"members": uid}})
+        {"members": uid}, {"owner": 1}).limit(1000))
+    friends = {
+        row["recipient"] if row["sender"] == uid else row["sender"]
+        for row in friendships if row.get("sender") != row.get("recipient")
+    }
+    friends.update(book["owner"] for book in memberships if book.get("owner") != uid)
+    for other in sorted(friends):
+        pair = "-".join(sorted((uid, other)))
+        with realtime_access_lock(db, uid, other):
+            impacted = list(db.shared_notebooks.find(
+                {"owner": other, "members": uid}, {"_id": 1}).limit(1000))
+            with ExitStack() as locks:
+                for book in sorted(impacted, key=lambda item: str(item["_id"])):
+                    locks.enter_context(notebook_lock(db, str(book["_id"])))
+                impacted = list(db.shared_notebooks.find(
+                    {"owner": other, "members": uid}, {"_id": 1}).limit(1000))
+                if any(db.realtime_notebooks.find_one(
+                        {"_id": notebook_room(str(book["_id"]))}) for book in impacted):
+                    return False
+                assert_realtime_access_lock(db, uid, other)
+                db.friendships.delete_many({"$or": [
+                    {"pair": pair}, {"sender": uid, "recipient": other},
+                    {"sender": other, "recipient": uid},
+                ]})
+                db.shares.delete_many({"$or": [
+                    {"owner": uid, "recipient": other},
+                    {"owner": other, "recipient": uid},
+                ]})
+                for book in impacted:
+                    db.shared_notebooks.update_one(
+                        {"_id": book["_id"], "owner": other},
+                        {"$pull": {"members": uid}})
     if db.shared_notebooks.find_one({"members": uid}, {"_id": 1}):
         return False
+    if db.friendships.find_one(
+            {"$or": [{"sender": uid}, {"recipient": uid}]}, {"_id": 1}):
+        return False
     db.shares.delete_many({"$or": [{"owner": uid}, {"recipient": uid}]})
-    db.friendships.delete_many({"$or": [{"sender": uid}, {"recipient": uid}]})
     for collection in ("tasks", "events", "workspaces", "calendar_feeds",
                        "notification_state", "password_reset_tokens"):
         db[collection].delete_many({"user_id": uid})

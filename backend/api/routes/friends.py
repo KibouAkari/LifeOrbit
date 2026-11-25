@@ -61,6 +61,9 @@ def request_friend(payload:FriendRequest,request:Request,user:str=Depends(get_cu
     db=get_db()
     if payload.user_id==user or not profile(db,payload.user_id):
         raise HTTPException(400,"Invalid friend")
+    if not db.users.find_one(
+            {"_id":ObjectId(payload.user_id),"deletion_due_at":{"$exists":False}},{"_id":1}):
+        raise HTTPException(400,"Invalid friend")
     key=pair(user,payload.user_id)
     current=db.friendships.find_one({"pair":key})
     if current:
@@ -84,6 +87,9 @@ def accept(request_id:str,user:str=Depends(get_current_user),
     with realtime_access_lock(db,user,other):
         request=db.friendships.find_one({"_id":ObjectId(request_id),"recipient":user,"status":"pending"})
         if not request:raise HTTPException(404,"Request not found")
+        if not ObjectId.is_valid(other) or not db.users.find_one(
+                {"_id":ObjectId(other),"deletion_due_at":{"$exists":False}},{"_id":1}):
+            raise HTTPException(404,"Request not found")
         impacted=list(db.shared_notebooks.find({"$or":[
             {"owner":request["sender"],"members":request["recipient"]},
             {"owner":request["recipient"],"members":request["sender"]}]}))

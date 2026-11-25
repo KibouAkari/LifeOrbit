@@ -1,6 +1,6 @@
 """Privacy retention and account lifecycle regression checks (no production data)."""
 import unittest
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +8,7 @@ from bson import ObjectId
 from fastapi import HTTPException, Response
 
 from backend.api.routes import calendar_feeds, privacy
+from backend.api.routes import shared_notebooks
 
 
 class PrivacyRetentionTests(unittest.TestCase):
@@ -69,7 +70,8 @@ class PrivacyRetentionTests(unittest.TestCase):
         result = privacy.purge_expired_items(db, datetime(2026, 11, 25, tzinfo=timezone.utc))
         self.assertEqual(result["events"], 1)
         db.shares.delete_many.assert_called_once_with(
-            {"owner": str(user_id), "kind": "event", "resource_id": str(event_id)})
+            {"owner": str(user_id), "kind": "event", "resource_id": str(event_id)},
+            session=db.client.start_session.return_value.__enter__.return_value)
 
     def test_feed_reconciliation_removes_invitations_for_deleted_events(self):
         db = MagicMock()
@@ -150,6 +152,7 @@ class PrivacyRetentionTests(unittest.TestCase):
         db.shared_notebooks.find.return_value.__iter__.return_value = []
         db.shared_notebooks.find_one.return_value = None
         db.realtime_notebooks.find_one.return_value = None
+        db.friendships.find_one.return_value = None
         db.users.delete_one.return_value.deleted_count = 1
         was_deleted = privacy.purge_account(db, user)
         self.assertTrue(was_deleted)
@@ -161,8 +164,79 @@ class PrivacyRetentionTests(unittest.TestCase):
         self.assertIn("workspaces", indexed)
         self.assertIn("calendar_feeds", indexed)
         self.assertIn("notification_state", indexed)
-        self.assertEqual(db.friendships.delete_many.call_count, 1)
+        db.friendships.delete_many.assert_not_called()
         db.users.delete_one.assert_called_once()
+
+    def test_purge_serializes_membership_cleanup_with_invitation_pair(self):
+        db = MagicMock()
+        db.__getitem__.side_effect = lambda name: getattr(db, name)
+        user_id, friend_id, book_id = str(ObjectId()), str(ObjectId()), ObjectId()
+        user = {"_id": ObjectId(user_id)}
+        active = {"sender": user_id, "recipient": friend_id}
+        pair_locked = False
+
+        def cursor(items):
+            result = MagicMock()
+            result.limit.return_value = items
+            return result
+
+        def find_notebooks(criteria, projection=None):
+            if criteria == {"owner": user_id}:
+                return cursor([])
+            if criteria == {"members": user_id}:
+                return cursor([{"owner": friend_id}])
+            if criteria == {"owner": friend_id, "members": user_id}:
+                self.assertTrue(pair_locked)
+                return cursor([{"_id": book_id}])
+            return cursor([])
+
+        @contextmanager
+        def pair_lock(*_):
+            nonlocal pair_locked
+            self.assertFalse(pair_locked)
+            pair_locked = True
+            try:
+                yield
+            finally:
+                pair_locked = False
+
+        db.shared_notebooks.find.side_effect = find_notebooks
+        db.shared_notebooks.find_one.return_value = None
+        db.friendships.find.return_value.limit.return_value = [active]
+        db.friendships.find_one.return_value = None
+        db.realtime_notebooks.find_one.return_value = None
+        db.users.delete_one.return_value.deleted_count = 1
+        db.shared_notebooks.update_one.side_effect = (
+            lambda *_: self.assertTrue(pair_locked))
+        db.friendships.delete_many.side_effect = (
+            lambda *_: self.assertTrue(pair_locked))
+        with patch.object(privacy, "realtime_access_lock", side_effect=pair_lock), \
+             patch.object(privacy, "assert_realtime_access_lock",
+                          side_effect=lambda *_: self.assertTrue(pair_locked)), \
+             patch.object(privacy, "notebook_lock", return_value=nullcontext()):
+            self.assertTrue(privacy.purge_account(db, user))
+        db.friendships.delete_many.assert_called_once()
+        db.shared_notebooks.update_one.assert_called_once()
+        db.users.delete_one.assert_called_once()
+
+    def test_notebook_invitation_rejects_missing_or_pending_target(self):
+        db = MagicMock()
+        user_id, target_id, book_id = str(ObjectId()), str(ObjectId()), str(ObjectId())
+        db.shared_notebooks.find_one.return_value = {
+            "_id": ObjectId(book_id), "owner": user_id, "members": []}
+        db.users.find_one.return_value = None
+        with patch.object(shared_notebooks, "get_db", return_value=db), \
+             patch.object(shared_notebooks, "realtime_access_lock",
+                          return_value=nullcontext()), \
+             patch.object(shared_notebooks, "notebook_lock",
+                          return_value=nullcontext()):
+            with self.assertRaises(HTTPException) as caught:
+                shared_notebooks.invite_member(
+                    book_id, shared_notebooks.MemberInput(user_id=target_id), user=user_id)
+        self.assertEqual(caught.exception.status_code, 403)
+        self.assertEqual(db.users.find_one.call_args.args[0], {
+            "_id": ObjectId(target_id), "deletion_due_at": {"$exists": False}})
+        db.shared_notebooks.update_one.assert_not_called()
 
     def test_cleanup_defers_account_until_every_owned_notebook_is_processed(self):
         db = MagicMock()
