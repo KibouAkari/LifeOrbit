@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased · 25 November 2026: welcome mail clarity and inline logo
+
+- Replaced the promotional, multi-panel welcome email with a personal, minimalist welcome, one dashboard link, simpler subject and matching plain-text copy. User names remain escaped and registration still succeeds even if Resend is unavailable.
+- Embedded the existing blue planet PNG as a CID attachment whenever bundled, with a canonical first-party PNG URL fallback and visible text wordmark for image-blocking clients. Added sender-payload regression coverage.
+- Expanded onboarding, deployment and operational documentation with inbox placement checks (Resend, SPF, DKIM, DMARC, Gmail/Outlook headers) and a safe opt-in approach for existing members. No mass emails were sent; no unverified claims about junk-folder fixes.
+
+
 LifeOrbit follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. This file preserves the project's development history. No stable version has been tagged; dates below identify development work, not production release dates.
 
 ## [Unreleased]
