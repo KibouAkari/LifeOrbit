@@ -48,3 +48,12 @@ Use Vercel's previous verified deployment and revert the Git merge if appropriat
 - [ ] Test the personal HTML and plain-text parts; verify no incorrect links or outside image hosts.
 - [ ] Verify Resend domain, SPF, DKIM, DMARC alignment, message status, bounce/suppression history and inbox/junk placement with controlled accounts.
 - [ ] Do not bulk-mail existing users as part of deployment; authenticated self-service resend is available. Any separate campaign requires reviewed consent, deduplication, throttling and opt-out handling.
+
+## Privacy release gate (November 2026)
+
+- [ ] CRON_SECRET exists only on the server and incorrect Authorization fails closed.
+- [ ] Run complete Python tests and a production frontend build; verify 5/15/30 day cutoff and re-opened tasks.
+- [ ] Existing accounts are opt-in; do not automatically purge all historic records on first deploy.
+- [ ] Verify cleanup of invitations, imported calendar feed refresh, workspaces, friendships and shared notebooks without altering other users' content.
+- [ ] Verify account deletion disables sessions immediately and only deletes the user record after related cleanup.
+- [ ] Implement or verify external Liveblocks cleanup, backup expiry, logs retention, monitoring and operational recovery before claiming complete erasure.
