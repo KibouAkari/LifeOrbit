@@ -124,7 +124,7 @@ def send_welcome_email(email: str, name: str, event_key: str = "") -> bool:
         logo_src = None
         try:
             image_bytes = image_path.read_bytes()
-            if image_bytes.startswith(b"\\x89PNG\\r\\n\\x1a\\n") and len(image_bytes) <= 50000:
+            if image_bytes.startswith(b"\x89PNG\r\n\x1a\n") and len(image_bytes) <= 50000:
                 logo_src = "cid:lifeorbit-logo"
                 attachments = [{
                     "filename": "lifeorbit-logo.png",
