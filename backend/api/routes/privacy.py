@@ -4,7 +4,7 @@ All operations run on the server. Scheduled purge is bounded and idempotent,
 and never removes a user record before owned resources have been cleaned.
 """
 from datetime import datetime, timedelta, timezone
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 import hmac
 import os
 import time
@@ -27,6 +27,8 @@ RETENTION_CHOICES = (5, 15, 30)
 ACCOUNT_GRACE_DAYS = 30
 RETENTION_EVENT_BUDGET = 100
 RETENTION_TIME_BUDGET_SECONDS = 8
+ACCOUNT_TIME_BUDGET_SECONDS = 8
+ACCOUNT_RESOURCE_BATCH = 100
 
 
 def require_cleanup_scheduler() -> None:
@@ -55,8 +57,8 @@ def now_utc() -> datetime:
 
 
 @contextmanager
-def _try_privacy_user_lock(db, user_id: str):
-    lock = privacy_user_lock(db, user_id)
+def _try_privacy_user_lock(db, user_id: str, deadline=None):
+    lock = privacy_user_lock(db, user_id, deadline=deadline)
     try:
         lock.__enter__()
     except HTTPException as exc:
@@ -169,7 +171,7 @@ def purge_expired_items(db, now: datetime, max_users: int = 200,
         if time.monotonic() >= deadline:
             break
         uid = str(user["_id"])
-        with _try_privacy_user_lock(db, uid) as locked:
+        with _try_privacy_user_lock(db, uid, deadline) as locked:
             if not locked:
                 break
             current = db.users.find_one(
@@ -203,7 +205,7 @@ def purge_expired_items(db, now: datetime, max_users: int = 200,
                         break
                     event_id = str(event["_id"])
                     try:
-                        with event_lock(db, event_id):
+                        with event_lock(db, event_id, deadline=deadline):
                             assert_privacy_user_lock(db, uid)
                             assert_event_lock(db, event_id)
                             with db.client.start_session() as session:
@@ -254,21 +256,35 @@ def purge_expired_items(db, now: datetime, max_users: int = 200,
     return counts
 
 
-def purge_account(db, user: dict) -> bool:
+class CleanupDeadline(Exception):
+    pass
+
+
+def _check_deadline(deadline):
+    if deadline is not None and time.monotonic() >= deadline:
+        raise CleanupDeadline()
+
+
+def purge_account(db, user: dict, deadline=None) -> bool:
     """Clean all known owned data first; deletion can be retried safely."""
     uid = str(user["_id"])
-    with privacy_user_lock(db, uid):
-        return _purge_account_locked(db, user, uid)
+    options = {"deadline": deadline} if deadline is not None else {}
+    with privacy_user_lock(db, uid, **options):
+        return _purge_account_locked(db, user, uid, deadline)
 
 
-def _purge_account_locked(db, user: dict, uid: str) -> bool:
+def _purge_account_locked(db, user: dict, uid: str, deadline=None) -> bool:
+    _check_deadline(deadline)
+    options = {"deadline": deadline} if deadline is not None else {}
     assert_privacy_user_lock(db, uid)
     # Provider-authoritative external rooms need an explicit provider cleanup.
     # Refuse to promise complete deletion when such rooms still exist.
-    owned = list(db.shared_notebooks.find({"owner": uid}, {"_id": 1}).limit(1000))
+    owned = list(db.shared_notebooks.find({"owner": uid}, {"_id": 1}).limit(ACCOUNT_RESOURCE_BATCH))
     for row in owned:
+        _check_deadline(deadline)
         notebook_id = str(row["_id"])
-        with notebook_lock(db, notebook_id):
+        with notebook_lock(db, notebook_id, **options):
+            _check_deadline(deadline)
             if db.realtime_notebooks.find_one({"_id": notebook_room(notebook_id)}):
                 return False
             db.notebook_crdts.delete_one({"_id": notebook_id})
@@ -279,40 +295,45 @@ def _purge_account_locked(db, user: dict, uid: str) -> bool:
     # can add a new notebook membership during the final cleanup check.
     friendships = list(db.friendships.find(
         {"$or": [{"sender": uid}, {"recipient": uid}]},
-        {"sender": 1, "recipient": 1}).limit(1000))
+        {"sender": 1, "recipient": 1}).limit(ACCOUNT_RESOURCE_BATCH))
     memberships = list(db.shared_notebooks.find(
-        {"members": uid}, {"owner": 1}).limit(1000))
+        {"members": uid}, {"owner": 1}).limit(ACCOUNT_RESOURCE_BATCH))
     friends = {
         row["recipient"] if row["sender"] == uid else row["sender"]
         for row in friendships if row.get("sender") != row.get("recipient")
     }
     friends.update(book["owner"] for book in memberships if book.get("owner") != uid)
     for other in sorted(friends):
+        _check_deadline(deadline)
         pair = "-".join(sorted((uid, other)))
-        with realtime_access_lock(db, uid, other):
+        with realtime_access_lock(db, uid, other, **options):
             impacted = list(db.shared_notebooks.find(
-                {"owner": other, "members": uid}, {"_id": 1}).limit(1000))
-            with ExitStack() as locks:
-                for book in sorted(impacted, key=lambda item: str(item["_id"])):
-                    locks.enter_context(notebook_lock(db, str(book["_id"])))
-                impacted = list(db.shared_notebooks.find(
-                    {"owner": other, "members": uid}, {"_id": 1}).limit(1000))
-                if any(db.realtime_notebooks.find_one(
-                        {"_id": notebook_room(str(book["_id"]))}) for book in impacted):
-                    return False
-                assert_realtime_access_lock(db, uid, other)
-                db.friendships.delete_many({"$or": [
-                    {"pair": pair}, {"sender": uid, "recipient": other},
-                    {"sender": other, "recipient": uid},
-                ]})
-                db.shares.delete_many({"$or": [
-                    {"owner": uid, "recipient": other},
-                    {"owner": other, "recipient": uid},
-                ]})
-                for book in impacted:
+                {"owner": other, "members": uid}, {"_id": 1}).limit(ACCOUNT_RESOURCE_BATCH))
+            for book in impacted:
+                _check_deadline(deadline)
+                with notebook_lock(db, str(book["_id"]), **options):
+                    _check_deadline(deadline)
+                    if db.realtime_notebooks.find_one(
+                            {"_id": notebook_room(str(book["_id"]))}):
+                        return False
+                    assert_realtime_access_lock(db, uid, other)
                     db.shared_notebooks.update_one(
                         {"_id": book["_id"], "owner": other},
                         {"$pull": {"members": uid}})
+            _check_deadline(deadline)
+            if db.shared_notebooks.find_one(
+                    {"owner": other, "members": uid}, {"_id": 1}):
+                return False
+            assert_realtime_access_lock(db, uid, other)
+            db.friendships.delete_many({"$or": [
+                {"pair": pair}, {"sender": uid, "recipient": other},
+                {"sender": other, "recipient": uid},
+            ]})
+            db.shares.delete_many({"$or": [
+                {"owner": uid, "recipient": other},
+                {"owner": other, "recipient": uid},
+            ]})
+    _check_deadline(deadline)
     if db.shared_notebooks.find_one({"members": uid}, {"_id": 1}):
         return False
     if db.friendships.find_one(
@@ -324,25 +345,32 @@ def _purge_account_locked(db, user: dict, uid: str) -> bool:
     db.shares.delete_many({"$or": [{"owner": uid}, {"recipient": uid}]})
     for collection in ("tasks", "events", "workspaces", "calendar_feeds",
                        "notification_state", "password_reset_tokens"):
+        _check_deadline(deadline)
         db[collection].delete_many({"user_id": uid})
     # Some token records use user_id in ObjectId form; remove both types.
     db.password_reset_tokens.delete_many({"user_id": user["_id"]})
+    _check_deadline(deadline)
     assert_privacy_user_lock(db, uid)
     result = db.users.delete_one({"_id": user["_id"], "deletion_due_at": {"$lte": now_utc()}})
     return result.deleted_count == 1
 
 
-def purge_due_accounts(db, now: datetime, max_accounts: int = 30) -> dict:
+def purge_due_accounts(db, now: datetime, max_accounts: int = 30, deadline=None) -> dict:
     counts = {"deleted": 0, "blocked": 0}
     scope = {"deletion_due_at": {"$lte": now},
              "$or": [{"deletion_retry_after": {"$exists": False}},
                      {"deletion_retry_after": {"$lte": now}}]}
     for account in db.users.find(scope).sort([("deletion_retry_after", 1),
                                              ("deletion_due_at", 1)]).limit(max_accounts):
+        if deadline is not None and time.monotonic() >= deadline:
+            break
         try:
-            if purge_account(db, account):
+            if purge_account(db, account, deadline=deadline):
                 counts["deleted"] += 1
                 continue
+        except CleanupDeadline:
+            counts["blocked"] += 1
+            break
         except HTTPException as exc:
             if exc.status_code != 409:
                 raise
@@ -366,8 +394,9 @@ def retention_cron(request: Request):
     try:
         db = get_db()
         now = now_utc()
-        accounts = purge_due_accounts(db, now)
-        items = purge_expired_items(db, now)
+        deadline = time.monotonic() + ACCOUNT_TIME_BUDGET_SECONDS + RETENTION_TIME_BUDGET_SECONDS
+        accounts = purge_due_accounts(db, now, deadline=deadline - RETENTION_TIME_BUDGET_SECONDS)
+        items = purge_expired_items(db, now, time_budget=max(0, deadline - time.monotonic()))
         return {"ok": True, "retention": items, "accounts": accounts}
     except PyMongoError as exc:
         database_error(exc)

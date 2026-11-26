@@ -74,10 +74,12 @@ def notebook_room(notebook: str):
 
 
 @contextmanager
-def _distributed_lock(db, lock_id: str):
+def _distributed_lock(db, lock_id: str, deadline: float | None = None):
     token = uuid.uuid4().hex
-    deadline = time.monotonic() + 10
+    deadline = min(deadline, time.monotonic() + 10) if deadline is not None else time.monotonic() + 10
     while True:
+        if time.monotonic() >= deadline:
+            raise HTTPException(409, "Notebook is busy; try again")
         now = datetime.now(timezone.utc)
         try:
             acquired = db.realtime_locks.find_one_and_update(
@@ -93,7 +95,7 @@ def _distributed_lock(db, lock_id: str):
             break
         if time.monotonic() >= deadline:
             raise HTTPException(409, "Notebook is busy; try again")
-        time.sleep(0.05)
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
 
     stop = threading.Event()
     lost = threading.Event()
@@ -131,26 +133,26 @@ def _distributed_lock(db, lock_id: str):
 
 
 @contextmanager
-def notebook_lock(db, notebook: str):
+def notebook_lock(db, notebook: str, *, deadline: float | None = None):
     """Serialize notebook writes and provider ACL changes across API instances."""
     if not ObjectId.is_valid(notebook):
         raise HTTPException(400, "Invalid notebook")
-    with _distributed_lock(db, notebook_room(notebook)):
+    with _distributed_lock(db, notebook_room(notebook), deadline):
         yield
 
 
 @contextmanager
-def realtime_access_lock(db, first_user: str, second_user: str):
+def realtime_access_lock(db, first_user: str, second_user: str, *, deadline: float | None = None):
     """Serialize changes to a friendship pair with notebook invitations."""
     lock_id = "lo:friendship:" + "-".join(sorted((first_user, second_user)))
-    with _distributed_lock(db, lock_id):
+    with _distributed_lock(db, lock_id, deadline):
         yield
 
 
 @contextmanager
-def privacy_user_lock(db, user: str):
+def privacy_user_lock(db, user: str, *, deadline: float | None = None):
     """Serialize retention and account cleanup with writes involving this user."""
-    with _distributed_lock(db, "lo:privacy-user:" + str(user)):
+    with _distributed_lock(db, "lo:privacy-user:" + str(user), deadline):
         yield
 
 
@@ -163,11 +165,11 @@ def privacy_users_lock(db, *users: str):
 
 
 @contextmanager
-def event_lock(db, event_id: str):
+def event_lock(db, event_id: str, *, deadline: float | None = None):
     """Serialize event invitations with deletion of their source event."""
     if not ObjectId.is_valid(event_id):
         raise HTTPException(400, "Invalid event")
-    with _distributed_lock(db, "lo:event:" + str(ObjectId(event_id))):
+    with _distributed_lock(db, "lo:event:" + str(ObjectId(event_id)), deadline):
         yield
 
 

@@ -283,6 +283,42 @@ class PrivacyRetentionTests(unittest.TestCase):
         self.assertEqual(db.events.update_one.call_count, 1)
         self.assertEqual(db.shares.delete_many.call_count, 1)
 
+    def test_calendar_reconciliation_rejects_missing_or_pending_account(self):
+        db = MagicMock()
+        db.users.find_one.return_value = None
+        user = str(ObjectId())
+        payload = calendar.IcalImport(content="BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n")
+        with patch.object(calendar, "get_db", return_value=db), \
+             patch.object(calendar, "privacy_user_lock", return_value=nullcontext()):
+            with self.assertRaises(HTTPException) as caught:
+                calendar.import_ical(payload, user)
+        self.assertEqual(caught.exception.status_code, 409)
+        with self.assertRaises(HTTPException) as caught:
+            calendar_feeds.apply_events(db, user, {"_id": ObjectId(), "name": "Feed"}, [])
+        self.assertEqual(caught.exception.status_code, 409)
+        db.events.update_one.assert_not_called()
+        db.events.find_one_and_delete.assert_not_called()
+
+    def test_calendar_reconciliation_stops_on_lost_user_lease(self):
+        db = MagicMock()
+        db.users.find_one.return_value = {"retention_days": None}
+        user = str(ObjectId())
+        payload = calendar.IcalImport(content=(
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:future\r\n"
+            "DTSTART;VALUE=DATE:20990101\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"))
+        lost = HTTPException(409, "lock lost")
+        with patch.object(calendar, "get_db", return_value=db), \
+             patch.object(calendar, "privacy_user_lock", return_value=nullcontext()), \
+             patch.object(calendar, "assert_privacy_user_lock", side_effect=lost):
+            with self.assertRaises(HTTPException):
+                calendar.import_ical(payload, user)
+        with patch.object(calendar_feeds, "assert_privacy_user_lock", side_effect=lost):
+            with self.assertRaises(HTTPException):
+                calendar_feeds.apply_events(
+                    db, user, {"_id": ObjectId(), "name": "Feed"},
+                    [{"date": "2099-01-01", "source_key": "future"}])
+        db.events.update_one.assert_not_called()
+
     def test_feed_cleanup_batches_event_and_share_deletion(self):
         db = MagicMock()
         user_id = str(ObjectId())
@@ -560,14 +596,106 @@ class PrivacyRetentionTests(unittest.TestCase):
         db = MagicMock()
         user = {"_id": ObjectId()}
         owned = [{"_id": ObjectId()} for _ in range(1000)]
-        db.shared_notebooks.find.return_value.limit.return_value = owned
+        db.shared_notebooks.find.return_value = Cursor(owned)
         db.shared_notebooks.find_one.return_value = {"_id": ObjectId()}
         db.realtime_notebooks.find_one.return_value = None
         with patch.object(privacy, "notebook_lock", return_value=nullcontext()) as lock:
             self.assertFalse(privacy.purge_account(db, user))
-        self.assertEqual(lock.call_count, 1000)
-        self.assertEqual(db.shared_notebooks.delete_one.call_count, 1000)
-        self.assertEqual(db.notebook_crdts.delete_one.call_count, 1000)
+        self.assertEqual(lock.call_count, privacy.ACCOUNT_RESOURCE_BATCH)
+        self.assertEqual(db.shared_notebooks.delete_one.call_count, privacy.ACCOUNT_RESOURCE_BATCH)
+        self.assertEqual(db.notebook_crdts.delete_one.call_count, privacy.ACCOUNT_RESOURCE_BATCH)
+        db.users.delete_one.assert_not_called()
+
+    def test_account_cleanup_yields_and_resumes_after_deadline(self):
+        db = MagicMock()
+        db.__getitem__.side_effect = lambda name: getattr(db, name)
+        user = {"_id": ObjectId()}
+        owned = [{"_id": ObjectId()}, {"_id": ObjectId()}]
+        db.shared_notebooks.find.side_effect = lambda query, *_: Cursor(
+            list(owned) if query == {"owner": str(user["_id"])} else [])
+        db.shared_notebooks.find_one.side_effect = lambda query, *_: (
+            owned[0] if query == {"owner": str(user["_id"])} and owned else None)
+        db.shared_notebooks.delete_one.side_effect = lambda query: owned.remove(
+            next(book for book in owned if book["_id"] == query["_id"]))
+        db.friendships.find.return_value = Cursor([])
+        db.friendships.find_one.return_value = None
+        db.realtime_notebooks.find_one.return_value = None
+        db.users.delete_one.return_value.deleted_count = 1
+        clock = [0]
+        def finish_first_book(_query):
+            clock[0] = 2
+        db.notebook_crdts.delete_one.side_effect = finish_first_book
+        with patch.object(privacy.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(privacy, "privacy_user_lock", return_value=nullcontext()), \
+             patch.object(privacy, "notebook_lock", return_value=nullcontext()):
+            with self.assertRaises(privacy.CleanupDeadline):
+                privacy.purge_account(db, user, deadline=1)
+            self.assertEqual(len(owned), 1)
+            db.users.delete_one.assert_not_called()
+            clock[0] = 0
+            db.notebook_crdts.delete_one.side_effect = None
+            self.assertTrue(privacy.purge_account(db, user, deadline=1))
+        self.assertEqual(owned, [])
+        db.users.delete_one.assert_called_once()
+
+    def test_membership_batches_preserve_friendship_until_all_are_cleaned(self):
+        db = MagicMock()
+        db.__getitem__.side_effect = lambda name: getattr(db, name)
+        user, owner = str(ObjectId()), str(ObjectId())
+        books = [{"_id": ObjectId()} for _ in range(privacy.ACCOUNT_RESOURCE_BATCH + 1)]
+        friendship = [{"sender": owner, "recipient": user}]
+        def find_books(query, *_):
+            if query == {"owner": user}:
+                return Cursor([])
+            if query == {"members": user}:
+                return Cursor([{"owner": owner}] if books else [])
+            return Cursor(list(books))
+        def find_one_book(query, *_):
+            return books[0] if books and query.get("members") == user else None
+        def remove_member(query, *_):
+            books.remove(next(book for book in books if book["_id"] == query["_id"]))
+        db.shared_notebooks.find.side_effect = find_books
+        db.shared_notebooks.find_one.side_effect = find_one_book
+        db.shared_notebooks.update_one.side_effect = remove_member
+        db.friendships.find.side_effect = lambda *_: Cursor(list(friendship))
+        db.friendships.find_one.side_effect = lambda *_: friendship[0] if friendship else None
+        db.friendships.delete_many.side_effect = lambda *_: friendship.clear()
+        db.realtime_notebooks.find_one.return_value = None
+        db.users.delete_one.return_value.deleted_count = 1
+        with patch.object(privacy, "privacy_user_lock", return_value=nullcontext()), \
+             patch.object(privacy, "realtime_access_lock", return_value=nullcontext()), \
+             patch.object(privacy, "assert_realtime_access_lock"), \
+             patch.object(privacy, "notebook_lock", return_value=nullcontext()):
+            self.assertFalse(privacy.purge_account(db, {"_id": ObjectId(user)}))
+            self.assertEqual(len(books), 1)
+            self.assertEqual(len(friendship), 1)
+            db.users.delete_one.assert_not_called()
+            self.assertTrue(privacy.purge_account(db, {"_id": ObjectId(user)}))
+        self.assertEqual(books, [])
+        self.assertEqual(friendship, [])
+
+    def test_cron_reserves_time_for_retention_after_account_deadline(self):
+        request = MagicMock()
+        request.headers = {"authorization": "Bearer " + "test-secret"}
+        now = datetime.now(timezone.utc)
+        with patch.dict("os.environ", {"CRON_SECRET": "test-secret"}), \
+             patch.object(privacy, "get_db"), \
+             patch.object(privacy, "now_utc", return_value=now), \
+             patch.object(privacy.time, "monotonic", side_effect=[100, 108]), \
+             patch.object(privacy, "purge_due_accounts", return_value={}) as accounts, \
+             patch.object(privacy, "purge_expired_items", return_value={}) as items:
+            privacy.retention_cron(request)
+        self.assertEqual(accounts.call_args.kwargs["deadline"], 108)
+        self.assertEqual(items.call_args.kwargs["time_budget"], 8)
+
+    def test_due_accounts_stop_on_deadline_without_removing_user(self):
+        db = MagicMock()
+        db.users.find.return_value.sort.return_value.limit.return_value = [{"_id": ObjectId()}]
+        with patch.object(privacy.time, "monotonic", return_value=0), \
+             patch.object(privacy, "purge_account", side_effect=privacy.CleanupDeadline):
+            result = privacy.purge_due_accounts(db, datetime.now(timezone.utc), deadline=1)
+        self.assertEqual(result, {"deleted": 0, "blocked": 1})
+        db.users.update_one.assert_not_called()
         db.users.delete_one.assert_not_called()
 
     def test_hosted_room_found_under_notebook_lock_blocks_purge(self):

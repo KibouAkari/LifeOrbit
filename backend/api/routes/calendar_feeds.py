@@ -152,7 +152,11 @@ def apply_events(db,user,feed,events):
 def _apply_events_locked(db,user,feed,events):
     # Re-import must not resurrect previously expired calendar events.
     from backend.api.routes.privacy import retention_days
-    account = db.users.find_one({"_id": ObjectId(user)}, {"retention_days": 1}) or {}
+    account = db.users.find_one(
+        {"_id": ObjectId(user), "deletion_due_at": {"$exists": False}},
+        {"retention_days": 1})
+    if not account:
+        raise HTTPException(409, "Account is unavailable")
     days = retention_days(account)
     if days is not None:
         cutoff = (datetime.now(timezone.utc).date() - timedelta(days=days)).isoformat()

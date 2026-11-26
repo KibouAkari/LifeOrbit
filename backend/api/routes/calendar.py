@@ -137,7 +137,11 @@ def import_ical(payload: IcalImport, user: str = Depends(get_current_user)):
     from backend.api.routes.privacy import retention_days
     db = get_db()
     with privacy_user_lock(db, user):
-        account = db.users.find_one({"_id": ObjectId(user)}, {"retention_days": 1}) or {}
+        account = db.users.find_one(
+            {"_id": ObjectId(user), "deletion_due_at": {"$exists": False}},
+            {"retention_days": 1})
+        if not account:
+            raise HTTPException(409, "Account is unavailable")
         days = retention_days(account)
         if days is not None:
             cutoff = (datetime.now(ZoneInfo("UTC")).date() - timedelta(days=days)).isoformat()
