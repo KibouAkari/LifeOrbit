@@ -85,13 +85,16 @@ def delete_event(event_id: str, user: str = Depends(get_current_user),
                 deleted = db.events.find_one_and_delete(
                     {"_id": ObjectId(event_id), "user_id": user}, session=session)
                 if deleted:
+                    guests = [share["recipient"] for share in db.shares.find(
+                        {"owner": user, "kind": "event", "resource_id": event_id},
+                        {"recipient": 1}, session=session)]
                     db.shares.delete_many(
                         {"owner": user, "kind": "event", "resource_id": event_id},
                         session=session)
         if not deleted:
             raise HTTPException(404, "Event not found")
-        
-    _notify_event(get_db(),user,event_id,background_tasks)
+
+    publish_to_users([user, *guests], "calendar", background_tasks)
     return {"deleted": True}
 
 @router.post("/ical-import")
