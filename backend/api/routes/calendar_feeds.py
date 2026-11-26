@@ -140,10 +140,21 @@ def create_feed(payload:FeedInput,request:Request,user:str=Depends(get_current_u
     events=fetch_events(clean_url)
     doc={"user_id":user,"name":payload.name,"url_encrypted":cipher().encrypt(clean_url.encode()).decode(),
          "created_at":datetime.now(timezone.utc)}
-    inserted=db.calendar_feeds.insert_one(doc)
-    doc["_id"]=inserted.inserted_id
-    apply_events(db,user,doc,events)
+    with privacy_user_lock(db, user):
+        _active_account(db, user)
+        assert_privacy_user_lock(db, user)
+        inserted=db.calendar_feeds.insert_one(doc)
+        doc["_id"]=inserted.inserted_id
+        _apply_events_locked(db,user,doc,events)
     return output(doc)
+
+def _active_account(db, user):
+    account = db.users.find_one(
+        {"_id": ObjectId(user), "deletion_due_at": {"$exists": False}},
+        {"retention_days": 1})
+    if not account:
+        raise HTTPException(409, "Account is unavailable")
+    return account
 
 def apply_events(db,user,feed,events):
     with privacy_user_lock(db, user):
@@ -152,11 +163,7 @@ def apply_events(db,user,feed,events):
 def _apply_events_locked(db,user,feed,events):
     # Re-import must not resurrect previously expired calendar events.
     from backend.api.routes.privacy import retention_days
-    account = db.users.find_one(
-        {"_id": ObjectId(user), "deletion_due_at": {"$exists": False}},
-        {"retention_days": 1})
-    if not account:
-        raise HTTPException(409, "Account is unavailable")
+    account = _active_account(db, user)
     days = retention_days(account)
     if days is not None:
         cutoff = (datetime.now(timezone.utc).date() - timedelta(days=days)).isoformat()

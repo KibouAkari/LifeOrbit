@@ -12,6 +12,7 @@ import time
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
+from pymongo import timeout as mongo_timeout
 from pymongo.errors import PyMongoError
 
 from backend.api.database import get_db, database_error
@@ -117,15 +118,18 @@ def request_account_deletion(payload: AccountDeletionRequest, response: Response
         raise HTTPException(403, "Account identity must be verified")
     now = now_utc()
     due = now + timedelta(days=ACCOUNT_GRACE_DAYS)
-    updated = get_db().users.update_one(
-        {"_id": user["_id"], "deletion_due_at": {"$exists": False},
-         "password_hash": user.get("password_hash"),
-         "$expr": {"$eq": [
-             {"$ifNull": ["$session_version", 0]},
-             user.get("session_version", 0),
-         ]}},
-        {"$set": {"deletion_requested_at": now, "deletion_due_at": due},
-         "$inc": {"session_version": 1}})
+    db = get_db()
+    with privacy_user_lock(db, user_id):
+        assert_privacy_user_lock(db, user_id)
+        updated = db.users.update_one(
+            {"_id": user["_id"], "deletion_due_at": {"$exists": False},
+             "password_hash": user.get("password_hash"),
+             "$expr": {"$eq": [
+                 {"$ifNull": ["$session_version", 0]},
+                 user.get("session_version", 0),
+             ]}},
+            {"$set": {"deletion_requested_at": now, "deletion_due_at": due},
+             "$inc": {"session_version": 1}})
     if not updated.modified_count:
         raise HTTPException(409, "Account changed; sign in again before requesting deletion")
     response.delete_cookie("lifeorbital_auth", path="/api", secure=True,
@@ -265,7 +269,7 @@ def _check_deadline(deadline):
         raise CleanupDeadline()
 
 
-def purge_account(db, user: dict, deadline=None) -> bool:
+def purge_account(db, user: dict, deadline=None) -> bool | None:
     """Clean all known owned data first; deletion can be retried safely."""
     uid = str(user["_id"])
     options = {"deadline": deadline} if deadline is not None else {}
@@ -273,7 +277,7 @@ def purge_account(db, user: dict, deadline=None) -> bool:
         return _purge_account_locked(db, user, uid, deadline)
 
 
-def _purge_account_locked(db, user: dict, uid: str, deadline=None) -> bool:
+def _purge_account_locked(db, user: dict, uid: str, deadline=None) -> bool | None:
     _check_deadline(deadline)
     options = {"deadline": deadline} if deadline is not None else {}
     assert_privacy_user_lock(db, uid)
@@ -290,7 +294,7 @@ def _purge_account_locked(db, user: dict, uid: str, deadline=None) -> bool:
             db.notebook_crdts.delete_one({"_id": notebook_id})
             db.shared_notebooks.delete_one({"_id": row["_id"], "owner": uid})
     if db.shared_notebooks.find_one({"owner": uid}, {"_id": 1}):
-        return False
+        return None
     # Lock each friendship pair before scanning memberships so no invitation
     # can add a new notebook membership during the final cleanup check.
     friendships = list(db.friendships.find(
@@ -323,7 +327,7 @@ def _purge_account_locked(db, user: dict, uid: str, deadline=None) -> bool:
             _check_deadline(deadline)
             if db.shared_notebooks.find_one(
                     {"owner": other, "members": uid}, {"_id": 1}):
-                return False
+                return None
             assert_realtime_access_lock(db, uid, other)
             db.friendships.delete_many({"$or": [
                 {"pair": pair}, {"sender": uid, "recipient": other},
@@ -335,10 +339,10 @@ def _purge_account_locked(db, user: dict, uid: str, deadline=None) -> bool:
             ]})
     _check_deadline(deadline)
     if db.shared_notebooks.find_one({"members": uid}, {"_id": 1}):
-        return False
+        return None
     if db.friendships.find_one(
             {"$or": [{"sender": uid}, {"recipient": uid}]}, {"_id": 1}):
-        return False
+        return None
     if db.realtime_notebooks.find_one({"owner": uid}, {"_id": 1}):
         return False
     assert_privacy_user_lock(db, uid)
@@ -365,8 +369,14 @@ def purge_due_accounts(db, now: datetime, max_accounts: int = 30, deadline=None)
         if deadline is not None and time.monotonic() >= deadline:
             break
         try:
-            if purge_account(db, account, deadline=deadline):
+            outcome = purge_account(db, account, deadline=deadline)
+            if outcome:
                 counts["deleted"] += 1
+                continue
+            if outcome is None:
+                counts["blocked"] += 1
+                db.users.update_one({"_id": account["_id"]}, {"$set": {
+                    "deletion_retry_after": now}})
                 continue
         except CleanupDeadline:
             counts["blocked"] += 1
@@ -395,8 +405,17 @@ def retention_cron(request: Request):
         db = get_db()
         now = now_utc()
         deadline = time.monotonic() + ACCOUNT_TIME_BUDGET_SECONDS + RETENTION_TIME_BUDGET_SECONDS
-        accounts = purge_due_accounts(db, now, deadline=deadline - RETENTION_TIME_BUDGET_SECONDS)
-        items = purge_expired_items(db, now, time_budget=max(0, deadline - time.monotonic()))
+        account_error = None
+        try:
+            with mongo_timeout(ACCOUNT_TIME_BUDGET_SECONDS):
+                accounts = purge_due_accounts(db, now, deadline=deadline - RETENTION_TIME_BUDGET_SECONDS)
+        except PyMongoError as exc:
+            account_error = exc
+        remaining = max(0, deadline - time.monotonic())
+        with mongo_timeout(remaining if remaining > 0 else 0.001):
+            items = purge_expired_items(db, now, time_budget=remaining)
+        if account_error:
+            raise account_error
         return {"ok": True, "retention": items, "accounts": accounts}
     except PyMongoError as exc:
         database_error(exc)

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from bson import ObjectId
 from fastapi import HTTPException, Response
+from pymongo.errors import ExecutionTimeout
 
 from backend.api.routes import calendar, calendar_feeds, privacy
 from backend.api.routes import auth
@@ -682,6 +683,7 @@ class PrivacyRetentionTests(unittest.TestCase):
              patch.object(privacy, "get_db"), \
              patch.object(privacy, "now_utc", return_value=now), \
              patch.object(privacy.time, "monotonic", side_effect=[100, 108]), \
+             patch.object(privacy, "mongo_timeout", return_value=nullcontext()), \
              patch.object(privacy, "purge_due_accounts", return_value={}) as accounts, \
              patch.object(privacy, "purge_expired_items", return_value={}) as items:
             privacy.retention_cron(request)
@@ -697,6 +699,44 @@ class PrivacyRetentionTests(unittest.TestCase):
         self.assertEqual(result, {"deleted": 0, "blocked": 1})
         db.users.update_one.assert_not_called()
         db.users.delete_one.assert_not_called()
+
+    def test_account_database_timeout_still_runs_retention(self):
+        request = MagicMock()
+        request.headers = {"authorization": "Bearer " + "test-secret"}
+        with patch.dict("os.environ", {"CRON_SECRET": "test-secret"}), \
+             patch.object(privacy, "get_db"), \
+             patch.object(privacy, "mongo_timeout", return_value=nullcontext()), \
+             patch.object(privacy, "purge_due_accounts", side_effect=ExecutionTimeout("timeout")), \
+             patch.object(privacy, "purge_expired_items", return_value={}) as items, \
+             patch.object(privacy, "database_error", side_effect=HTTPException(503, "database")):
+            with self.assertRaises(HTTPException):
+                privacy.retention_cron(request)
+        items.assert_called_once()
+
+    def test_partial_account_batch_is_eligible_for_next_run(self):
+        db = MagicMock()
+        account = {"_id": ObjectId()}
+        db.users.find.return_value.sort.return_value.limit.return_value = [account]
+        now = datetime.now(timezone.utc)
+        with patch.object(privacy, "purge_account", return_value=None):
+            privacy.purge_due_accounts(db, now)
+        db.users.update_one.assert_called_once_with(
+            {"_id": account["_id"]}, {"$set": {"deletion_retry_after": now}})
+
+    def test_feed_creation_does_not_insert_if_user_lock_fails(self):
+        db = MagicMock()
+        db.calendar_feeds.count_documents.return_value = 0
+        data = calendar_feeds.FeedInput(name="Feed", url="https://example.com/feed")
+        with patch.object(calendar_feeds, "get_db", return_value=db), \
+             patch.object(calendar_feeds, "enforce_limit"), \
+             patch.object(calendar_feeds, "validate_url", return_value=(data.url,)), \
+             patch.object(calendar_feeds, "fetch_events", return_value=[]), \
+             patch.object(calendar_feeds, "cipher"), \
+             patch.object(calendar_feeds, "privacy_user_lock",
+                          side_effect=HTTPException(409, "busy")):
+            with self.assertRaises(HTTPException):
+                calendar_feeds.create_feed(data, MagicMock(), str(ObjectId()))
+        db.calendar_feeds.insert_one.assert_not_called()
 
     def test_hosted_room_found_under_notebook_lock_blocks_purge(self):
         db = MagicMock()
