@@ -6,7 +6,10 @@ from pydantic import BaseModel,Field
 from pymongo import ReturnDocument
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
-from backend.api.realtime import publish_to_users
+from backend.api.realtime import (
+    assert_event_lock, assert_privacy_user_lock, event_lock, privacy_users_lock,
+    publish_to_users,
+)
 
 router=APIRouter()
 
@@ -22,6 +25,11 @@ def require_friend(db,user,other):
     if not ObjectId.is_valid(other) or not db.friendships.find_one({"pair":pair,"status":"accepted"}):
         raise HTTPException(403,"Only confirmed friends can receive shared content")
 
+def require_active_user(db,user):
+    if not ObjectId.is_valid(user) or not db.users.find_one(
+            {"_id":ObjectId(user),"deletion_due_at":{"$exists":False}},{"_id":1}):
+        raise HTTPException(403,"Only active accounts can share content")
+
 def note_from_owner(db,owner,note_id):
     workspace=db.workspaces.find_one({"user_id":owner},{"notes":1})
     for note in (workspace or {}).get("notes",[]):
@@ -32,10 +40,16 @@ def note_from_owner(db,owner,note_id):
 @router.post("/notes")
 def share_note(data:ShareRequest,user:str=Depends(get_current_user),
                background_tasks:BackgroundTasks=None):
-    db=get_db();require_friend(db,user,data.recipient_id)
-    note_from_owner(db,user,data.resource_id)
-    db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"note","resource_id":data.resource_id},
-                        {"$setOnInsert":{"created_at":datetime.now(timezone.utc)}},upsert=True)
+    db=get_db()
+    with privacy_users_lock(db,user,data.recipient_id):
+        require_active_user(db,user)
+        require_active_user(db,data.recipient_id)
+        require_friend(db,user,data.recipient_id)
+        note_from_owner(db,user,data.resource_id)
+        assert_privacy_user_lock(db,user)
+        assert_privacy_user_lock(db,data.recipient_id)
+        db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"note","resource_id":data.resource_id},
+                            {"$setOnInsert":{"created_at":datetime.now(timezone.utc)}},upsert=True)
     publish_to_users([user,data.recipient_id],"notes",background_tasks)
     publish_to_users([data.recipient_id],"notifications",background_tasks)
     return {"shared":True}
@@ -71,13 +85,20 @@ def shared_notes(user:str=Depends(get_current_user)):
 @router.post("/events")
 def invite_event(data:ShareRequest,user:str=Depends(get_current_user),
                  background_tasks:BackgroundTasks=None):
-    db=get_db();require_friend(db,user,data.recipient_id)
+    db=get_db()
     if not ObjectId.is_valid(data.resource_id):
         raise HTTPException(400,"Invalid event")
-    item=db.events.find_one({"_id":ObjectId(data.resource_id),"user_id":user})
-    if not item:raise HTTPException(404,"Event not found")
-    db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"event","resource_id":data.resource_id},
-                        {"$setOnInsert":{"created_at":datetime.now(timezone.utc),"status":"pending"}},upsert=True)
+    with privacy_users_lock(db,user,data.recipient_id), event_lock(db,data.resource_id):
+        require_active_user(db,user)
+        require_active_user(db,data.recipient_id)
+        require_friend(db,user,data.recipient_id)
+        item=db.events.find_one({"_id":ObjectId(data.resource_id),"user_id":user})
+        if not item:raise HTTPException(404,"Event not found")
+        assert_privacy_user_lock(db,user)
+        assert_privacy_user_lock(db,data.recipient_id)
+        assert_event_lock(db,data.resource_id)
+        db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"event","resource_id":data.resource_id},
+                            {"$setOnInsert":{"created_at":datetime.now(timezone.utc),"status":"pending"}},upsert=True)
     publish_to_users([user,data.recipient_id],"calendar",background_tasks)
     publish_to_users([data.recipient_id],"notifications",background_tasks)
     return {"invited":True}
@@ -142,13 +163,19 @@ def invited_events(user:str=Depends(get_current_user)):
 @router.post("/challenges")
 def share_challenge(data:ShareRequest,user:str=Depends(get_current_user),
                     background_tasks:BackgroundTasks=None):
-    db=get_db();require_friend(db,user,data.recipient_id)
-    work=db.workspaces.find_one({"user_id":user},{"challenges":1}) or {}
-    item=next((x for x in work.get("challenges",[]) if x.get("id")==data.resource_id),None)
-    if not item:raise HTTPException(404,"Challenge not found")
-    db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"challenge","resource_id":data.resource_id},
-                        {"$set":{"snapshot":{k:item.get(k) for k in ("title","target","unit","period")}}},
-                        upsert=True)
+    db=get_db()
+    with privacy_users_lock(db,user,data.recipient_id):
+        require_active_user(db,user)
+        require_active_user(db,data.recipient_id)
+        require_friend(db,user,data.recipient_id)
+        work=db.workspaces.find_one({"user_id":user},{"challenges":1}) or {}
+        item=next((x for x in work.get("challenges",[]) if x.get("id")==data.resource_id),None)
+        if not item:raise HTTPException(404,"Challenge not found")
+        assert_privacy_user_lock(db,user)
+        assert_privacy_user_lock(db,data.recipient_id)
+        db.shares.update_one({"owner":user,"recipient":data.recipient_id,"kind":"challenge","resource_id":data.resource_id},
+                            {"$set":{"snapshot":{k:item.get(k) for k in ("title","target","unit","period")}}},
+                            upsert=True)
     publish_to_users([user,data.recipient_id],"challenges",background_tasks)
     return {"shared":True}
 

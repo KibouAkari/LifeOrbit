@@ -206,6 +206,11 @@ def delete_notebook(id:str,user:str=Depends(get_current_user),
         if book["owner"]!=user:raise HTTPException(403,"Only the owner can delete this notebook")
         # Remove provider ACL before removing Mongo metadata, preserving safety on failure.
         revoke_book_access(book,locked=True)
+        room_id=notebook_room(str(book["_id"]))
+        if db.realtime_notebooks.find_one({"_id":room_id}):
+            db.realtime_notebooks.update_one(
+                {"_id":room_id},
+                {"$set":{"owner":user,"deleted_at":datetime.now(timezone.utc)}})
         db.shared_notebooks.delete_one({"_id":book["_id"],"owner":user})
     db.notebook_crdts.delete_one({"_id":str(book["_id"])})
     publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)

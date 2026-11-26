@@ -8,10 +8,34 @@ from bson import ObjectId
 from fastapi import HTTPException, Response
 
 from backend.api.routes import calendar_feeds, privacy
-from backend.api.routes import shared_notebooks
+from backend.api.routes import auth
+from backend.api.routes import sharing, shared_notebooks
+
+
+class Cursor(list):
+    def sort(self, *_args, **_kwargs):
+        return self
+
+    def limit(self, count):
+        return Cursor(self[:count])
 
 
 class PrivacyRetentionTests(unittest.TestCase):
+    def setUp(self):
+        self.lock_assertion_patches = [
+            patch.object(privacy, "assert_privacy_user_lock"),
+            patch.object(privacy, "assert_event_lock"),
+            patch.object(sharing, "assert_privacy_user_lock"),
+            patch.object(sharing, "assert_event_lock"),
+            patch.object(calendar_feeds, "assert_event_lock"),
+        ]
+        for lock_patch in self.lock_assertion_patches:
+            lock_patch.start()
+
+    def tearDown(self):
+        for lock_patch in self.lock_assertion_patches:
+            lock_patch.stop()
+
     def test_legacy_accounts_do_not_automatically_purge(self):
         self.assertIsNone(privacy.retention_days({}))
         self.assertEqual(privacy.retention_days({"retention_days": 30}), 30)
@@ -23,10 +47,12 @@ class PrivacyRetentionTests(unittest.TestCase):
     def test_only_completed_timestamped_tasks_and_old_events_are_deleted(self):
         db = MagicMock()
         uid = str(ObjectId())
+        db.privacy_jobs.find_one.return_value = {}
+        db.users.find_one.return_value = {"retention_days": 5}
         db.users.find.return_value.sort.return_value.limit.return_value = [
             {"_id": ObjectId(uid), "retention_days": 5}]
         db.tasks.delete_many.return_value.deleted_count = 2
-        db.events.find.return_value.limit.return_value = []
+        db.events.find.return_value.sort.return_value.limit.return_value = []
         now = datetime(2026, 11, 25, 12, tzinfo=timezone.utc)
         result = privacy.purge_expired_items(db, now)
         self.assertEqual(result["tasks"], 2)
@@ -39,21 +65,103 @@ class PrivacyRetentionTests(unittest.TestCase):
 
     def test_legacy_account_is_not_processed(self):
         db = MagicMock()
+        db.privacy_jobs.find_one.return_value = {}
+        db.users.find_one.return_value = {}
         db.users.find.return_value.sort.return_value.limit.return_value = [{"_id": ObjectId()}]
         result = privacy.purge_expired_items(db, datetime.now(timezone.utc))
         self.assertEqual(result["tasks"], 0)
         db.tasks.delete_many.assert_not_called()
         db.events.delete_many.assert_not_called()
 
+    def test_retention_rechecks_preference_under_user_lock(self):
+        db = MagicMock()
+        user = {"_id": ObjectId(), "retention_days": 5}
+        db.privacy_jobs.find_one.return_value = {}
+        db.users.find.return_value.sort.return_value.limit.return_value = [user]
+        db.users.find_one.return_value = {"retention_days": None}
+        with patch.object(privacy, "privacy_user_lock", return_value=nullcontext()):
+            result = privacy.purge_expired_items(db, datetime.now(timezone.utc))
+        self.assertEqual(result["tasks"], 0)
+        db.tasks.delete_many.assert_not_called()
+        db.events.find.assert_not_called()
+
+    def test_retention_event_budget_resumes_from_checkpoint(self):
+        db = MagicMock()
+        user_id = ObjectId()
+        user = {"_id": user_id, "retention_days": 5}
+        event_rows = [{"_id": ObjectId(), "user_id": str(user_id), "date": "2000-01-01"}
+                      for _ in range(3)]
+        checkpoint = {}
+        db.privacy_jobs.find_one.return_value = checkpoint
+
+        def update_checkpoint(_query, update, **_kwargs):
+            checkpoint.update(update.get("$set", {}))
+            for key in update.get("$unset", {}):
+                checkpoint.pop(key, None)
+
+        def find_users(query, _projection):
+            cursor = query.get("_id", {}).get("$gt")
+            return Cursor([user] if cursor is None or user_id > cursor else [])
+
+        def find_events(query, _projection):
+            after = query.get("_id", {}).get("$gt")
+            return Cursor([row for row in event_rows if
+                           row["date"] < query["date"]["$lt"] and
+                           (after is None or row["_id"] > after)])
+
+        def find_one_event(query, _projection=None):
+            return next(iter(find_events(query, None)), None)
+
+        def delete_event(query, **_kwargs):
+            row = next((item for item in event_rows if item["_id"] == query["_id"] and
+                        item["date"] < query["date"]["$lt"]), None)
+            if row:
+                event_rows.remove(row)
+            return row
+
+        db.privacy_jobs.update_one.side_effect = update_checkpoint
+        def find_user(query, _projection=None):
+            user_filter = query.get("_id")
+            if user_filter == user_id:
+                return {"_id": user_id, "retention_days": 5}
+            if isinstance(user_filter, dict):
+                return None
+            return {"retention_days": 5}
+
+        db.users.find_one.side_effect = find_user
+        db.users.find.side_effect = find_users
+        db.events.find.side_effect = find_events
+        db.events.find_one.side_effect = find_one_event
+        db.events.find_one_and_delete.side_effect = delete_event
+        with patch.object(privacy, "privacy_user_lock", return_value=nullcontext()), \
+             patch.object(privacy, "event_lock", return_value=nullcontext()):
+            first = privacy.purge_expired_items(
+                db, datetime(2026, 11, 25, tzinfo=timezone.utc), max_users=1, max_events=2)
+            saved_user = checkpoint.get("partial_user")
+            saved_cursor = checkpoint.get("event_cursor")
+            second = privacy.purge_expired_items(
+                db, datetime(2026, 11, 25, tzinfo=timezone.utc), max_users=1, max_events=2)
+        self.assertEqual(first["events"], 2)
+        self.assertEqual(second["events"], 1)
+        self.assertEqual(saved_user, user_id)
+        self.assertIsNotNone(saved_cursor)
+        self.assertEqual(event_rows, [])
+        self.assertNotIn("partial_user", checkpoint)
+
     def test_rescheduled_event_and_its_invitations_are_preserved(self):
         db = MagicMock()
         user_id = ObjectId()
         event_id = ObjectId()
+        db.privacy_jobs.find_one.return_value = {}
+        db.users.find_one.return_value = {"retention_days": 5}
         db.users.find.return_value.sort.return_value.limit.return_value = [
             {"_id": user_id, "retention_days": 5}]
-        db.events.find.return_value.limit.return_value = [{"_id": event_id}]
+        db.events.find.side_effect = [Cursor([{"_id": event_id}]), Cursor([])]
         db.events.find_one_and_delete.return_value = None
-        result = privacy.purge_expired_items(db, datetime(2026, 11, 25, tzinfo=timezone.utc))
+        db.events.find_one.return_value = None
+        with patch.object(privacy, "privacy_user_lock", return_value=nullcontext()), \
+             patch.object(privacy, "event_lock", return_value=nullcontext()):
+            result = privacy.purge_expired_items(db, datetime(2026, 11, 25, tzinfo=timezone.utc))
         self.assertEqual(result["events"], 0)
         self.assertEqual(db.events.find_one_and_delete.call_args.args[0]["date"],
                          {"$lt": "2026-11-20"})
@@ -63,11 +171,16 @@ class PrivacyRetentionTests(unittest.TestCase):
         db = MagicMock()
         user_id = ObjectId()
         event_id = ObjectId()
+        db.privacy_jobs.find_one.return_value = {}
+        db.users.find_one.return_value = {"retention_days": 5}
         db.users.find.return_value.sort.return_value.limit.return_value = [
             {"_id": user_id, "retention_days": 5}]
-        db.events.find.return_value.limit.return_value = [{"_id": event_id}]
+        db.events.find.side_effect = [Cursor([{"_id": event_id}]), Cursor([])]
         db.events.find_one_and_delete.return_value = {"_id": event_id}
-        result = privacy.purge_expired_items(db, datetime(2026, 11, 25, tzinfo=timezone.utc))
+        db.events.find_one.return_value = None
+        with patch.object(privacy, "privacy_user_lock", return_value=nullcontext()), \
+             patch.object(privacy, "event_lock", return_value=nullcontext()):
+            result = privacy.purge_expired_items(db, datetime(2026, 11, 25, tzinfo=timezone.utc))
         self.assertEqual(result["events"], 1)
         db.shares.delete_many.assert_called_once_with(
             {"owner": str(user_id), "kind": "event", "resource_id": str(event_id)},
@@ -79,17 +192,46 @@ class PrivacyRetentionTests(unittest.TestCase):
         event_id = ObjectId()
         db.users.find_one.return_value = {"retention_days": 5}
         db.events.find_one_and_delete.side_effect = [{"_id": event_id}, None]
+        db.events.find.side_effect = [
+            Cursor([{"_id": event_id}]), Cursor([])]
         feed = {"_id": ObjectId(), "name": "Calendar"}
-        calendar_feeds.apply_events(db, user_id, feed, [
-            {"date": "2000-01-01", "source_key": "old"},
-            {"date": "2099-01-01", "source_key": "future"}])
+        with patch.object(calendar_feeds, "event_lock", return_value=nullcontext()):
+            calendar_feeds.apply_events(db, user_id, feed, [
+                {"date": "2000-01-01", "source_key": "old"},
+                {"date": "2099-01-01", "source_key": "future"}])
         self.assertEqual(db.events.find_one_and_delete.call_args.args[0]["source_key"],
                          {"$nin": ["future"]})
         self.assertEqual(db.shares.delete_many.call_args.args[0],
-                         {"owner": user_id, "kind": "event", "resource_id": str(event_id)})
+                         {"owner": user_id, "kind": "event",
+                          "resource_id": {"$in": [str(event_id)]}})
         self.assertIs(db.events.find_one_and_delete.call_args.kwargs["session"],
                       db.shares.delete_many.call_args.kwargs["session"])
+        self.assertEqual(db.client.start_session.call_count, 1)
         self.assertEqual(feed["count"], 1)
+
+    def test_feed_cleanup_batches_event_and_share_deletion(self):
+        db = MagicMock()
+        user_id = str(ObjectId())
+        event_rows = [{"_id": ObjectId(), "source_key": "stale"} for _ in range(205)]
+        db.users.find_one.return_value = {"retention_days": None}
+
+        def find_stale(*_args, **_kwargs):
+            return Cursor(event_rows)
+
+        def delete_stale(query, **_kwargs):
+            event = next((row for row in event_rows if row["_id"] == query["_id"]), None)
+            if event:
+                event_rows.remove(event)
+            return event
+
+        db.events.find.side_effect = find_stale
+        db.events.find_one_and_delete.side_effect = delete_stale
+        with patch.object(calendar_feeds, "event_lock", return_value=nullcontext()):
+            calendar_feeds.apply_events(
+                db, user_id, {"_id": ObjectId(), "name": "Feed"}, [])
+        self.assertEqual(event_rows, [])
+        self.assertEqual(db.client.start_session.call_count, 3)
+        self.assertEqual(db.shares.delete_many.call_count, 3)
 
     def test_scheduler_is_required_before_accepting_deletion(self):
         with patch.dict("os.environ", {"CRON_SECRET": ""}):
@@ -143,6 +285,28 @@ class PrivacyRetentionTests(unittest.TestCase):
             self.assertFalse(privacy.purge_account(db, user))
         db.users.delete_one.assert_not_called()
         db.shared_notebooks.delete_many.assert_not_called()
+
+    def test_account_purge_blocks_on_orphaned_hosted_room_tombstone(self):
+        db = MagicMock()
+        user = {"_id": ObjectId()}
+        db.shared_notebooks.find.return_value.limit.return_value = []
+        db.shared_notebooks.find_one.return_value = None
+        db.friendships.find.return_value.limit.return_value = []
+        db.friendships.find_one.return_value = None
+        db.realtime_notebooks.find_one.return_value = {"owner": str(user["_id"])}
+        with patch.object(privacy, "privacy_user_lock", return_value=nullcontext()):
+            self.assertFalse(privacy.purge_account(db, user))
+        db.users.delete_one.assert_not_called()
+
+    def test_pending_account_sessions_return_401(self):
+        user_id = str(ObjectId())
+        db = MagicMock()
+        db.users.find_one.return_value = {"_id": ObjectId(user_id),
+                                          "deletion_due_at": datetime.now(timezone.utc)}
+        with patch.object(auth, "get_db", return_value=db):
+            with self.assertRaises(HTTPException) as caught:
+                auth.find_user(user_id)
+        self.assertEqual(caught.exception.status_code, 401)
 
     def test_cleanup_removes_known_data_before_user_record(self):
         db = MagicMock()
@@ -237,6 +401,86 @@ class PrivacyRetentionTests(unittest.TestCase):
         self.assertEqual(db.users.find_one.call_args.args[0], {
             "_id": ObjectId(target_id), "deletion_due_at": {"$exists": False}})
         db.shared_notebooks.update_one.assert_not_called()
+
+    def test_share_creation_is_serialized_with_account_cleanup(self):
+        db = MagicMock()
+        owner, recipient = str(ObjectId()), str(ObjectId())
+        locked = False
+
+        @contextmanager
+        def user_locks(*_users):
+            nonlocal locked
+            locked = True
+            try:
+                yield
+            finally:
+                locked = False
+
+        db.users.find_one.return_value = {"_id": ObjectId()}
+        db.friendships.find_one.return_value = {"status": "accepted"}
+        db.workspaces.find_one.return_value = {"notes": [{"id": "note"}]}
+        db.shares.update_one.side_effect = lambda *_args, **_kwargs: self.assertTrue(locked)
+        with patch.object(sharing, "get_db", return_value=db), \
+             patch.object(sharing, "privacy_users_lock", side_effect=user_locks), \
+             patch.object(sharing, "publish_to_users"):
+            result = sharing.share_note(
+                sharing.ShareRequest(recipient_id=recipient, resource_id="note"), user=owner)
+        self.assertTrue(result["shared"])
+        db.shares.update_one.assert_called_once()
+
+    def test_event_invitation_and_cleanup_share_the_event_lock(self):
+        db = MagicMock()
+        owner, recipient, event_id = str(ObjectId()), str(ObjectId()), str(ObjectId())
+        event_locked = False
+        users_locked = False
+
+        @contextmanager
+        def event_lock(*_):
+            nonlocal event_locked
+            event_locked = True
+            try:
+                yield
+            finally:
+                event_locked = False
+
+        @contextmanager
+        def user_locks(*_):
+            nonlocal users_locked
+            users_locked = True
+            try:
+                yield
+            finally:
+                users_locked = False
+
+        db.users.find_one.return_value = {"_id": ObjectId()}
+        db.friendships.find_one.return_value = {"status": "accepted"}
+        db.events.find_one.return_value = {"_id": ObjectId(event_id), "user_id": owner}
+        db.shares.update_one.side_effect = (
+            lambda *_args, **_kwargs: self.assertTrue(event_locked and users_locked))
+        with patch.object(sharing, "get_db", return_value=db), \
+             patch.object(sharing, "privacy_users_lock", side_effect=user_locks), \
+             patch.object(sharing, "event_lock", side_effect=event_lock), \
+             patch.object(sharing, "publish_to_users"):
+            result = sharing.invite_event(
+                sharing.ShareRequest(recipient_id=recipient, resource_id=event_id), user=owner)
+        self.assertTrue(result["invited"])
+        db.shares.update_one.assert_called_once()
+
+    def test_notebook_deletion_records_owner_for_hosted_room_tombstone(self):
+        db = MagicMock()
+        user_id, book_id = str(ObjectId()), str(ObjectId())
+        book = {"_id": ObjectId(book_id), "owner": user_id, "members": []}
+        db.realtime_notebooks.find_one.return_value = {"_id": f"lo:notebook:{book_id}"}
+        with patch.object(shared_notebooks, "get_db", return_value=db), \
+             patch.object(shared_notebooks, "locate", return_value=book), \
+             patch.object(shared_notebooks, "notebook_lock", return_value=nullcontext()), \
+             patch.object(shared_notebooks, "revoke_book_access"), \
+             patch.object(shared_notebooks, "publish_to_users"):
+            result = shared_notebooks.delete_notebook(book_id, user=user_id)
+        self.assertTrue(result["removed"])
+        self.assertEqual(db.realtime_notebooks.update_one.call_args.args[1]["$set"]["owner"],
+                         user_id)
+        db.shared_notebooks.delete_one.assert_called_once()
 
     def test_cleanup_defers_account_until_every_owned_notebook_is_processed(self):
         db = MagicMock()

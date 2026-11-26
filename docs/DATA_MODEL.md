@@ -14,7 +14,7 @@ Updated 23 November 2026. PR #73 collections exist in proposed source but may no
 | `shares` | owner, recipient, kind, `resource_id`, optional RSVP | Requires valid owner resource and current accepted friendship |
 | `shared_notebooks` | `_id`, owner, members, pages, timestamps | Owner and explicitly invited accepted friends |
 | `notebook_crdts` (PR #73) | notebook ID, binary Yjs state, version, deleted-page markers, timestamp | Native collaborative source, server-only storage |
-| `realtime_notebooks` (optional) | room/migration status | Tracks provider-authoritative rooms; never mix with native state |
+| `realtime_notebooks` (optional) | room/migration status, owner, deletion tombstone | Tracks provider-authoritative rooms, including deleted notebook metadata, until provider content is verified removed; never mix with native state |
 | `calendar_feeds` | owner, encrypted URL, last refresh, count | Owner only; URL is secret |
 | `notification_state` | `user_id`, read identifiers | Owner only |
 | `privacy_jobs` | scheduled cleanup cursor only, no user contents | Server only |\n| `rate_limits` | HMAC bucket ID, hits, expiry | Private server-side abuse state |

@@ -4,9 +4,10 @@ All operations run on the server. Scheduled purge is bounded and idempotent,
 and never removes a user record before owned resources have been cleaned.
 """
 from datetime import datetime, timedelta, timezone
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 import hmac
 import os
+import time
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -17,12 +18,15 @@ from backend.api.database import get_db, database_error
 from backend.api.routes.auth import get_current_user, find_user, passwords
 from backend.api.security import enforce_limit
 from backend.api.realtime import (
-    assert_realtime_access_lock, notebook_lock, notebook_room, realtime_access_lock,
+    assert_event_lock, assert_privacy_user_lock, assert_realtime_access_lock,
+    event_lock, notebook_lock, notebook_room, privacy_user_lock, realtime_access_lock,
 )
 
 router = APIRouter()
 RETENTION_CHOICES = (5, 15, 30)
 ACCOUNT_GRACE_DAYS = 30
+RETENTION_EVENT_BUDGET = 100
+RETENTION_TIME_BUDGET_SECONDS = 8
 
 
 def require_cleanup_scheduler() -> None:
@@ -50,6 +54,22 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+@contextmanager
+def _try_privacy_user_lock(db, user_id: str):
+    lock = privacy_user_lock(db, user_id)
+    try:
+        lock.__enter__()
+    except HTTPException as exc:
+        if exc.status_code != 409:
+            raise
+        yield False
+        return
+    try:
+        yield True
+    finally:
+        lock.__exit__(None, None, None)
+
+
 @router.get("/retention")
 def get_retention(user_id: str = Depends(get_current_user)):
     user = find_user(user_id)
@@ -62,8 +82,18 @@ def update_retention(data: RetentionChoice, user_id: str = Depends(get_current_u
     require_cleanup_scheduler()
     if data.days is not None and data.days not in RETENTION_CHOICES:
         raise HTTPException(422, "Choose 5, 15 or 30 days")
-    get_db().users.update_one({"_id": ObjectId(user_id), "deletion_due_at": {"$exists": False}},
-                              {"$set": {"retention_days": data.days}})
+    db = get_db()
+    with privacy_user_lock(db, user_id):
+        assert_privacy_user_lock(db, user_id)
+        db.privacy_jobs.update_one(
+            {"_id": "retention", "partial_user": ObjectId(user_id)},
+            {"$unset": {"event_cursor": ""}})
+        assert_privacy_user_lock(db, user_id)
+        updated = db.users.update_one(
+            {"_id": ObjectId(user_id), "deletion_due_at": {"$exists": False}},
+            {"$set": {"retention_days": data.days}})
+        if not updated.matched_count:
+            raise HTTPException(409, "Account is pending deletion")
     return {"days": data.days, "choices": list(RETENTION_CHOICES)}
 
 
@@ -96,62 +126,138 @@ def request_account_deletion(payload: AccountDeletionRequest, response: Response
     return {"scheduled": True, "days": 30, "due_at": due.isoformat()}
 
 
-def purge_expired_items(db, now: datetime, max_users: int = 200) -> dict:
-    """Bounded daily sweep; never auto-delete incomplete or undated tasks."""
+def purge_expired_items(db, now: datetime, max_users: int = 200,
+                        max_events: int = RETENTION_EVENT_BUDGET,
+                        time_budget: float = RETENTION_TIME_BUDGET_SECONDS) -> dict:
+    """Bounded, resumable sweep; never auto-delete incomplete or undated tasks."""
+    deadline = time.monotonic() + time_budget
     today = now.date()
     counts = {"tasks": 0, "events": 0, "users_checked": 0}
     checkpoint = db.privacy_jobs.find_one({"_id": "retention"}) or {}
     scope = {"deletion_due_at": {"$exists": False}}
-    if checkpoint.get("cursor"):
-        scope["_id"] = {"$gt": checkpoint["cursor"]}
-    batch = list(db.users.find(scope, {"_id": 1, "retention_days": 1})
-                 .sort("_id", 1).limit(max_users))
-    if not batch:
+    cursor = checkpoint.get("cursor")
+    partial_id = checkpoint.get("partial_user")
+    batch = []
+    if partial_id:
+        partial = db.users.find_one({"_id": partial_id, **scope},
+                                    {"_id": 1, "retention_days": 1})
+        if partial:
+            batch.append(partial)
+    start_id = partial_id or cursor
+    if start_id:
+        scope["_id"] = {"$gt": start_id}
+    remaining_slots = max(0, max_users - len(batch))
+    if remaining_slots:
+        batch.extend(db.users.find(scope, {"_id": 1, "retention_days": 1})
+                     .sort("_id", 1).limit(remaining_slots))
+    if not batch and partial_id:
+        db.privacy_jobs.update_one(
+            {"_id": "retention"},
+            {"$unset": {"cursor": "", "partial_user": "", "event_cursor": ""}},
+            upsert=True)
+    elif not batch:
         db.privacy_jobs.update_one({"_id": "retention"},
                                    {"$unset": {"cursor": ""}}, upsert=True)
+    processed_users = 0
+    events_scanned = 0
     for user in batch:
+        if time.monotonic() >= deadline:
+            break
         uid = str(user["_id"])
-        days = retention_days(user)
-        if days is None:
-            continue
-        cutoff = now - timedelta(days=days)
-        # Backward-compatible only for tasks completed after the timestamp
-        # tracking change; old done tasks are preserved rather than guessed.
-        result = db.tasks.delete_many(
-            {"user_id": uid, "done": True, "completed_at": {"$lte": cutoff}})
-        counts["tasks"] += result.deleted_count
-        # ISO calendar date strings are sortable. Delete only dates strictly
-        # before the complete retention window in UTC, conservatively.
-        date_limit = (today - timedelta(days=days)).isoformat()
-        expired = list(db.events.find(
-            {"user_id": uid, "date": {"$lt": date_limit}},
-            {"_id": 1}).limit(1000))
-        if expired:
-            for event in expired:
-                with db.client.start_session() as session:
-                    with session.start_transaction():
-                        deleted = db.events.find_one_and_delete(
-                            {"_id": event["_id"], "user_id": uid, "date": {"$lt": date_limit}},
-                            session=session)
-                        if deleted:
-                            db.shares.delete_many({"owner": uid, "kind": "event",
-                                                   "resource_id": str(event["_id"])}, session=session)
-                if deleted:
-                    counts["events"] += 1
+        with _try_privacy_user_lock(db, uid) as locked:
+            if not locked:
+                break
+            current = db.users.find_one(
+                {"_id": user["_id"], "deletion_due_at": {"$exists": False}},
+                {"retention_days": 1})
+            days = retention_days(current or {})
+            current_checkpoint = db.privacy_jobs.find_one({"_id": "retention"}) or {}
+            event_cursor = (current_checkpoint.get("event_cursor")
+                            if current_checkpoint.get("partial_user") == user["_id"] else None)
+            if days is not None:
+                cutoff = now - timedelta(days=days)
+                date_limit = (today - timedelta(days=days)).isoformat()
+                assert_privacy_user_lock(db, uid)
+                result = db.tasks.delete_many(
+                    {"user_id": uid, "done": True, "completed_at": {"$lte": cutoff}})
+                counts["tasks"] += result.deleted_count
+                progress = {"$set": {"partial_user": user["_id"]}}
+                if event_cursor:
+                    progress["$set"]["event_cursor"] = event_cursor
+                else:
+                    progress["$unset"] = {"event_cursor": ""}
+                db.privacy_jobs.update_one(
+                    {"_id": "retention"}, progress, upsert=True)
+                while events_scanned < max_events and time.monotonic() < deadline:
+                    query = {"user_id": uid, "date": {"$lt": date_limit}}
+                    if event_cursor:
+                        query["_id"] = {"$gt": event_cursor}
+                    event = next(iter(db.events.find(query, {"_id": 1})
+                                      .sort("_id", 1).limit(1)), None)
+                    if not event:
+                        break
+                    event_id = str(event["_id"])
+                    try:
+                        with event_lock(db, event_id):
+                            assert_privacy_user_lock(db, uid)
+                            assert_event_lock(db, event_id)
+                            with db.client.start_session() as session:
+                                with session.start_transaction():
+                                    deleted = db.events.find_one_and_delete(
+                                        {"_id": event["_id"], "user_id": uid,
+                                         "date": {"$lt": date_limit}}, session=session)
+                                    if deleted:
+                                        db.shares.delete_many(
+                                            {"owner": uid, "kind": "event",
+                                             "resource_id": event_id}, session=session)
+                    except HTTPException as exc:
+                        if exc.status_code != 409:
+                            raise
+                        break
+                    if deleted:
+                        counts["events"] += 1
+                    events_scanned += 1
+                    event_cursor = event["_id"]
+                    db.privacy_jobs.update_one(
+                        {"_id": "retention"},
+                        {"$set": {"partial_user": user["_id"], "event_cursor": event_cursor}},
+                        upsert=True)
+                more_events = db.events.find_one(
+                    {"user_id": uid, "date": {"$lt": date_limit},
+                     **({"_id": {"$gt": event_cursor}} if event_cursor else {})},
+                    {"_id": 1})
+                if more_events:
+                    counts["users_checked"] += 1
+                    break
+            db.privacy_jobs.update_one(
+                {"_id": "retention"},
+                {"$set": {"cursor": user["_id"]},
+                 "$unset": {"partial_user": "", "event_cursor": ""}}, upsert=True)
+            checkpoint["cursor"] = user["_id"]
+            checkpoint.pop("partial_user", None)
+            checkpoint.pop("event_cursor", None)
         counts["users_checked"] += 1
-    if batch:
+        processed_users += 1
+    if processed_users and time.monotonic() < deadline:
+        last_id = batch[processed_users - 1]["_id"]
         remaining = db.users.find_one(
-            {"deletion_due_at": {"$exists": False},
-             "_id": {"$gt": batch[-1]["_id"]}}, {"_id": 1})
-        progress = ({"$set": {"cursor": batch[-1]["_id"]}} if remaining
-                    else {"$unset": {"cursor": ""}})
-        db.privacy_jobs.update_one({"_id": "retention"}, progress, upsert=True)
+            {"deletion_due_at": {"$exists": False}, "_id": {"$gt": last_id}}, {"_id": 1})
+        if not remaining:
+            db.privacy_jobs.update_one({"_id": "retention"},
+                                       {"$unset": {"cursor": "", "partial_user": "",
+                                                   "event_cursor": ""}}, upsert=True)
     return counts
 
 
 def purge_account(db, user: dict) -> bool:
     """Clean all known owned data first; deletion can be retried safely."""
     uid = str(user["_id"])
+    with privacy_user_lock(db, uid):
+        return _purge_account_locked(db, user, uid)
+
+
+def _purge_account_locked(db, user: dict, uid: str) -> bool:
+    assert_privacy_user_lock(db, uid)
     # Provider-authoritative external rooms need an explicit provider cleanup.
     # Refuse to promise complete deletion when such rooms still exist.
     owned = list(db.shared_notebooks.find({"owner": uid}, {"_id": 1}).limit(1000))
@@ -207,12 +313,16 @@ def purge_account(db, user: dict) -> bool:
     if db.friendships.find_one(
             {"$or": [{"sender": uid}, {"recipient": uid}]}, {"_id": 1}):
         return False
+    if db.realtime_notebooks.find_one({"owner": uid}, {"_id": 1}):
+        return False
+    assert_privacy_user_lock(db, uid)
     db.shares.delete_many({"$or": [{"owner": uid}, {"recipient": uid}]})
     for collection in ("tasks", "events", "workspaces", "calendar_feeds",
                        "notification_state", "password_reset_tokens"):
         db[collection].delete_many({"user_id": uid})
     # Some token records use user_id in ObjectId form; remove both types.
     db.password_reset_tokens.delete_many({"user_id": user["_id"]})
+    assert_privacy_user_lock(db, uid)
     result = db.users.delete_one({"_id": user["_id"], "deletion_due_at": {"$lte": now_utc()}})
     return result.deleted_count == 1
 
@@ -251,8 +361,8 @@ def retention_cron(request: Request):
     try:
         db = get_db()
         now = now_utc()
-        items = purge_expired_items(db, now)
         accounts = purge_due_accounts(db, now)
+        items = purge_expired_items(db, now)
         return {"ok": True, "retention": items, "accounts": accounts}
     except PyMongoError as exc:
         database_error(exc)

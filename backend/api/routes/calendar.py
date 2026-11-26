@@ -11,7 +11,7 @@ from pymongo.errors import DuplicateKeyError
 from backend.api.database import get_db
 from backend.api.models import CalendarEventRequest
 from backend.api.routes.auth import get_current_user
-from backend.api.realtime import publish_to_users
+from backend.api.realtime import assert_event_lock, event_lock, publish_to_users
 
 def _notify_event(db, user, event_id, background_tasks=None):
     guests=[x["recipient"] for x in db.shares.find(
@@ -57,10 +57,13 @@ def update_event(event_id: str, data: CalendarEventRequest, user: str = Depends(
     update_data = {"title": data.title, "date": data.date.isoformat(),
                    "start_time": data.start_time.isoformat(timespec="minutes") if data.start_time else None,
                    "end_time": data.end_time.isoformat(timespec="minutes") if data.end_time else None}
-    result = get_db().events.update_one(
-        {"_id": ObjectId(event_id), "user_id": user},
-        {"$set": update_data}
-    )
+    db = get_db()
+    with event_lock(db, event_id):
+        assert_event_lock(db, event_id)
+        result = db.events.update_one(
+            {"_id": ObjectId(event_id), "user_id": user},
+            {"$set": update_data}
+        )
     
     if result.matched_count == 0:
         raise HTTPException(404, "Event not found")
@@ -74,9 +77,19 @@ def delete_event(event_id: str, user: str = Depends(get_current_user),
     if not ObjectId.is_valid(event_id):
         raise HTTPException(400, "Invalid event ID")
         
-    count = get_db().events.delete_one({"_id": ObjectId(event_id), "user_id": user}).deleted_count
-    if count == 0:
-        raise HTTPException(404, "Event not found")
+    db = get_db()
+    with event_lock(db, event_id):
+        assert_event_lock(db, event_id)
+        with db.client.start_session() as session:
+            with session.start_transaction():
+                deleted = db.events.find_one_and_delete(
+                    {"_id": ObjectId(event_id), "user_id": user}, session=session)
+                if deleted:
+                    db.shares.delete_many(
+                        {"owner": user, "kind": "event", "resource_id": event_id},
+                        session=session)
+        if not deleted:
+            raise HTTPException(404, "Event not found")
         
     _notify_event(get_db(),user,event_id,background_tasks)
     return {"deleted": True}

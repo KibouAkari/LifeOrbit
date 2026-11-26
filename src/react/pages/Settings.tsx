@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Download, LogOut, Mail, Palette, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { currentUser, hasSession, request, type SignedInUser } from "../data/api";
+import { clearSession, currentUser, hasSession, request, type SignedInUser } from "../data/api";
 import { FriendsPanel } from "../components/FriendsPanel";
 import { Heading } from "../components/UI";
 import type { Theme } from "../types";
@@ -63,7 +63,8 @@ export default function Settings(){
    try{
      await request("/privacy/account/delete",{method:"POST",body:JSON.stringify({confirmation:deleteConfirmation,current_password:user?.has_password?deletePassword:undefined})});
      setDeleting(false);setDeletePassword("");setDeleteConfirmation("");
-     window.dispatchEvent(new Event("lifeorbit:logout"));
+     clearSession();
+     window.dispatchEvent(new Event("lifeorbit:auth-expired"));
    }catch(err){setMessage(err instanceof Error?err.message:"Could not schedule deletion");}
    finally{setBusy(false);}
  }

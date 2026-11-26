@@ -91,7 +91,7 @@ def find_user(user_id: str):
     if not user:
         raise HTTPException(status_code=401, detail="Account not found")
     if user.get("deletion_due_at"):
-        raise HTTPException(status_code=403, detail="Account is pending deletion")
+        raise HTTPException(status_code=401, detail="Session has been revoked")
     return user
 
 
