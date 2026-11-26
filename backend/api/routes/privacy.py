@@ -116,11 +116,16 @@ def request_account_deletion(payload: AccountDeletionRequest, response: Response
     now = now_utc()
     due = now + timedelta(days=ACCOUNT_GRACE_DAYS)
     updated = get_db().users.update_one(
-        {"_id": user["_id"], "deletion_due_at": {"$exists": False}},
+        {"_id": user["_id"], "deletion_due_at": {"$exists": False},
+         "password_hash": user.get("password_hash"),
+         "$expr": {"$eq": [
+             {"$ifNull": ["$session_version", 0]},
+             user.get("session_version", 0),
+         ]}},
         {"$set": {"deletion_requested_at": now, "deletion_due_at": due},
          "$inc": {"session_version": 1}})
     if not updated.modified_count:
-        raise HTTPException(409, "Account deletion was already requested")
+        raise HTTPException(409, "Account changed; sign in again before requesting deletion")
     response.delete_cookie("lifeorbital_auth", path="/api", secure=True,
                            httponly=True, samesite=os.getenv("AUTH_COOKIE_SAMESITE", "strict").lower())
     return {"scheduled": True, "days": 30, "due_at": due.isoformat()}
