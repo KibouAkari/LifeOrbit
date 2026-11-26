@@ -105,6 +105,28 @@ Dependency auditing and documentation checks also run in GitHub Actions. Use [Co
 
 Start with the [documentation index](docs/README.md) to find the guides for architecture, API, data model, feature behavior, UI, deployment, operations, security, collaboration and account recovery. Use the [changelog](CHANGELOG.md) for development history and the [release checklist](docs/RELEASING.md) for production gates.
 
+## Privacy and automatic cleanup
+
+In **Settings → Data retention**, signed-in users can opt for automatic removal of completed tasks and old calendar events after **30, 15 or 5 days**, or keep the feature off. New accounts start with 30 days; existing accounts must explicitly opt in to avoid unexpectedly losing old events. The daily scheduled task uses a protected server-side token; it never runs from the browser. Completed tasks are eligible only once a real completion timestamp was recorded. Imported past events are filtered to prevent recreation after cleanup.
+
+**Delete account** schedules account erasure after 30 days and disables logins immediately. Database cleanup is designed to remove related MongoDB records before deleting the user document. External Liveblocks rooms, backups and third-party logs require independent retention and deletion checks, so this is not yet a guarantee of erasure from every copy. See [Privacy retention](docs/PRIVACY_RETENTION.md).
+
+## Screenshots
+
+These screenshots were captured from the **public LifeOrbit website** on 25 November 2026, without signing in or including private account data. They show the current layout before any proposed login redesign. Update the captures after visual changes. Dashboard and notes images require a consent-safe demo account; do not publish screenshots of real user content.
+
+**Sign-in options**
+
+![LifeOrbit public login screen showing Google and email sign-in](docs/screenshots/login.png)
+
+**Email sign-in**
+
+![LifeOrbit email sign-in form](docs/screenshots/login-email.png)
+
+## Design and product direction
+
+For proposed lightweight login/email layouts and broader feature priorities, see [Design directions and product improvements](docs/DESIGN_DIRECTIONS.md). No visual redesign has been deployed from these proposals.
+
 ## Security and privacy
 
 Every API operation must validate authenticated ownership and, where applicable, an **accepted current friendship**. Client-side UI visibility is never authorization. Community leaderboard participation is explicitly optional, whereas accepted friends may compare scores privately in the implementation under review.

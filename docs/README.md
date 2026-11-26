@@ -29,3 +29,7 @@ This is the current engineering and operations reference for LifeOrbit. Start at
 5. Verify internal links and API paths as part of review.
 
 The root [README](../README.md) provides a concise quick start; individual files here give operational detail.
+
+- [Privacy retention and account deletion](PRIVACY_RETENTION.md): per-user cleanup schedules, 30-day deletion requests, external-data limitations and deployment checks.
+
+- [Design directions and product improvements](DESIGN_DIRECTIONS.md): login, transactional email, product-wide priorities and accessibility.

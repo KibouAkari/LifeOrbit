@@ -4,7 +4,7 @@ All room permissions are derived from MongoDB membership. The external secret
 never leaves the backend. Realtime remains disabled unless explicitly enabled.
 """
 from datetime import datetime, timedelta, timezone
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from urllib.parse import quote
 import logging
 import os
@@ -74,10 +74,12 @@ def notebook_room(notebook: str):
 
 
 @contextmanager
-def _distributed_lock(db, lock_id: str):
+def _distributed_lock(db, lock_id: str, deadline: float | None = None):
     token = uuid.uuid4().hex
-    deadline = time.monotonic() + 10
+    deadline = min(deadline, time.monotonic() + 10) if deadline is not None else time.monotonic() + 10
     while True:
+        if time.monotonic() >= deadline:
+            raise HTTPException(409, "Notebook is busy; try again")
         now = datetime.now(timezone.utc)
         try:
             acquired = db.realtime_locks.find_one_and_update(
@@ -93,7 +95,7 @@ def _distributed_lock(db, lock_id: str):
             break
         if time.monotonic() >= deadline:
             raise HTTPException(409, "Notebook is busy; try again")
-        time.sleep(0.05)
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
 
     stop = threading.Event()
     lost = threading.Event()
@@ -131,20 +133,54 @@ def _distributed_lock(db, lock_id: str):
 
 
 @contextmanager
-def notebook_lock(db, notebook: str):
+def notebook_lock(db, notebook: str, *, deadline: float | None = None):
     """Serialize notebook writes and provider ACL changes across API instances."""
     if not ObjectId.is_valid(notebook):
         raise HTTPException(400, "Invalid notebook")
-    with _distributed_lock(db, notebook_room(notebook)):
+    with _distributed_lock(db, notebook_room(notebook), deadline):
         yield
 
 
 @contextmanager
-def realtime_access_lock(db, first_user: str, second_user: str):
+def realtime_access_lock(db, first_user: str, second_user: str, *, deadline: float | None = None):
     """Serialize changes to a friendship pair with notebook invitations."""
     lock_id = "lo:friendship:" + "-".join(sorted((first_user, second_user)))
-    with _distributed_lock(db, lock_id):
+    with _distributed_lock(db, lock_id, deadline):
         yield
+
+
+@contextmanager
+def privacy_user_lock(db, user: str, *, deadline: float | None = None):
+    """Serialize retention and account cleanup with writes involving this user."""
+    with _distributed_lock(db, "lo:privacy-user:" + str(user), deadline):
+        yield
+
+
+@contextmanager
+def privacy_users_lock(db, *users: str):
+    with ExitStack() as locks:
+        for user in sorted(set(users)):
+            locks.enter_context(privacy_user_lock(db, user))
+        yield
+
+
+@contextmanager
+def event_lock(db, event_id: str, *, deadline: float | None = None):
+    """Serialize event invitations with deletion of their source event."""
+    if not ObjectId.is_valid(event_id):
+        raise HTTPException(400, "Invalid event")
+    with _distributed_lock(db, "lo:event:" + str(ObjectId(event_id)), deadline):
+        yield
+
+
+def assert_privacy_user_lock(db, user: str):
+    _assert_lock(db, "lo:privacy-user:" + str(user))
+
+
+def assert_event_lock(db, event_id: str):
+    if not ObjectId.is_valid(event_id):
+        raise HTTPException(400, "Invalid event")
+    _assert_lock(db, "lo:event:" + str(ObjectId(event_id)))
 
 
 def assert_realtime_access_lock(db, first_user: str, second_user: str):
@@ -386,7 +422,7 @@ def _prepare_notebook_locked(db, book_id, user, book, room_id):
         try:
             db.realtime_notebooks.insert_one({
                 "_id": room_id, "status": "initializing",
-                "lease_until": lease, "nonce": nonce})
+                "owner": book["owner"], "lease_until": lease, "nonce": nonce})
         except DuplicateKeyError:
             raise HTTPException(409, "Another editor is preparing this notebook")
     else:
@@ -397,7 +433,7 @@ def _prepare_notebook_locked(db, book_id, user, book, room_id):
             raise HTTPException(409, "Another editor is preparing this notebook")
         result = db.realtime_notebooks.find_one_and_update(
             {"_id": room_id, "status": "initializing", "nonce": state.get("nonce")},
-            {"$set": {"lease_until": lease, "nonce": nonce}},
+            {"$set": {"owner": book["owner"], "lease_until": lease, "nonce": nonce}},
             return_document=ReturnDocument.AFTER)
         if not result:
             raise HTTPException(409, "Notebook migration has changed")
@@ -444,7 +480,8 @@ def _prepare_notebook_locked(db, book_id, user, book, room_id):
         _assert_lock(db, room_id)
         db.realtime_notebooks.update_one(
             {"_id": room_id, "nonce": nonce, "status": "initializing"},
-            {"$set": {"status": "ready", "updated_at": datetime.now(timezone.utc)},
+            {"$set": {"owner": book["owner"], "status": "ready",
+                      "updated_at": datetime.now(timezone.utc)},
              "$unset": {"lease_until": "", "nonce": ""}})
         sync_book_access(db, book, locked=True)
         return {"room": room_id, "ready": True}

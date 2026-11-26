@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased · Privacy controls and account lifecycle (25 November 2026)
+
+- Added per-account retention settings in Settings: Off, 30, 15 or 5 days. New registrations default to 30 days and existing accounts remain off until explicitly opted in.
+- Added completion timestamps to tasks, removed on reopen; a guarded Vercel Cron cleans completed timestamped tasks and expired calendar entries, including outgoing event invitations. iCalendar uploads and feed refreshes now skip expired data to prevent recreation.
+- Added account deletion scheduling after 30 days with explicit DELETE confirmation and current password verification for password accounts. Outstanding sessions are revoked; sign-ins are blocked while queued for deletion. Cleanup removes known MongoDB resources before the account document and refuses completion when an external hosted collaboration room is still present.
+- Introduced server-only CRON_SECRET authorization, bounded sweep and retry behavior, privacy regression tests, settings UI, documentation, and release checks.
+- Added two real, anonymous public login screenshots to the README, plus separate login and email design recommendations in docs/DESIGN_DIRECTIONS.md. No user content or private dashboard screenshots were included.
+- Account deletion is **not yet** an unconditional guarantee of permanent removal from database backups, provider logs or external Liveblocks rooms; production verification and vendor deletion procedures are tracked in docs/PRIVACY_RETENTION.md.
+
+
 ## Unreleased · 25 November 2026: welcome mail clarity and inline logo
 
 - Replaced the promotional, multi-panel welcome email with a personal, minimalist welcome, one dashboard link, simpler subject and matching plain-text copy. User names remain escaped and registration still succeeds even if Resend is unavailable.

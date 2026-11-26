@@ -9,6 +9,7 @@
       "destination": "/api/index"
     }
   ],
+  "crons": [{"path": "/api/privacy/cron/retention", "schedule": "0 3 * * *"}],
   "headers": [
     {
       "source": "/api/(.*)",

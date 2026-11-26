@@ -4,6 +4,10 @@ Updated 23 November 2026. This is a prioritized engineering plan, not a claim of
 
 ## Priority 0: release safety and data integrity
 
+- [ ] Deploy and verify reviewed privacy retention work: production CRON_SECRET, scheduling, boundary-date tests, cleanups and monitoring. Implement external Liveblocks and backup erasure before advertising guaranteed 30-day complete deletion.
+- [ ] Capture privacy-safe login, dashboard and notes screenshots for README and maintain them as UI changes.
+- [ ] Choose and implement a calmer login and email design with keyboard accessibility and dark/light compatibility; retain all existing authentication flows.
+
 - [ ] Verify email provider sender domain and the required `RESEND_API_KEY`, `PASSWORD_RESET_FROM_EMAIL` and `PUBLIC_APP_URL` per Vercel environment.
 - [ ] Complete password recovery email delivery, expiry, one-use token, session invalidation and abuse-limit tests using controlled mailboxes.
 - [ ] Verify new-user welcome delivery with a controlled mailbox, correct responsive logo/email-client rendering, first-Google-user trigger, no repeat messages on login and safe behavior when Resend is unavailable.

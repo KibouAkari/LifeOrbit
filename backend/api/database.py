@@ -32,7 +32,9 @@ def ensure_indexes():
     db = get_db()
     db.users.create_index("email", unique=True)
     db.users.create_index("google_id", unique=True, sparse=True)
+    db.users.create_index("deletion_due_at", sparse=True)
     db.tasks.create_index([("user_id", 1), ("order", 1)])
+    db.tasks.create_index([("user_id", 1), ("completed_at", 1)])
     db.events.create_index([("user_id", 1), ("date", 1)])
     db.events.create_index(
         [("user_id", 1), ("source_key", 1)],

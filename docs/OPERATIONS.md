@@ -51,3 +51,7 @@ Never log a reset token, API key, private calendar URL, cookie, bearer token or 
 ## Welcome email operations
 
 A successful Resend API response is **provider acceptance**, not inbox placement. For reported junk mail, inspect the sending identity and SPF/DKIM/DMARC alignment, provider Deliverability Insights, delivery/bounce status and recipient headers. The welcome icon uses a local PNG CID attachment when available with a first-party hosted PNG fallback; verify both in controlled test messages. Existing users can request one welcome message per day from authenticated Settings. Do not perform database-wide mail sends without an approved, consent-aware backfill design.
+
+## Privacy retention job
+
+Vercel Cron invokes `/api/privacy/cron/retention` daily at 03:00 UTC with `Authorization: Bearer $CRON_SECRET`. This endpoint fails closed when the secret is missing or mismatched. Monitor execution and deletion counts; bounded runs are resumable, but failures can delay erasure. Use a staging DB for dry runs. Hosted collaboration room data and backups are not covered by MongoDB-only deletion. See [Privacy retention](PRIVACY_RETENTION.md).

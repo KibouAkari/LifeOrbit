@@ -97,10 +97,13 @@ def invite_member(id:str,payload:MemberInput,user:str=Depends(get_current_user),
                   background_tasks:BackgroundTasks=None):
     db=get_db()
     target=payload.user_id
+    if target==user or not ObjectId.is_valid(target):raise HTTPException(400,"Invalid member")
     with realtime_access_lock(db,user,target), notebook_lock(db,id):
         book=locate(db,id,user)
         if book["owner"]!=user:raise HTTPException(403,"Only the owner can invite members")
-        if target==user or not ObjectId.is_valid(target):raise HTTPException(400,"Invalid member")
+        if not db.users.find_one(
+                {"_id":ObjectId(target),"deletion_due_at":{"$exists":False}},{"_id":1}):
+            raise HTTPException(403,"Only active friends can be invited")
         pair="-".join(sorted((user,target)))
         if not db.friendships.find_one({"pair":pair,"status":"accepted"}):
             raise HTTPException(403,"Only confirmed friends can be invited")
@@ -203,6 +206,11 @@ def delete_notebook(id:str,user:str=Depends(get_current_user),
         if book["owner"]!=user:raise HTTPException(403,"Only the owner can delete this notebook")
         # Remove provider ACL before removing Mongo metadata, preserving safety on failure.
         revoke_book_access(book,locked=True)
+        room_id=notebook_room(str(book["_id"]))
+        if db.realtime_notebooks.find_one({"_id":room_id}):
+            db.realtime_notebooks.update_one(
+                {"_id":room_id},
+                {"$set":{"owner":user,"deleted_at":datetime.now(timezone.utc)}})
         db.shared_notebooks.delete_one({"_id":book["_id"],"owner":user})
     db.notebook_crdts.delete_one({"_id":str(book["_id"])})
     publish_to_users([book["owner"],*book.get("members",[])],"notebooks",background_tasks)
