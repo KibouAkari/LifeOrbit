@@ -21,7 +21,8 @@ from pydantic import BaseModel, Field
 from backend.api.database import get_db
 from backend.api.routes.auth import get_current_user
 from backend.api.security import enforce_limit
-from backend.api.realtime import assert_event_lock, event_lock
+from backend.api.realtime import (assert_event_lock, assert_privacy_user_lock,
+                                  event_lock, privacy_user_lock)
 
 router=APIRouter()
 MAX_BYTES=1024*1024
@@ -145,6 +146,10 @@ def create_feed(payload:FeedInput,request:Request,user:str=Depends(get_current_u
     return output(doc)
 
 def apply_events(db,user,feed,events):
+    with privacy_user_lock(db, user):
+        _apply_events_locked(db, user, feed, events)
+
+def _apply_events_locked(db,user,feed,events):
     # Re-import must not resurrect previously expired calendar events.
     from backend.api.routes.privacy import retention_days
     account = db.users.find_one({"_id": ObjectId(user)}, {"retention_days": 1}) or {}
@@ -156,6 +161,7 @@ def apply_events(db,user,feed,events):
     keys=[]
     for ev in events:
         keys.append(ev["source_key"])
+        assert_privacy_user_lock(db, user)
         db.events.update_one({"user_id":user,"source":"ical_feed","source_id":source_id,
                               "source_key":ev["source_key"]},
                              {"$set":{**ev,"user_id":user,"source":"ical_feed",
@@ -173,12 +179,14 @@ def apply_events(db,user,feed,events):
             with db.client.start_session() as session:
                 with session.start_transaction():
                     for event in candidates:
+                        assert_privacy_user_lock(db, user)
                         assert_event_lock(db, str(event["_id"]))
                         deleted = db.events.find_one_and_delete(
                             {**stale, "_id": event["_id"]}, session=session)
                         if deleted:
                             deleted_ids.append(str(deleted["_id"]))
                     if deleted_ids:
+                        assert_privacy_user_lock(db, user)
                         db.shares.delete_many(
                             {"owner": user, "kind": "event",
                              "resource_id": {"$in": deleted_ids}}, session=session)
@@ -186,6 +194,7 @@ def apply_events(db,user,feed,events):
             break
     feed["count"]=len(events)
     feed["last_synced"]=datetime.now(timezone.utc)
+    assert_privacy_user_lock(db, user)
     db.calendar_feeds.update_one({"_id":feed["_id"]},{"$set":{"count":feed["count"],"last_synced":feed["last_synced"]}})
 
 @router.post("/{feed_id}/refresh")

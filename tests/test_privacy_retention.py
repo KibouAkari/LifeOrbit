@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from bson import ObjectId
 from fastapi import HTTPException, Response
 
-from backend.api.routes import calendar_feeds, privacy
+from backend.api.routes import calendar, calendar_feeds, privacy
 from backend.api.routes import auth
 from backend.api.routes import sharing, shared_notebooks
 
@@ -28,6 +28,8 @@ class PrivacyRetentionTests(unittest.TestCase):
             patch.object(sharing, "assert_privacy_user_lock"),
             patch.object(sharing, "assert_event_lock"),
             patch.object(calendar_feeds, "assert_event_lock"),
+            patch.object(calendar_feeds, "assert_privacy_user_lock"),
+            patch.object(calendar_feeds, "privacy_user_lock", return_value=nullcontext()),
         ]
         for lock_patch in self.lock_assertion_patches:
             lock_patch.start()
@@ -208,6 +210,78 @@ class PrivacyRetentionTests(unittest.TestCase):
                       db.shares.delete_many.call_args.kwargs["session"])
         self.assertEqual(db.client.start_session.call_count, 1)
         self.assertEqual(feed["count"], 1)
+
+    def test_import_reads_preference_and_writes_under_user_lock(self):
+        db = MagicMock()
+        user = str(ObjectId())
+        locked = False
+
+        @contextmanager
+        def lock(*_):
+            nonlocal locked
+            locked = True
+            try:
+                yield
+            finally:
+                locked = False
+
+        def read_user(*_args):
+            self.assertTrue(locked)
+            return {"retention_days": 5}
+
+        def write_event(*_args, **_kwargs):
+            self.assertTrue(locked)
+            return MagicMock(upserted_id=ObjectId())
+
+        db.users.find_one.side_effect = read_user
+        db.events.update_one.side_effect = write_event
+        payload = calendar.IcalImport(content=(
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\n"
+            "UID:future\r\nDTSTART;VALUE=DATE:20990101\r\nEND:VEVENT\r\n"
+            "BEGIN:VEVENT\r\nUID:old\r\nDTSTART;VALUE=DATE:20000101\r\n"
+            "END:VEVENT\r\nEND:VCALENDAR\r\n"))
+        with patch.object(calendar, "get_db", return_value=db), \
+             patch.object(calendar, "privacy_user_lock", side_effect=lock), \
+             patch.object(calendar, "assert_privacy_user_lock",
+                          side_effect=lambda *_: self.assertTrue(locked)):
+            self.assertEqual(calendar.import_ical(payload, user), {"imported": 1, "total": 1})
+        db.events.update_one.assert_called_once()
+
+    def test_feed_reads_preference_and_reconciles_under_user_lock(self):
+        db = MagicMock()
+        user = str(ObjectId())
+        event_id = ObjectId()
+        locked = False
+
+        @contextmanager
+        def lock(*_):
+            nonlocal locked
+            locked = True
+            try:
+                yield
+            finally:
+                locked = False
+
+        def read_user(*_args):
+            self.assertTrue(locked)
+            return {"retention_days": None}
+
+        @contextmanager
+        def event_lock(*_):
+            self.assertTrue(locked)
+            yield
+
+        db.users.find_one.side_effect = read_user
+        db.events.find.side_effect = [Cursor([{"_id": event_id}]), Cursor([])]
+        db.events.find_one_and_delete.return_value = {"_id": event_id}
+        with patch.object(calendar_feeds, "privacy_user_lock", side_effect=lock), \
+             patch.object(calendar_feeds, "event_lock", side_effect=event_lock), \
+             patch.object(calendar_feeds, "assert_privacy_user_lock",
+                          side_effect=lambda *_: self.assertTrue(locked)):
+            calendar_feeds.apply_events(db, user, {"_id": ObjectId(), "name": "Feed"},
+                                        [{"date": "2000-01-01", "source_key": "old"}])
+        self.assertEqual(db.events.update_one.call_count, 1)
+        self.assertEqual(db.shares.delete_many.call_count, 1)
 
     def test_feed_cleanup_batches_event_and_share_deletion(self):
         db = MagicMock()
